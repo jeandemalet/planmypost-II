@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Organisateur de Publications</title>
+    <link rel="stylesheet" href="style.css">
+    <script src="exif.js"></script>
+</head>
+<body>
+    <div id="loadingOverlay" style="position: fixed; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(255,255,255,0.8); z-index: 2000; display: flex; justify-content: center; align-items: center; text-align: center;">
+        <p style="font-size: 1.5em; color: #333;">Initialisation de l'application...</p>
+    </div>
+
+    <div class="app-container">
+        <header class="app-header">
+            <div id="logoPlaceholder">
+                <img src="assets/logo.png" alt="Organisateur de Publications Logo" id="appLogo">
+            </div>
+            <nav id="userActionsPlaceholder">
+                <button class="icon-button" aria-label="Profil">
+                    <img src="assets/profile.png" alt="Profil" class="profile-action-icon">
+                </button>
+                <button class="icon-button" aria-label="Paramètres">
+                    <img src="assets/settings.png" alt="Paramètres" class="profile-action-icon">
+                </button>
+            </nav>
+        </header>
+
+        <div class="tabs">
+            <button class="tab-button" data-tab="galleries">📚 Galeries</button>
+            <button class="tab-button active" data-tab="currentGallery">🖼️ Galerie en cours</button>
+            <button class="tab-button" data-tab="description">📝 Description</button>
+            <button class="tab-button" data-tab="calendar">🗓️ Calendrier</button>
+        </div>
+
+        <div id="galleries" class="tab-content"> 
+            <h2>Gestion des Galeries</h2>
+            <div class="galleries-layout">
+                <div id="galleriesListContainer">
+                    <div class="gallery-management-controls">
+                        <button id="createNewGalleryBtn" class="add-btn-green">
+                            <img src="assets/add-button.png" alt="" class="btn-icon"> Nouvelle Galerie
+                        </button>
+                        <form id="newGalleryForm" style="display:none;">
+                            <input type="text" id="newGalleryNameInput" placeholder="Nom de la nouvelle galerie">
+                            <button type="submit" id="confirmNewGalleryBtn" class="small-confirm-btn">OK</button>
+                            <button type="button" id="cancelNewGalleryBtn" class="small-cancel-btn">X</button>
+                        </form>
+                    </div>
+                    <ul id="galleriesList"></ul>
+                </div>
+                <div id="galleryPreviewArea">
+                    <div id="galleryPreviewHeader" style="display:none;">
+                        <h3 id="galleryPreviewName"></h3>
+                        <button id="openGalleryInEditorBtn">Ouvrir dans l'Éditeur</button>
+                    </div>
+                    <!-- Barre de progression pour l'onglet galerie -->
+                    <div id="galleriesUploadProgressContainer" class="upload-progress-area" style="display:none; margin-bottom: 10px;">
+                        <span id="galleriesUploadProgressText" class="upload-progress-text-label"></span>
+                        <div class="upload-progress-bar-outer">
+                            <div id="galleriesUploadProgressBarInner" class="upload-progress-bar-inner">0%</div>
+                        </div>
+                    </div>
+                    <div id="galleryPreviewGrid"></div>
+                     <p id="galleryPreviewPlaceholder">Sélectionnez une galerie pour voir un aperçu ou la charger.</p>
+                </div>
+            </div>
+        </div>
+
+
+        <div id="currentGallery" class="tab-content">
+            <div class="controls-bar">
+                <button id="addNewImagesBtn" class="add-btn-green">
+                    <img src="assets/add-button.png" alt="" class="btn-icon"> Ajouter
+                </button>
+                <input type="file" id="imageSelector" multiple accept="image/*" style="display: none;">
+                
+                <div class="zoom-controls">
+                    <button id="zoomOutBtn" class="zoom-btn-round">-</button>
+                    <button id="zoomInBtn" class="zoom-btn-round">+</button>
+                </div>
+                <div class="sort-controls">
+                    <label for="sortOptions">Trier par:</label>
+                    <select id="sortOptions">
+                        <option value="name_asc">Nom (A-Z)</option>
+                        <option value="name_desc">Nom (Z-A)</option>
+                        <option value="date_desc">Date Prise (Plus Récente)</option>
+                        <option value="date_asc">Date Prise (Plus Ancienne)</option>
+                    </select>
+                </div>
+                
+                <!-- Barre de progression pour l'onglet currentGallery -->
+                <div id="currentGalleryUploadProgressContainer" class="upload-progress-area" style="display:none; flex-grow:1; margin: 0 10px; max-width: 300px;">
+                    <span id="currentGalleryUploadProgressText" class="upload-progress-text-label"></span>
+                    <div class="upload-progress-bar-outer" style="height:12px;">
+                        <div id="currentGalleryUploadProgressBarInner" class="upload-progress-bar-inner" style="height:100%; line-height:12px;">0%</div>
+                    </div>
+                </div>
+
+                <button id="clearGalleryImagesBtn" class="danger-btn">🗑️ Vider Galerie</button>
+                <div id="statsArea" style="margin-left:auto;">
+                    <span id="statsLabelText">Grille: 0 | Jours: 0</span>
+                </div>
+            </div>
+
+            <div class="main-editor-layout">
+                <div id="imageGridContainer">
+                    <button id="addPhotosPlaceholderBtn" class="add-photos-placeholder">
+                        <img src="assets/add-button.png" alt="" class="btn-icon"> Ajouter des photos
+                    </button>
+                    <div id="imageGrid"></div>
+                </div>
+                <div id="jourFramesArea">
+                    <h3>Jours de Publication</h3>
+                    <div id="jourFramesContainer"></div>
+                    <div class="jour-frames-actions">
+                        <button id="addJourFrameBtn">
+                             <img src="assets/add-button.png" alt="" class="btn-icon"> Ajouter Jour
+                        </button>
+                        <button id="saveAllJourFramesBtn">💾 Tout Enregistrer</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="description" class="tab-content">
+            <h2>Description des Publications</h2>
+            <div class="description-layout">
+                <div id="descriptionJourListPanel">
+                    <h4>Jours de la Galerie Actuelle</h4>
+                    <ul id="descriptionJourList">
+                    </ul>
+                </div>
+                <div id="descriptionEditorPanel">
+                    <h3 id="descriptionEditorTitle">Sélectionnez un jour pour éditer sa description</h3>
+                    <div id="descriptionEditorContent" style="display: none;">
+                        <div class="description-fields">
+                            <label for="descriptionText">Texte de la publication:</label>
+                            <textarea id="descriptionText" rows="10" placeholder="Écrivez votre description ici..."></textarea>
+                            <label for="descriptionHashtags">Hashtags (séparés par des espaces ou des virgules):</label>
+                            <textarea id="descriptionHashtags" rows="3" placeholder="#exemple #hashtag ..."></textarea>
+                        </div>
+                        <button id="saveDescriptionBtn" class="primary-action">💾 Enregistrer cette Description</button>
+                        <div class="description-filter-controls">
+                            <p><em>Fonctionnalités de traitement groupé à venir.</em></p>
+                        </div>
+                    </div>
+                    <p id="descriptionEditorPlaceholder">Aucun jour sélectionné.</p>
+                </div>
+            </div>
+        </div>
+
+
+        <div id="calendar" class="tab-content">
+            <div class="scheduler-header">
+                <h2 id="monthYearLabel">Mois Année</h2>
+                <button id="todayBtn">Aujourd'hui</button>
+            </div>
+            <div id="calendarGrid"></div>
+            <div id="calendarContextPreviewModal" class="modal-preview">
+                <h4 id="calendarContextTitle">Aperçu</h4>
+                <div id="calendarContextImages"></div>
+            </div>
+        </div>
+    </div>
+
+    <div id="cropperModal" class="modal">
+        <div class="modal-content cropper-modal-content">
+            <span class="close-button" id="closeCropperBtn">×</span>
+            <h3>Outil de Recadrage</h3>
+            <div class="cropper-main-area">
+                <div class="cropper-canvas-container">
+                    <canvas id="cropperCanvas"></canvas>
+                </div>
+                <div class="cropper-previews">
+                    <p>Aperçu:</p>
+                    <img id="cropperPreviewLeft" alt="Aperçu Gauche">
+                    <img id="cropperPreviewCenter" alt="Aperçu Milieu">
+                    <img id="cropperPreviewRight" alt="Aperçu Droit">
+                </div>
+            </div>
+            <div class="cropper-controls">
+                <button id="cropPrevImageBtn">◀ Préc.</button>
+                <button id="cropNextImageBtn">Suiv. ▶</button>
+                <button id="cropFlipBtn">Retourner H</button>
+                <select id="cropAspectRatio">
+                    <option value="3:4">3:4 (Vertical)</option>
+                    <option value="1:1">1:1 (Carré)</option>
+                    <option value="16:9">16:9 (Paysage)</option>
+                    <option value="3:2">3:2 (Paysage)</option>
+                    <option value="free">Libre</option>
+                </select>
+                <button id="cropAddWhiteBarsBtn">Barres Blanches (3:4)</button>
+                <button id="cropSplitLineBtn">Mode Split</button> 
+                <button id="cropIgnoreBtn">Ignorer & Suiv.</button>
+                <button id="cropFinishBtn" class="primary-action">Terminer et Appliquer</button>
+            </div>
+            <div id="cropperInfoLabel"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

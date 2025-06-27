@@ -1,0 +1,32 @@
+publication-organizer/
+├── server.js               # Fichier principal du serveur Node.js
+├── package.json
+├── .env                    # Variables d'environnement (connexion DB)
+├── public/                 # Fichiers statiques du frontend
+│   ├── index.html
+│   ├── style.css
+│   ├── script.js           # Frontend JS (modifié)
+│   └── exif.js
+├── uploads/                # Dossier pour stocker les images (sera créé)
+├── models/                 # Modèles Mongoose (schémas DB)
+│   ├── Gallery.js
+│   ├── Image.js
+│   ├── Jour.js
+│   └── Schedule.js
+├── routes/                 # Définitions des routes API
+│   └── api.js
+└── controllers/            # Logique de traitement des routes
+    ├── galleryController.js
+    ├── imageController.js
+    ├── jourController.js
+    └── scheduleController.js
+└── assets/    
+    └── logo.png
+    └── add-button.png
+    └── settings.png
+    └── profile.png
+
+
+Style visuel du UI : 
+
+Glassmorphism verre brossé et transparent, coins arrondis, accents lignes noires marquées et touche de couleur jaune fluo bold. Inspiration Apple, look pro dynamique et responsive.

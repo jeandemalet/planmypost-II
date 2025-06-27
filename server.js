@@ -1,0 +1,53 @@
+require('dotenv').config();
+const express = require('express');
+const mongoose = require('mongoose');
+const cors = require('cors');
+const path = require('path');
+const apiRoutes = require('./routes/api');
+const fse = require('fs-extra');
+const http = require('http'); // Importer le module http
+
+const app = express();
+const PORT = process.env.PORT || 3000;
+const MONGODB_URI = process.env.MONGODB_URI;
+
+app.use(cors());
+app.use(express.json({ limit: '500mb' })); // Augmenté pour des corps de requêtes potentiellement grands (crop base64)
+app.use(express.urlencoded({ extended: true, limit: '500mb', parameterLimit: 100000 })); // Augmenté
+
+mongoose.connect(MONGODB_URI)
+.then(() => console.log('MongoDB Connected'))
+.catch(err => console.error('MongoDB Connection Error:', err));
+
+mongoose.connection.on('error', err => {
+  console.error(`MongoDB connection error: ${err}`);
+  process.exit(-1);
+});
+
+app.use(express.static(path.join(__dirname, 'public')));
+
+const UPLOAD_DIR = path.join(__dirname, 'uploads');
+fse.ensureDirSync(UPLOAD_DIR);
+
+app.use('/api', apiRoutes);
+
+app.get('*', (req, res) => {
+    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+});
+
+// Créer un serveur HTTP et y attacher l'application Express
+const server = http.createServer(app);
+
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+    const TEMP_UPLOAD_DIR = path.join(__dirname, 'temp_uploads');
+    fse.emptyDir(TEMP_UPLOAD_DIR).catch(err => console.error('Failed to clear temp upload dir:', err));
+});
+
+// Augmenter le timeout global du serveur (par exemple, à 15 minutes pour des tests d'upload massifs)
+// Cela affecte toutes les requêtes. Ce n'est pas idéal pour la production.
+const FIFTEEN_MINUTES_IN_MS = 15 * 60 * 1000;
+server.setTimeout(FIFTEEN_MINUTES_IN_MS, () => {
+    console.error('SERVER TIMEOUT: Une requête a pris trop de temps et a été interrompue par le serveur.');
+});
+console.log(`Timeout du serveur HTTP réglé à ${FIFTEEN_MINUTES_IN_MS / 1000 / 60} minutes.`);

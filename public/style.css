@@ -1,0 +1,1207 @@
+
+body {
+    font-family: sans-serif; /* Police sans-serif classique et commune */
+    margin: 0;
+    background-color: #f0f0f0;
+    color: #333;
+    font-size: 16px; /* Base font size */
+}
+
+.app-container {
+    max-width: 100%;
+    margin: 0 auto;
+    box-sizing: border-box;
+}
+
+.app-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 20px;
+    background-color: #fff;
+    border-bottom: 1px solid #ddd;
+    /* Les headers pleine largeur n'ont généralement pas de coins arrondis, sauf s'ils sont flottants */
+}
+
+#logoPlaceholder {
+    height: 40px;
+}
+#appLogo {
+    height: 100%;
+    width: auto;
+    object-fit: contain;
+    display: block;
+}
+
+
+#userActionsPlaceholder {
+    display: flex;
+    gap: 10px;
+}
+.icon-button {
+    background: none;
+    border: none;
+    color: #333;
+    font-size: 1.5em; /* Ajusté pour que l'icône image ne soit pas trop grosse */
+    cursor: pointer;
+    padding: 5px;
+    line-height: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%; /* Pour un bouton icône parfaitement rond */
+}
+.icon-button:hover {
+    background-color: rgba(0,0,0,0.05); /* Léger fond au survol */
+}
+.profile-action-icon { /* Utilisé aussi pour settings.png */
+    width: 28px;
+    height: 28px;
+    object-fit: contain;
+}
+
+
+/* Classe pour les icônes DANS les boutons */
+.btn-icon {
+    width: 18px;
+    height: 18px;
+    margin-right: 6px;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+
+/* Style GÉNÉRAL pour TOUS les boutons qui peuvent contenir une icône + texte */
+button {
+    cursor: pointer;
+    background-color: #e7e7e7;
+    border: 1px solid #ccc;
+    border-radius: 6px; /* Angles arrondis généraux */
+    padding: 6px 12px;
+    font-size: 1em;
+    line-height: 1.4;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    text-decoration: none;
+    white-space: nowrap;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+button:hover {
+    background-color: #ddd;
+}
+button:active {
+    background-color: #ccc;
+}
+button:disabled {
+    background-color: #f5f5f5 !important;
+    color: #aaa !important;
+    cursor: not-allowed !important;
+    border-color: #ddd !important;
+}
+button:disabled .btn-icon,
+button:disabled .profile-action-icon {
+    filter: grayscale(80%);
+    opacity: 0.7;
+}
+
+
+.tabs {
+    display: flex;
+    border-bottom: 1px solid #ccc;
+    margin-bottom: 10px;
+    background-color: #e8e8e8;
+    padding: 0 10px;
+}
+
+.tab-button {
+    padding: 10px 15px;
+    border: 1px solid transparent;
+    border-bottom: none;
+    background-color: #eee;
+    margin-right: 5px;
+    border-radius: 8px 8px 0 0; /* Onglets plus arrondis en haut */
+    margin-top: 5px;
+}
+
+.tab-button.active {
+    background-color: #fff;
+    border-color: #ccc;
+    border-bottom: 1px solid #fff;
+    position: relative;
+    bottom: -1px;
+}
+
+.tab-content {
+    display: none;
+    padding: 15px;
+    border: 1px solid #ccc;
+    border-top: none;
+    background-color: #fff;
+    min-height: calc(100vh - 150px);
+    border-radius: 0 0 8px 8px; /* Arrondir les coins inférieurs du conteneur d'onglet actif */
+}
+
+.tab-content.active {
+    display: block;
+}
+
+#galleries.tab-content.active {
+    display: flex;
+    flex-direction: column;
+}
+.galleries-layout {
+    display: flex;
+    flex-grow: 1;
+    gap: 15px;
+    overflow: hidden;
+}
+
+#galleriesListContainer {
+    width: 350px;
+    min-width: 300px;
+    border-right: 1px solid #ddd;
+    padding-right: 15px;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 220px);
+    /* Pas de border-radius ici car c'est une colonne latérale */
+}
+
+.gallery-management-controls {
+    margin-bottom: 15px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #eee;
+}
+#newGalleryForm {
+    margin-top:10px;
+    gap:5px;
+    align-items:center;
+    display: flex;
+}
+#newGalleryNameInput {
+    padding: 6px;
+    border: 1px solid #ccc;
+    border-radius: 6px; /* Arrondi */
+    flex-grow: 1;
+}
+button.small-confirm-btn, button.small-cancel-btn {
+    padding: 5px 8px;
+    font-size: 0.9em;
+    border-radius: 4px; /* Arrondi plus petit pour petits boutons */
+}
+button.small-cancel-btn {
+    background-color: #f8d7da;
+    border-color: #f5c6cb;
+    color: #721c24;
+}
+button.small-cancel-btn:hover {
+    background-color: #f1b0b7;
+}
+
+
+#galleriesList {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+    flex-grow: 1;
+    overflow-y: auto;
+}
+.gallery-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 5px;
+    border-bottom: 1px solid #eee;
+    border-radius: 4px; /* Arrondir chaque item de liste */
+    margin-bottom: 3px;
+}
+.gallery-list-item:hover {
+    background-color: #f9f9f9;
+}
+.gallery-list-item.selected-for-preview {
+    background-color: #e6f7ff;
+    border-left: 3px solid #007bff;
+}
+.gallery-list-item:last-child {
+    border-bottom: none;
+}
+.gallery-name {
+    font-weight: 500;
+    flex-grow: 1;
+    margin-right: 10px;
+    cursor: pointer;
+    padding: 5px 0;
+}
+.gallery-name:hover {
+    color: #0056b3;
+}
+
+.jour-image-placeholder {
+    width: 60px; /* Ou la taille de vos .jour-image-item */
+    height: 60px;
+    border: 2px dashed #007bff;
+    background-color: rgba(0, 123, 255, 0.1);
+    box-sizing: border-box;
+    margin: 2.5px; /* Pour correspondre au gap si vous en avez un */
+    border-radius: 4px;
+}
+
+.jour-image-item.dragging-jour-item {
+    opacity: 0.5; /* Rend l'élément glissé semi-transparent */
+
+}
+.gallery-name.current-loaded-gallery {
+    color: dodgerblue;
+    font-weight: bold;
+}
+.gallery-actions button {
+    margin-left: 5px;
+    font-size: 0.8em;
+    padding: 4px 6px;
+    border-radius: 4px; /* Arrondi pour petits boutons d'action */
+}
+
+#galleryPreviewArea {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    height: calc(100vh - 220px);
+    background-color: #f7f7f7;
+    padding: 10px;
+    border: 1px solid #e0e0e0;
+    border-radius: 8px; /* Arrondi pour cette zone principale */
+}
+#galleryPreviewPlaceholder {
+    text-align: center;
+    color: #777;
+    margin-top: 20px;
+    font-style: italic;
+}
+#galleryPreviewHeader {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid #ddd;
+}
+#galleryPreviewHeader h3 {
+    margin: 0;
+}
+#openGalleryInEditorBtn {
+    background-color: #007bff;
+    color: white;
+    border-radius: 6px; /* Arrondi */
+}
+#openGalleryInEditorBtn:hover {
+    background-color: #0056b3;
+}
+
+#galleryPreviewGrid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 8px;
+    flex-grow: 1;
+    overflow-y: auto;
+    position: relative;
+}
+.preview-grid-item {
+    position: relative;
+    border-radius: 4px; /* Arrondir les items de la preview grid */
+}
+.preview-delete-btn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background-color: rgba(220, 53, 69, 0.7);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    line-height: 1;
+    text-align: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+    z-index: 10;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+.preview-grid-item:hover .preview-delete-btn {
+    opacity: 1;
+}
+.preview-delete-btn:hover {
+    background-color: #dc3545;
+}
+
+#galleryPreviewGrid .grid-item {
+    width: 100px;
+    height: 100px;
+    border: 1px solid #ccc;
+    background-color: white;
+    overflow: hidden;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: default;
+    border-radius: 4px; /* Arrondi */
+}
+#galleryPreviewGrid .grid-item img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    border-radius: 3px; /* Léger arrondi pour l'image elle-même si elle ne remplit pas */
+}
+#galleryPreviewGrid .grid-item .order-text,
+#galleryPreviewGrid .grid-item .grid-item-delete-btn:not(.preview-delete-btn) {
+    display: none;
+}
+
+
+.controls-bar {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px;
+    background-color: #f9f9f9;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+    border-radius: 8px; /* Arrondi pour la barre de contrôle */
+}
+
+.controls-bar button {
+    padding: 7px 12px;
+    border-radius: 6px; /* Arrondi pour boutons dans la barre */
+}
+
+.add-btn-green {
+    background-color: #28a745;
+    color: white;
+}
+.add-btn-green:hover {
+    background-color: #218838;
+}
+.add-btn-green .btn-icon {
+    filter: brightness(0) invert(1);
+}
+
+.danger-btn {
+    background-color: #dc3545;
+    color: white;
+}
+.danger-btn:hover {
+    background-color: #c82333;
+}
+.danger-btn-small {
+    background-color: #ef767f;
+    color: white;
+    font-size: 0.8em !important;
+    padding: 4px 8px !important;
+    border-radius: 4px; /* Arrondi */
+}
+.danger-btn-small:hover {
+    background-color: #dc3545;
+}
+
+
+.zoom-controls {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.zoom-btn-round {
+    width: 30px;
+    height: 30px;
+    border-radius: 50%; /* Déjà rond, c'est bien */
+    padding: 0;
+    font-size: 1.2em;
+    line-height: 1;
+    text-align: center;
+    border: 1px solid #ccc;
+    background-color: #f0f0f0;
+}
+
+.sort-controls {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+.controls-bar label {
+    margin-right: 5px;
+    white-space: nowrap;
+}
+.controls-bar select {
+    padding: 7px 8px;
+    border: 1px solid #ccc;
+    border-radius: 6px; /* Arrondi */
+    font-size: 0.9em;
+    background-color: white;
+}
+
+#statsArea {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+#statsLabelText {
+    font-size: 0.9em;
+    color: #555;
+    white-space: nowrap;
+}
+#uploadProgressContainer {
+    font-size: 0.9em;
+    color: #007bff;
+    white-space: nowrap;
+}
+
+
+.main-editor-layout {
+    display: flex;
+    height: calc(100vh - 250px);
+    gap: 10px;
+}
+
+#imageGridContainer {
+    flex-grow: 1;
+    overflow-y: auto;
+    border: 1px solid #ccc;
+    padding: 5px;
+    background-color: #e9e9e9;
+    position: relative;
+    border-radius: 8px; /* Arrondi */
+}
+
+.add-photos-placeholder {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    padding: 12px 20px;
+    font-size: 1.1em;
+    background-color: #007bff;
+    color: white;
+    border-radius: 6px; /* Arrondi */
+    display: none;
+}
+.add-photos-placeholder:hover {
+    background-color: #0056b3;
+}
+.add-photos-placeholder .btn-icon {
+    width: 22px;
+    height: 22px;
+    filter: brightness(0) invert(1);
+}
+.add-photos-preview-btn .btn-icon {
+    filter: brightness(0) invert(1);
+}
+
+
+#imageGrid {
+    display: grid;
+    gap: 5px;
+    padding: 5px;
+}
+
+.grid-item {
+    position: relative;
+    border: 1px solid #ccc;
+    background-color: white; /* S'assure que le fond est blanc pour les "barres blanches" */
+    overflow: hidden;
+    cursor: pointer;
+    display: flex; 
+    justify-content: center; 
+    align-items: center; 
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    border-radius: 4px; /* Bords arrondis pour le conteneur */
+}
+.grid-item canvas,
+.grid-item img {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain; /* MODIFIÉ: Assure que l'image est entière, les barres blanches sont le fond du .grid-item */
+    /* border-radius: 3px; Supprimé pour que l'image aille jusqu'aux bords si elle est carrée,
+                           et que les barres blanches fassent partie du conteneur arrondi.
+                           Si l'image est plus petite que le conteneur à cause de son ratio,
+                           elle n'aura pas ses propres bords arrondis, ce qui est l'effet désiré. */
+}
+.grid-item.used {
+    opacity: 0.6;
+}
+.grid-item .order-text {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-weight: bold;
+    font-size: 24px;
+    color: red;
+    text-shadow: 0 0 3px white, 0 0 5px white;
+    pointer-events: none;
+    display: none;
+}
+.grid-item-delete-btn {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background-color: rgba(220, 53, 69, 0.7);
+    color: white;
+    border: none;
+    border-radius: 50%; /* Rond pour le bouton X */
+    width: 20px;
+    height: 20px;
+    font-size: 12px;
+    line-height: 1;
+    text-align: center;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+}
+.grid-item:hover .grid-item-delete-btn {
+    opacity: 1;
+}
+.grid-item-delete-btn:hover {
+    background-color: #dc3545;
+}
+
+
+#jourFramesArea {
+    width: 380px;
+    min-width: 320px;
+    border: 1px solid #ccc;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    background-color: #f9f9f9;
+    border-radius: 8px; /* Arrondi */
+}
+#jourFramesArea h3 {
+    margin-top: 0;
+    text-align: center;
+    border-bottom: 1px solid #eee;
+    padding-bottom: 5px;
+}
+
+#jourFramesContainer {
+    flex-grow: 1;
+    overflow-y: auto;
+    padding: 5px 0;
+}
+
+.jour-frame {
+    border: 1px solid #ddd;
+    margin-bottom: 10px;
+    padding: 8px;
+    background-color: #fff;
+    border-radius: 6px; /* Arrondi pour chaque cadre de jour */
+}
+.jour-frame.current {
+    border-color: dodgerblue;
+    box-shadow: 0 0 5px dodgerblue;
+}
+.jour-frame-label {
+    font-weight: bold;
+    margin-bottom: 5px;
+    padding: 8px 10px;
+    border-bottom: 1px solid #eee;
+    width: 100%;
+    text-align: left;
+    background-color: #f0f0f0;
+    border: 1px solid #ccc;
+    border-radius: 6px; /* Arrondi */
+    cursor: pointer;
+    display: block;
+    box-sizing: border-box;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+.jour-frame-label:hover {
+    background-color: #e0e0e0;
+}
+.jour-frame.current .jour-frame-label {
+    background-color: dodgerblue;
+    color: white;
+    border-color: darkblue;
+}
+.jour-frame.jour-frame-processed .jour-frame-label {
+    background-color: #d4edda;
+    border-color: #c3e6cb;
+    color: #155724;
+}
+.jour-frame.jour-frame-processed.current .jour-frame-label {
+    background-color: #2a9fd6;
+    border-color: #238ac0;
+    color: white;
+}
+
+.jour-frame-canvas-wrapper {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    min-height: 80px;
+    background-color: #f0f0f0;
+    padding: 5px;
+    border-radius: 6px; /* Arrondi */
+    align-content: flex-start;
+}
+.jour-image-item {
+    width: 60px;
+    height: 60px;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-color: #eee;
+    border: 1px solid #ccc;
+    position: relative;
+    cursor: grab;
+    border-radius: 4px; /* Arrondi pour les images dans les jours */
+}
+.jour-image-item .delete-btn {
+    position: absolute;
+    top: -5px;
+    right: -5px;
+    background-color: rgba(255, 0, 0, 0.7);
+    color: white;
+    border-radius: 50%; /* Rond */
+    width: 18px;
+    height: 18px;
+    text-align: center;
+    line-height: 16px;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: bold;
+}
+.jour-image-item .delete-btn:hover {
+    background-color: red;
+}
+
+.jour-frame-buttons {
+    margin-top: 8px;
+    display: flex;
+    gap: 5px;
+    flex-wrap: wrap;
+}
+.jour-frame-buttons button {
+    padding: 4px 8px;
+    font-size: 0.8em;
+    flex-grow: 1;
+    min-width: 60px;
+    border-radius: 4px; /* Arrondi */
+}
+
+.jour-frames-actions {
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+    display: flex;
+    gap: 10px;
+}
+.jour-frames-actions button {
+    flex-grow: 1;
+    border-radius: 6px; /* Arrondi */
+}
+
+
+.scheduler-header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    padding: 10px;
+    background-color: #f9f9f9;
+    border-bottom: 1px solid #ddd;
+    border-radius: 8px 8px 0 0; /* Arrondir le haut du header du calendrier */
+}
+.scheduler-header h2 {
+    margin: 0;
+    font-size: 1.2em;
+}
+.scheduler-header #todayBtn {
+    position: absolute;
+    right: 10px;
+    border-radius: 6px; /* Arrondi */
+}
+
+#calendarGrid {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    gap: 1px;
+    background-color: #ccc;
+    border: 1px solid #ccc;
+    border-top: none; /* La bordure sup est sur le header */
+    flex-grow: 1;
+    overflow-y: hidden;
+    position: relative;
+    transition: opacity 0.2s ease-in-out;
+    border-radius: 0 0 8px 8px; /* Arrondir le bas de la grille calendrier */
+}
+#calendarGrid.fade-out {
+    opacity: 0;
+}
+#calendarGrid.fade-in {
+    opacity: 1;
+}
+
+
+.calendar-header-cell, .calendar-day-cell {
+    background-color: #fff;
+    padding: 5px;
+    min-height: 100px;
+    display: flex;
+    flex-direction: column;
+    /* Pas de border-radius individuel pour les cellules pour garder la grille nette */
+}
+.calendar-header-cell {
+    font-weight: bold;
+    text-align: center;
+    background-color: #e9e9e9;
+    min-height: auto;
+    padding: 8px 5px;
+}
+.calendar-day-cell .day-number {
+    font-size: 0.8em;
+    text-align: right;
+    color: #777;
+}
+.calendar-day-cell.today .day-number {
+    font-weight: bold;
+    color: dodgerblue;
+}
+.calendar-day-cell.other-month {
+    background-color: #f7f7f7;
+}
+.calendar-day-cell.other-month .day-number {
+    color: #bbb;
+}
+.calendar-day-cell.past-day {
+    background-color: #efefef;
+}
+.calendar-day-cell.past-day .day-number {
+    color: #aaa;
+}
+
+.scheduled-item {
+    background-color: lightblue;
+    color: white;
+    padding: 3px 5px;
+    border-radius: 4px; /* Arrondi pour les items planifiés */
+    font-size: 0.75em;
+    margin-top: 3px;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+}
+.scheduled-item-main-content {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+.scheduled-item-icon {
+    margin-right: 4px;
+    font-size: 0.9em;
+}
+.scheduled-item-text {
+    flex-grow: 1;
+}
+.scheduled-item-gallery-name {
+    font-size: 0.8em;
+    color: #f0f0f0;
+    margin-top: 2px;
+    width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+.scheduled-item-thumb {
+    width: 20px;
+    height: 20px;
+    background-size: cover;
+    background-position: center;
+    border: 1px solid rgba(0,0,0,0.1);
+    margin-left: 5px;
+    display: inline-block;
+    font-size: 0.7em;
+    line-height: 18px;
+    text-align: center;
+    color: #555;
+    background-color: #eee;
+    flex-shrink: 0;
+    border-radius: 3px; /* Arrondi pour la miniature */
+}
+
+.modal-preview {
+    position: fixed;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+    padding: 10px;
+    z-index: 1001;
+    display: none;
+    max-width: 300px;
+    border-radius: 8px; /* Arrondi */
+}
+.modal-preview h4 { margin-top: 0; font-size: 0.9em; }
+#calendarContextImages img {
+    max-width: 50px;
+    max-height: 50px;
+    margin: 2px;
+    border: 1px solid #eee;
+    border-radius: 4px; /* Arrondi */
+}
+
+.modal {
+    display: none;
+    position: fixed;
+    z-index: 1000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0,0,0,0.4);
+    align-items: center;
+    justify-content: center;
+}
+.modal-content {
+    background-color: #fefefe;
+    margin: auto;
+    padding: 20px;
+    border: 1px solid #888;
+    border-radius: 8px; /* Arrondi général pour les modales */
+    position: relative;
+}
+.cropper-modal-content {
+    width: 90%;
+    max-width: 1200px;
+    height: 90vh;
+    display: flex;
+    flex-direction: column;
+    border-radius: 10px; /* Un peu plus pour une grande modale */
+}
+.close-button {
+    color: #aaa;
+    position: absolute;
+    top: 10px;
+    right: 15px;
+    font-size: 28px;
+    font-weight: bold;
+    cursor: pointer;
+}
+.close-button:hover, .close-button:focus {
+    color: black;
+}
+
+.cropper-main-area {
+    display: flex;
+    flex-grow: 1;
+    gap: 15px;
+    overflow: hidden;
+    margin-bottom: 15px;
+}
+.cropper-canvas-container {
+    flex-grow: 1;
+    background-color: #ddd;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+    min-width: 0;
+    border-radius: 6px; /* Arrondi */
+}
+#cropperCanvas {
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
+    cursor: crosshair;
+    background-color: white;
+    /* Le canvas lui-même n'a pas de border-radius visible, c'est son conteneur */
+}
+.cropper-previews {
+    width: 240px;
+    min-width: 240px;
+    padding: 10px;
+    border: 1px solid #ccc;
+    background-color: #f9f9f9;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    overflow-y: auto;
+    border-radius: 6px; /* Arrondi */
+}
+.cropper-previews p {
+    margin-top: 0;
+    margin-bottom: 5px;
+    font-weight: bold;
+    text-align: center;
+    width: 100%;
+    align-self: center;
+}
+
+#cropperPreviewLeft, #cropperPreviewCenter, #cropperPreviewRight {
+    max-width: 100%;
+    border: 1px solid #ddd;
+    margin-bottom: 10px;
+    background-color: lightgrey;
+    object-fit: contain;
+    align-self: flex-start;
+    border-radius: 4px; /* Arrondi pour les aperçus */
+}
+
+.cropper-previews.split-active,
+.cropper-previews.double-split-active {
+    flex-direction: row;
+    flex-wrap: nowrap;
+    justify-content: space-around;
+}
+.cropper-previews.split-active #cropperPreviewLeft,
+.cropper-previews.split-active #cropperPreviewRight {
+    width: calc(50% - 8px);
+    max-width: 100px;
+    height: auto;
+    margin-left: 4px;
+    margin-right: 4px;
+    margin-bottom: 5px;
+}
+.cropper-previews.double-split-active #cropperPreviewLeft,
+.cropper-previews.double-split-active #cropperPreviewCenter,
+.cropper-previews.double-split-active #cropperPreviewRight {
+    width: calc(33.33% - 8px);
+    max-width: 70px;
+    height: auto;
+    margin-left: 3px;
+    margin-right: 3px;
+    margin-bottom: 5px;
+}
+
+
+#cropperPreviewCenter { display: none; }
+#cropperPreviewRight { display: none; }
+
+.cropper-previews.split-active #cropperPreviewRight,
+.cropper-previews.double-split-active #cropperPreviewRight,
+.cropper-previews.double-split-active #cropperPreviewCenter {
+    display: inline-block;
+}
+.cropper-previews.split-active #cropperPreviewLeft,
+.cropper-previews.double-split-active #cropperPreviewLeft {
+     display: inline-block;
+}
+
+
+.cropper-controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    padding-top: 10px;
+    border-top: 1px solid #eee;
+}
+.cropper-controls button, .cropper-controls select {
+    padding: 8px 12px;
+    border-radius: 6px; /* Arrondi */
+}
+.cropper-controls .primary-action {
+    background-color: dodgerblue;
+    color: white;
+    border-color: dodgerblue;
+}
+.cropper-controls .primary-action:hover {
+    background-color: #007bff;
+}
+
+
+.cropper-controls button.active-crop-btn {
+    background-color: #a0e0a0;
+    border-color: #8fbc8f;
+    box-shadow: inset 0 1px 3px rgba(0,0,0,0.2);
+}
+
+
+#cropperInfoLabel {
+    margin-top: 10px;
+    font-size: 0.9em;
+    color: #555;
+}
+
+.jour-frame-canvas-wrapper.drag-over {
+    outline: 2px dashed dodgerblue;
+    background-color: #e0efff;
+}
+.calendar-day-cell.drag-over-day {
+    background-color: #e6f7ff;
+    outline: 1px dashed dodgerblue;
+}
+.dragging-schedule-item {
+    opacity: 0.5;
+}
+
+
+/* Styles pour l'onglet Description */
+.description-layout {
+    display: flex;
+    gap: 15px;
+    height: calc(100vh - 200px);
+}
+
+#descriptionJourListPanel {
+    width: 250px;
+    min-width: 200px;
+    border-right: 1px solid #ddd;
+    padding-right: 15px;
+    overflow-y: auto;
+}
+#descriptionJourListPanel h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.1em;
+    color: #333;
+}
+
+#descriptionJourList {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+
+#descriptionJourList li {
+    padding: 8px 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    border-radius: 6px; /* Arrondi */
+    margin-bottom: 3px;
+}
+
+#descriptionJourList li:hover {
+    background-color: #f0f0f0;
+}
+
+#descriptionJourList li.active-description-jour {
+    background-color: #007bff;
+    color: white;
+    font-weight: bold;
+}
+
+#descriptionEditorPanel {
+    flex-grow: 1;
+    padding-left: 15px;
+    display: flex;
+    flex-direction: column;
+}
+#descriptionEditorPanel h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #333;
+}
+
+.description-fields {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 15px;
+}
+
+.description-fields label {
+    font-weight: bold;
+    margin-bottom: 3px;
+}
+
+.description-fields textarea {
+    width: 100%;
+    padding: 8px;
+    border: 1px solid #ccc;
+    border-radius: 6px; /* Arrondi */
+    font-family: sans-serif;
+    font-size: 1em;
+    box-sizing: border-box;
+}
+
+#saveDescriptionBtn {
+    align-self: flex-start;
+    padding: 8px 15px;
+    border-radius: 6px; /* Arrondi */
+}
+
+.description-filter-controls {
+    margin-top: 20px;
+    padding-top: 15px;
+    border-top: 1px dashed #ddd;
+}
+.description-filter-controls label,
+.description-filter-controls select,
+.description-filter-controls button {
+    display: block;
+    margin-bottom: 8px;
+}
+.description-filter-controls select {
+    width: 100%;
+    padding: 8px;
+    border-radius: 6px; /* Arrondi */
+}
+
+
+.upload-progress-area {
+    margin-top: 5px; /* Ajusté pour controls-bar */
+    padding: 5px 8px; /* Plus petit pour s'intégrer */
+    background-color: #f0f0f0;
+    border-radius: 6px;
+    border: 1px solid #ddd;
+    box-sizing: border-box;
+}
+
+.upload-progress-text-label {
+    display: block;
+    font-size: 0.8em; /* Plus petit pour s'intégrer */
+    margin-bottom: 3px;
+    color: #333;
+    text-align: center;
+}
+
+.upload-progress-bar-outer {
+    width: 100%;
+    height: 12px; /* Hauteur standard pour controls-bar */
+    background-color: #e9ecef; /* Fond plus clair */
+    border: 1px solid #ced4da; /* Bordure subtile */
+    border-radius: 4px;
+    overflow: hidden;
+    box-sizing: border-box;
+}
+
+.upload-progress-bar-inner {
+    width: 0%;
+    height: 100%;
+    background-color: #28a745; /* Vert standard Bootstrap pour succès */
+    border-radius: 3px; 
+    transition: width 0.1s ease-out; /* Transition plus rapide pour la progression */
+    text-align: center;
+    line-height: 12px; /* Ajusté à la hauteur de la barre */
+    color: white;
+    font-size: 0.75em; /* Petit texte pour le pourcentage */
+    font-weight: bold;
+}
+
+/* Ajustement pour la barre dans l'onglet Galeries */
+#galleries #galleriesUploadProgressContainer {
+    margin-top: 0; /* S'il est en haut de la preview area */
+    margin-bottom: 10px;
+    padding: 8px;
+}
+#galleries #galleriesUploadProgressText {
+    font-size: 0.9em;
+}
+#galleries .upload-progress-bar-outer {
+    height: 15px;
+}
+#galleries .upload-progress-bar-inner {
+    line-height: 15px;
+    font-size: 0.8em;
+}
+
