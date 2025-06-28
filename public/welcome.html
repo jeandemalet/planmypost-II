@@ -1,3 +1,6 @@
+// ===============================
+//  Fichier: public/welcome.html (Modifié)
+// ===============================
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -723,7 +726,7 @@
 
 <script>
     // AJOUT: Script pour la connexion Google
-    // Remplacez par votre propre ID Client Google
+    // REMARQUE : N'oubliez pas de remplacer 'YOUR_GOOGLE_CLIENT_ID...' par votre véritable ID client Google.
     const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
 
     function handleCredentialResponse(response) {
@@ -743,7 +746,7 @@
                 picture: userData.picture,
                 token: idToken
             }));
-            window.location.href = '/index.html'; // Ou /app si configuré dans server.js
+            window.location.href = '/index.html'; // Redirige vers l'application principale après connexion
         } catch (error) {
             console.error("Error decoding JWT or processing user data:", error);
             const errorMsgEl = document.getElementById('authErrorMessage');
