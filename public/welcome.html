@@ -1,13 +1,10 @@
-// ===============================
-//  Fichier: public/welcome.html (Modifié)
-// ===============================
 <!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Plan My Post - Bienvenue</title>
-    <!-- AJOUT: SDK Google Sign-In -->
+    <!-- SDK Google Sign-In -->
     <script src="https://accounts.google.com/gsi/client" async defer></script>
     <style>
         @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
@@ -89,7 +86,6 @@
         .delay-350 { transition-delay: 0.35s !important; } .delay-400 { transition-delay: 0.4s !important; }
         .delay-450 { transition-delay: 0.45s !important; } .delay-500 { transition-delay: 0.5s !important; }
 
-        /* --- HERO SECTION --- */
         #hero {
             background: linear-gradient(140deg, #f0f4f8 0%, #e6eef5 100%);
             min-height: 95vh;
@@ -153,16 +149,16 @@
         }
         #hero .subtitle { font-size: 1.38em; color: var(--text-secondary); margin-bottom: 40px; max-width: 780px; line-height: 1.7; position: relative; z-index: 1;}
 
-        /* AJOUT: Styles pour le conteneur du bouton Google et message d'erreur */
         .cta-button-container {
-            margin-top: 25px; /* Ajusté pour un meilleur espacement */
+            margin-top: 25px;
             position: relative;
             z-index: 1;
+            min-height: 40px;
         }
         #googleSignInButtonDiv {
-            display: inline-block; /* Pour que le bouton Google s'affiche correctement */
+            display: inline-block;
             box-shadow: 0 4px 15px rgba(0,0,0,0.1);
-            border-radius: 25px; /* Pour correspondre au style "pill" si utilisé */
+            border-radius: 25px;
         }
          .error-message {
             color: red;
@@ -170,7 +166,6 @@
             font-weight: bold;
             font-size: 0.9em;
         }
-        /* FIN AJOUT */
 
 
         .scroll-down-arrow-link {
@@ -464,7 +459,6 @@
             .dot, .square-anim { width: 10px; height: 10px; }
             .steps-container { flex-direction: column; align-items: center; gap: 18px; }
             .step-card { min-width: 85%; max-width: 95%; padding: 20px; }
-            /* MODIFICATION: Rendre le bouton Google réactif s'il existe */
             #googleSignInButtonDiv { max-width: 100%; }
             .audience-card h4 {font-size: 1.1em;} .audience-card p {font-size: 0.85em;}
             .testimonial-card p.quote {font-size: 0.95em;}
@@ -521,12 +515,10 @@
             Gagnez des heures précieuses chaque semaine, publiez avec une constance professionnelle et oubliez le stress de la dernière minute. Plan My Post est votre cockpit créatif tout-en-un.
         </p>
 
-        <!-- MODIFIÉ: Remplacement du bouton CTA par le conteneur de connexion Google -->
         <div class="cta-button-container reveal-item delay-300">
             <div id="googleSignInButtonDiv"></div>
             <p id="authErrorMessage" class="error-message" style="display:none;"></p>
         </div>
-        <!-- FIN MODIFIÉ -->
 
         <a href="#intro-dots-animation" class="scroll-down-arrow-link reveal-item delay-400" aria-label="Faire défiler vers le bas">
             <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -546,7 +538,6 @@
             Visualisez la puissance de l'organisation. Plan My Post rassemble vos idées éparses, vos images multiples et vos inspirations en un plan d'action structuré et prêt à performer.
         </p>
         <div id="intro-dots-visual" class="reveal-item delay-200">
-            <!-- Points pour l'animation d'intro (gérés par JS) -->
         </div>
     </section>
 
@@ -566,7 +557,6 @@
                     <p class="reveal-item delay-350">Vos images, parfaitement rangées. Créez des galeries par projet ou par thème. L'import en masse et la lecture des dates EXIF vous font gagner un temps précieux. Suivez facilement les versions originales et celles que vous avez optimisées.</p>
                 </div>
                 <div class="feature-visual reveal-item delay-200" id="gallery-visual">
-                    <!-- Icônes photo générées et animées -->
                 </div>
             </div>
         </div>
@@ -664,7 +654,6 @@
            De l'inspiration initiale à la publication finale, découvrez un flux de travail optimisé.
         </p>
         <div id="dots-animation-container" class="reveal-item delay-200">
-            <!-- Carrés animés (gérés par JS) -->
         </div>
         <div class="steps-container">
             <div class="step-card reveal-item delay-300">
@@ -716,49 +705,87 @@
         <p class="section-intro reveal-item delay-100">
             Rejoignez la communauté des créateurs qui ont choisi la sérénité et l'efficacité. Plan My Post vous attend.
         </p>
-        <!-- MODIFIÉ: Ce bouton devrait aussi mener à la connexion ou à l'app si déjà connecté -->
-        <!-- Pour la simplicité, on peut le laisser tel quel ou le remplacer par un autre bouton de connexion Google -->
-        <!-- Ou, s'il y a un script pour vérifier si l'user est connecté, le faire pointer vers /index.html -->
         <div class="cta-button-container reveal-item delay-200">
-             <div id="googleSignInButtonDivFinalCta"></div> <!-- Un deuxième emplacement pour le bouton si besoin -->
+             <div id="googleSignInButtonDivFinalCta"></div>
         </div>
     </section>
 
 <script>
-    // AJOUT: Script pour la connexion Google
-    // REMARQUE : N'oubliez pas de remplacer 'YOUR_GOOGLE_CLIENT_ID...' par votre véritable ID client Google.
-    const GOOGLE_CLIENT_ID = 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com';
+    // ID Client Google OAuth
+    const GOOGLE_CLIENT_ID = '20504385379-1fkmerpv5kdohra8u2bt892kn1bmehhe.apps.googleusercontent.com';
 
-    function handleCredentialResponse(response) {
+    async function handleCredentialResponse(response) {
+        const errorMsgEl = document.getElementById('authErrorMessage');
         try {
             const idToken = response.credential;
-            const base64Url = idToken.split('.')[1];
-            const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-            const jsonPayload = decodeURIComponent(atob(base64).split('').map(function(c) {
-                return '%' + ('00' + c.charCodeAt(0).toString(16)).slice(-2);
-            }).join(''));
 
-            const userData = JSON.parse(jsonPayload);
+            // Envoyer le token au backend pour vérification
+            const res = await fetch('/api/auth/google-signin', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ token: idToken }),
+            });
 
-            localStorage.setItem('publicationOrganizerUser', JSON.stringify({
-                name: userData.name,
-                email: userData.email,
-                picture: userData.picture,
-                token: idToken
-            }));
-            window.location.href = '/index.html'; // Redirige vers l'application principale après connexion
+            if (!res.ok) {
+                const errorData = await res.json().catch(() => ({ message: 'Une erreur inconnue est survenue.' }));
+                throw new Error(errorData.message || `Le serveur a répondu avec le statut ${res.status}`);
+            }
+
+            const { token, user } = await res.json();
+
+            // Stocker le token de notre application et les informations utilisateur
+            localStorage.setItem('publicationOrganizerUser', JSON.stringify(user));
+            localStorage.setItem('publicationOrganizerToken', token);
+
+            window.location.href = '/index.html'; // Rediriger vers l'application principale
+
         } catch (error) {
-            console.error("Error decoding JWT or processing user data:", error);
-            const errorMsgEl = document.getElementById('authErrorMessage');
+            console.error("Erreur lors de la connexion:", error);
             if(errorMsgEl) {
-                errorMsgEl.textContent = "Erreur lors de la connexion. Veuillez réessayer.";
+                errorMsgEl.textContent = `Erreur de connexion: ${error.message}. Veuillez réessayer.`;
                 errorMsgEl.style.display = 'block';
             }
         }
     }
 
     window.onload = function () {
-        // Animation et observateurs existants
+        if (GOOGLE_CLIENT_ID.startsWith('xxxxxxxx-xxxxxxxx')) {
+            const errorMsgEl = document.getElementById('authErrorMessage');
+            if(errorMsgEl) {
+                errorMsgEl.textContent = "Erreur de configuration : ID Client Google manquant.";
+                errorMsgEl.style.display = 'block';
+            }
+            console.error("ERREUR: Veuillez configurer votre ID Client Google dans le script de welcome.html");
+            const heroButtonDiv = document.getElementById('googleSignInButtonDiv');
+            if (heroButtonDiv) heroButtonDiv.style.display = 'none';
+            const finalCtaButtonDiv = document.getElementById('googleSignInButtonDivFinalCta');
+            if (finalCtaButtonDiv) finalCtaButtonDiv.style.display = 'none';
+        } else {
+            google.accounts.id.initialize({
+                client_id: GOOGLE_CLIENT_ID,
+                callback: handleCredentialResponse,
+                auto_select: false
+            });
+
+            const heroButtonDiv = document.getElementById('googleSignInButtonDiv');
+            if (heroButtonDiv) {
+                google.accounts.id.renderButton(
+                    heroButtonDiv,
+                    { theme: 'outline', size: 'large', type: 'standard', text: 'continue_with', shape: 'pill', logo_alignment: 'left' }
+                );
+            }
+            
+            const finalCtaButtonDiv = document.getElementById('googleSignInButtonDivFinalCta');
+            if (finalCtaButtonDiv) {
+                 google.accounts.id.renderButton(
+                    finalCtaButtonDiv,
+                    { theme: 'filled_black', size: 'large', type: 'standard', text: 'continue_with', shape: 'pill', logo_alignment: 'left' }
+                );
+            }
+        }
+
         const observerOptions = {
             root: null,
             rootMargin: '0px 0px -10% 0px',
@@ -1026,48 +1053,6 @@
 
         setupAnimatedElements('intro-dots-visual', 50, ['var(--neon-yellow)', '#4ECDC4', '#FF6B6B'], "dot");
         setupAnimatedElements('dots-animation-container', 40, ['#7B68EE', '#1E90FF', '#FFD700', '#3CB371'], "square");
-
-
-        // AJOUT: Initialisation Google Sign-In
-        if (GOOGLE_CLIENT_ID === 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com') {
-            const errorMsgEl = document.getElementById('authErrorMessage');
-            if(errorMsgEl) {
-                errorMsgEl.textContent = "Configuration Google Client ID manquante.";
-                errorMsgEl.style.display = 'block';
-            }
-            console.error("ERREUR: Veuillez configurer votre ID Client Google dans welcome.html");
-            // Masquer les boutons si l'ID client n'est pas configuré
-            const heroButtonDiv = document.getElementById('googleSignInButtonDiv');
-            if (heroButtonDiv) heroButtonDiv.style.display = 'none';
-            const finalCtaButtonDiv = document.getElementById('googleSignInButtonDivFinalCta');
-            if (finalCtaButtonDiv) finalCtaButtonDiv.style.display = 'none';
-            return;
-        }
-
-        google.accounts.id.initialize({
-            client_id: GOOGLE_CLIENT_ID,
-            callback: handleCredentialResponse,
-            auto_select: false
-        });
-
-        // Rendre le bouton dans la section Hero
-        const heroButtonDiv = document.getElementById('googleSignInButtonDiv');
-        if (heroButtonDiv) {
-            google.accounts.id.renderButton(
-                heroButtonDiv,
-                { theme: 'outline', size: 'large', type: 'standard', text: 'signin_with', shape: 'pill', logo_alignment: 'left' }
-            );
-        }
-        
-        // Rendre le bouton dans la section Final CTA (si l'élément existe)
-        const finalCtaButtonDiv = document.getElementById('googleSignInButtonDivFinalCta');
-        if (finalCtaButtonDiv) {
-             google.accounts.id.renderButton(
-                finalCtaButtonDiv,
-                { theme: 'filled_black', size: 'large', type: 'standard', text: 'continue_with', shape: 'pill', logo_alignment: 'left' }
-            );
-        }
-        // google.accounts.id.prompt(); // Optionnel: Affiche le "One Tap" prompt
     };
 </script>
 

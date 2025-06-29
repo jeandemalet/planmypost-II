@@ -4,10 +4,14 @@ const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
 
+const authController = require('../controllers/authController');
 const galleryController = require('../controllers/galleryController');
 const imageController = require('../controllers/imageController');
 const jourController = require('../controllers/jourController');
 const scheduleController = require('../controllers/scheduleController');
+
+// --- Route d'Authentification ---
+router.post('/auth/google-signin', authController.googleSignIn);
 
 const TEMP_UPLOAD_DIR = path.join(__dirname, '..', 'temp_uploads');
 if (!fs.existsSync(TEMP_UPLOAD_DIR)){
