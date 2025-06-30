@@ -21,13 +21,17 @@ const userSchema = new mongoose.Schema({
     profilePictureUrl: {
         type: String,
         required: false
+    },
+    // --- NOUVEAU CHAMP ---
+    role: {
+        type: String,
+        enum: ['user', 'admin'], // Définit les rôles possibles
+        default: 'user' // Par défaut, tout nouvel utilisateur est un "user"
     }
 }, {
     timestamps: true
 });
 
-// Créer un index composé unique pour garantir qu'un utilisateur 
-// ne puisse être créé qu'une seule fois par fournisseur OAuth.
 userSchema.index({ oauthProvider: 1, oauthId: 1 }, { unique: true });
 
 const User = mongoose.model('User', userSchema);

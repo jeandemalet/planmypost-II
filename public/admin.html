@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panneau Admin</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="app-container">
+        <header class="app-header">
+            <h1>Panneau d'Administration</h1>
+            <a href="/index.html" id="backToAppBtn">Retour à l'application</a>
+        </header>
+
+        <div id="adminPanel">
+            <h2>Utilisateurs</h2>
+            <ul id="user-list"></ul>
+        </div>
+        <div id="impersonation-banner" style="display:none; background-color: #f0ad4e; color: white; padding: 10px; text-align: center; font-weight: bold; position: fixed; bottom: 0; width: 100%; left: 0;">
+            Vous naviguez en tant que <span id="impersonated-user-name"></span>. 
+            <button id="stop-impersonation-btn">Arrêter et revenir à mon compte</button>
+        </div>
+    </div>
+    <script src="/admin.js"></script>
+</body>
+</html>
