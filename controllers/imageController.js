@@ -64,12 +64,12 @@ exports.uploadImages = async (req, res) => {
     }
 
     try {
-        const galleryExists = await Gallery.findById(galleryId).select('_id');
+        const galleryExists = await Gallery.findOne({ _id: galleryId, owner: req.user._id }).select('_id');
         if (!galleryExists) {
-             console.log(`[imageController] Galerie ${galleryId} non trouvée.`);
+             console.log(`[imageController] Galerie ${galleryId} non trouvée ou non possédée par l'utilisateur.`);
              // Nettoyer les fichiers temporaires car la galerie n'existe pas
              await Promise.all(req.files.map(f => fse.unlink(f.path).catch(e => console.error(`[imageController] Cleanup failed for non-existent gallery file ${f.path}:`, e.message))));
-             return res.status(404).send(`Gallery with ID ${galleryId} not found.`);
+             return res.status(404).send(`Gallery with ID ${galleryId} not found or not owned by user.`);
         }
     } catch (error) {
         console.error(`[imageController] Erreur vérification gallery ID ${galleryId}:`, error);
@@ -128,6 +128,7 @@ exports.uploadImages = async (req, res) => {
 
                 const imageDoc = new Image({
                     galleryId: galleryId,
+                    owner: req.user._id,
                     originalFilename: file.originalname,
                     filename: uniqueFilename, 
                     path: relativePath,
@@ -178,7 +179,7 @@ exports.uploadImages = async (req, res) => {
 exports.getImagesForGallery = async (req, res) => {
     const galleryId = req.params.galleryId;
     try {
-        const images = await Image.find({ galleryId: galleryId, isCroppedVersion: { $ne: true } })
+        const images = await Image.find({ galleryId: galleryId, owner: req.user._id, isCroppedVersion: { $ne: true } })
                                .sort({ uploadDate: 1 });
         res.json(images);
     } catch (error) {
@@ -204,15 +205,14 @@ exports.serveImage = async (req, res) => {
             return res.status(400).send('Invalid path components.');
         }
         
-        const imagePath = path.join(UPLOAD_DIR, cleanGalleryId, cleanImageName);
-
-        try {
-            await fs.access(imagePath);
-            res.sendFile(imagePath);
-        } catch (accessError) {
-            console.error(`File not found at ${imagePath}: `, accessError);
-            res.status(404).send(`Image not found at path: ${cleanGalleryId}/${cleanImageName}.`);
+        const image = await Image.findOne({ filename: cleanImageName, galleryId: cleanGalleryId, owner: req.user._id });
+        if (!image) {
+            return res.status(404).send('Image not found or not owned by user.');
         }
+
+        const imagePath = path.join(UPLOAD_DIR, image.path);
+        res.sendFile(imagePath);
+
     } catch (error) { 
          console.error("Server error serving image:", error);
          res.status(500).send('Server error serving image.');
@@ -228,9 +228,9 @@ exports.saveCroppedImage = async (req, res) => {
     }
 
     try {
-        const originalImage = await Image.findById(originalImageId);
+        const originalImage = await Image.findOne({ _id: originalImageId, owner: req.user._id });
         if (!originalImage || originalImage.galleryId.toString() !== galleryId) {
-            return res.status(404).send('Original image not found or does not belong to the specified gallery.');
+            return res.status(404).send('Original image not found or does not belong to the specified gallery or user.');
         }
 
         const matches = imageDataUrl.match(/^data:(image\/(.+));base64,(.+)$/);
@@ -270,6 +270,7 @@ exports.saveCroppedImage = async (req, res) => {
 
         const croppedImageDoc = new Image({
             galleryId: galleryId,
+            owner: req.user._id,
             originalFilename: `[${cropInfo}] ${originalImage.originalFilename}`,
             filename: newFilename,
             path: relativePath,
@@ -294,9 +295,9 @@ exports.saveCroppedImage = async (req, res) => {
 exports.deleteImage = async (req, res) => {
     const { galleryId, imageId } = req.params;
     try {
-        const image = await Image.findOne({ _id: imageId, galleryId: galleryId });
+        const image = await Image.findOne({ _id: imageId, galleryId: galleryId, owner: req.user._id });
         if (!image) {
-            return res.status(404).send('Image not found in this gallery.');
+            return res.status(404).send('Image not found in this gallery or not owned by user.');
         }
 
         const allAffectedImageIds = [image._id.toString()];
@@ -339,9 +340,9 @@ exports.deleteImage = async (req, res) => {
 exports.deleteAllImagesForGallery = async (req, res) => {
     const { galleryId } = req.params;
     try {
-        const gallery = await Gallery.findById(galleryId);
+        const gallery = await Gallery.findOne({ _id: galleryId, owner: req.user._id });
         if (!gallery) {
-            return res.status(404).send('Gallery not found.');
+            return res.status(404).send('Gallery not found or not owned by user.');
         }
 
         const galleryImageDir = path.join(UPLOAD_DIR, galleryId);

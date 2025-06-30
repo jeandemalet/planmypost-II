@@ -15,9 +15,9 @@ exports.createJour = async (req, res) => {
     const { galleryId } = req.params;
 
     try {
-        const gallery = await Gallery.findById(galleryId);
+        const gallery = await Gallery.findOne({ _id: galleryId, owner: req.user._id });
         if (!gallery) {
-            return res.status(404).json({ message: `Gallery with ID ${galleryId} not found.` });
+            return res.status(404).json({ message: `Gallery with ID ${galleryId} not found or not owned by user.` });
         }
 
         const existingJours = await Jour.find({ galleryId: galleryId }).select('index letter').sort({ index: 1 });
@@ -43,8 +43,9 @@ exports.createJour = async (req, res) => {
 
         const newJour = new Jour({
             galleryId,
+            owner: req.user._id,
             letter,
-            index: nextAvailableIndex,
+            index,
             images: [],
             descriptionText: '',
             descriptionHashtags: ''
@@ -79,7 +80,7 @@ exports.createJour = async (req, res) => {
 exports.getJoursForGallery = async (req, res) => {
     const { galleryId } = req.params;
     try {
-        const jours = await Jour.find({ galleryId: galleryId })
+        const jours = await Jour.find({ galleryId: galleryId, owner: req.user._id })
                               .populate('images.imageId') 
                               .sort({ index: 1 }); 
         res.json(jours);
@@ -128,7 +129,7 @@ exports.updateJour = async (req, res) => {
 
     try {
         const updatedJour = await Jour.findOneAndUpdate(
-            { _id: jourId, galleryId: galleryId }, 
+            { _id: jourId, galleryId: galleryId, owner: req.user._id }, 
             { $set: updatePayload },  
             { new: true, runValidators: true }     
         ).populate('images.imageId'); 
@@ -150,10 +151,10 @@ exports.updateJour = async (req, res) => {
 exports.deleteJour = async (req, res) => {
     const { galleryId, jourId } = req.params;
     try {
-        const result = await Jour.deleteOne({ _id: jourId, galleryId: galleryId });
+        const result = await Jour.deleteOne({ _id: jourId, galleryId: galleryId, owner: req.user._id });
 
         if (result.deletedCount === 0) {
-            return res.status(404).send('Jour not found or does not belong to the specified gallery.');
+            return res.status(404).send('Jour not found or does not belong to the specified gallery or user.');
         }
         
         const gallery = await Gallery.findById(galleryId);
@@ -180,14 +181,14 @@ exports.exportJourImagesAsZip = async (req, res) => {
     const { galleryId, jourId } = req.params;
 
     try {
-        const jour = await Jour.findById(jourId)
+        const jour = await Jour.findOne({ _id: jourId, owner: req.user._id })
             .populate({
                 path: 'images.imageId',
                 model: 'Image' // Assurez-vous que 'Image' est le nom correct de votre modèle
             });
 
         if (!jour || jour.galleryId.toString() !== galleryId) {
-            return res.status(404).send('Jour not found or does not belong to the specified gallery.');
+            return res.status(404).send('Jour not found or does not belong to the specified gallery or user.');
         }
 
         if (!jour.images || jour.images.length === 0) {

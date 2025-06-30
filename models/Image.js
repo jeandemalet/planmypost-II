@@ -9,6 +9,12 @@ const ImageSchema = new mongoose.Schema({
         required: true,
         index: true // Indexer pour recherche rapide par galerie
     },
+    owner: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+        index: true
+    },
     originalFilename: { // Nom original du fichier uploadé
         type: String,
         required: true,

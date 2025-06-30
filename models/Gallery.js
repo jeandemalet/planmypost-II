@@ -11,6 +11,12 @@ const GallerySchema = new mongoose.Schema({
         trim: true,
         default: () => `Galerie du ${new Date().toLocaleDateString('fr-FR')}`
     },
+    owner: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+        index: true
+    },
     createdAt: {
         type: Date,
         default: Date.now

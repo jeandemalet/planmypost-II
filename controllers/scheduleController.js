@@ -11,12 +11,12 @@ exports.getScheduleForGallery = async (req, res) => {
     const { galleryId } = req.params;
     try {
         // Vérifier si la galerie existe (optionnel mais recommandé)
-        const galleryExists = await Gallery.findById(galleryId).select('_id');
+        const galleryExists = await Gallery.findOne({ _id: galleryId, owner: req.user._id }).select('_id');
         if (!galleryExists) {
-            return res.status(404).send('Gallery not found.');
+            return res.status(404).send('Gallery not found or not owned by user.');
         }
 
-        const scheduleEntries = await Schedule.find({ galleryId: galleryId });
+        const scheduleEntries = await Schedule.find({ galleryId: galleryId, owner: req.user._id });
 
         // Formater pour le frontend : { 'YYYY-MM-DD': { 'A': {}, 'B': {} } }
         const scheduleData = scheduleEntries.reduce((acc, entry) => {
@@ -49,9 +49,9 @@ exports.updateSchedule = async (req, res) => {
 
     try {
         // 1. Vérifier si la galerie existe
-         const galleryExists = await Gallery.findById(galleryId).select('_id');
+         const galleryExists = await Gallery.findOne({ _id: galleryId, owner: req.user._id }).select('_id');
          if (!galleryExists) {
-             return res.status(404).send('Gallery not found.');
+             return res.status(404).send('Gallery not found or not owned by user.');
          }
 
         // 2. Préparer les nouvelles entrées à insérer avec validation
@@ -78,7 +78,8 @@ exports.updateSchedule = async (req, res) => {
                          const entryGalleryId = joursOnDate[jourLetter].galleryId || galleryId;
 
                         newEntries.push({
-                            galleryId: entryGalleryId, // Utiliser le galleryId spécifique à l'entrée
+                            galleryId: entryGalleryId,
+                            owner: req.user._id,
                             date: date,
                             jourLetter: jourLetter
                         });
@@ -97,13 +98,13 @@ exports.updateSchedule = async (req, res) => {
             // si vous voulez gérer des planifications inter-galeries via une seule route.
             // Pour l'instant, on assume que updateSchedule met à jour uniquement le calendrier
             // de la `galleryId` passée en paramètre.
-            await Schedule.deleteMany({ galleryId: galleryId }); // Ne pas utiliser { session }
+            await Schedule.deleteMany({ galleryId: galleryId, owner: req.user._id }); // Ne pas utiliser { session }
 
             // Filtrer newEntries pour ne garder que celles de la galerie actuelle si c'est la logique désirée,
             // ou ajuster la logique de suppression si le calendrier est global et non par galerie.
             // Actuellement, `deleteMany` supprime seulement pour `galleryId`, `insertMany` peut insérer pour d'autres.
             // Pour simplifier et aligner avec une gestion par galerie :
-            const entriesForThisGallery = newEntries.filter(entry => entry.galleryId.toString() === galleryId.toString());
+            const entriesForThisGallery = newEntries.filter(entry => entry.galleryId.toString() === galleryId.toString() && entry.owner.toString() === req.user._id.toString());
 
             if (entriesForThisGallery.length > 0) {
                 await Schedule.insertMany(entriesForThisGallery); // Ne pas utiliser { session }

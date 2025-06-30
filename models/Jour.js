@@ -26,6 +26,12 @@ const JourSchema = new mongoose.Schema({
         required: true,
         index: true // Indexer pour recherche rapide par galerie
     },
+    owner: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+        index: true
+    },
     letter: { // Lettre identifiant le jour (A, B, C...)
         type: String,
         required: true,

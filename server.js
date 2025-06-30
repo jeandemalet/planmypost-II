@@ -1,6 +1,3 @@
-// ===============================
-//  Fichier: server.js (Corrigé à nouveau)
-// ===============================
 require('dotenv').config();
 const express = require('express');
 const mongoose = require('mongoose');
@@ -9,7 +6,7 @@ const path = require('path');
 const apiRoutes = require('./routes/api');
 const fse = require('fs-extra');
 const http = require('http');
-const cookieParser = require('cookie-parser'); // <-- CETTE LIGNE ÉTAIT MANQUANTE
+const cookieParser = require('cookie-parser'); // <-- AJOUT : Importation du module
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -19,9 +16,7 @@ app.use(cors());
 app.use(express.json({ limit: '500mb' }));
 app.use(express.urlencoded({ extended: true, limit: '500mb', parameterLimit: 100000 }));
 
-// Vous aviez bien ajouté cette ligne, c'est parfait.
-// Elle a juste besoin de la déclaration ci-dessus pour fonctionner.
-app.use(cookieParser());
+app.use(cookieParser()); // <-- AJOUT : Utilisation du middleware
 
 mongoose.connect(MONGODB_URI)
 .then(() => console.log('MongoDB Connected'))

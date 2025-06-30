@@ -15,7 +15,8 @@ exports.createGallery = async (req, res) => {
     try {
         const galleryName = req.body.name || `Galerie du ${new Date().toLocaleDateString('fr-FR')}`; // Nom par défaut si non fourni
         const newGallery = new Gallery({
-            name: galleryName 
+            name: galleryName,
+            owner: req.user._id
         });
         await newGallery.save();
         res.status(201).json(newGallery);
@@ -39,7 +40,7 @@ exports.listGalleries = async (req, res) => {
              sort = { name: 1 };
         } 
 
-        const galleries = await Gallery.find()
+        const galleries = await Gallery.find({ owner: req.user._id })
                                     .sort(sort)
                                     .limit(limit);
         res.json(galleries);
@@ -57,9 +58,9 @@ exports.getGalleryDetails = async (req, res) => {
         if (!mongoose.Types.ObjectId.isValid(galleryId)) {
             return res.status(400).send('Invalid Gallery ID format.');
         }
-        const gallery = await Gallery.findById(galleryId);
+        const gallery = await Gallery.findOne({ _id: galleryId, owner: req.user._id });
         if (!gallery) {
-            return res.status(404).send('Gallery not found.');
+            return res.status(404).send('Gallery not found or not owned by user.');
         }
 
         gallery.lastAccessed = new Date();
@@ -128,8 +129,8 @@ exports.updateGalleryState = async (req, res) => {
         if (!mongoose.Types.ObjectId.isValid(galleryId)) {
             return res.status(400).send('Invalid Gallery ID format for update.');
         }
-        const updatedGallery = await Gallery.findByIdAndUpdate(
-            galleryId,
+        const updatedGallery = await Gallery.findOneAndUpdate(
+            { _id: galleryId, owner: req.user._id },
             { $set: updateData },
             { new: true, runValidators: true } 
         );
@@ -157,9 +158,9 @@ exports.deleteGallery = async (req, res) => {
         if (!mongoose.Types.ObjectId.isValid(galleryId)) {
             return res.status(400).send('Invalid Gallery ID format for deletion.');
         }
-        const gallery = await Gallery.findById(galleryId);
+        const gallery = await Gallery.findOneAndDelete({ _id: galleryId, owner: req.user._id });
         if (!gallery) {
-            return res.status(404).send('Gallery not found for deletion.');
+            return res.status(404).send('Gallery not found or not owned by user for deletion.');
         }
 
         const galleryUploadDir = path.join(UPLOAD_DIR, galleryId);
