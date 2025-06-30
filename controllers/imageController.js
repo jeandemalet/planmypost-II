@@ -1,5 +1,5 @@
 // ===============================
-//  Fichier: controllers\imageController.js
+//  Fichier: controllers\imageController.js (Corrigé)
 // ===============================
 
 const Image = require('../models/Image');
@@ -46,15 +46,14 @@ const getExifDateTime = (buffer) => {
     return null;
 };
 
+// ======================= CORRECTION CI-DESSOUS =======================
+
 exports.uploadImages = async (req, res) => {
     const galleryId = req.params.galleryId;
     console.log(`[imageController] Début uploadImages pour galleryId: ${galleryId}. Nombre de fichiers reçus par Multer: ${req.files ? req.files.length : 0}`);
 
     if (req.fileValidationError) {
         console.warn(`[imageController] Validation de fichier échouée: ${req.fileValidationError}`);
-        if (req.files && req.files.length > 0) {
-            await Promise.all(req.files.map(f => fse.unlink(f.path).catch(e => console.error(`[imageController] Cleanup failed for rejected file ${f.path}:`, e.message))));
-        }
         return res.status(400).send(req.fileValidationError);
     }
     
@@ -67,18 +66,14 @@ exports.uploadImages = async (req, res) => {
         const galleryExists = await Gallery.findOne({ _id: galleryId, owner: req.user._id }).select('_id');
         if (!galleryExists) {
              console.log(`[imageController] Galerie ${galleryId} non trouvée ou non possédée par l'utilisateur.`);
-             // Nettoyer les fichiers temporaires car la galerie n'existe pas
-             await Promise.all(req.files.map(f => fse.unlink(f.path).catch(e => console.error(`[imageController] Cleanup failed for non-existent gallery file ${f.path}:`, e.message))));
              return res.status(404).send(`Gallery with ID ${galleryId} not found or not owned by user.`);
         }
     } catch (error) {
         console.error(`[imageController] Erreur vérification gallery ID ${galleryId}:`, error);
-        await Promise.all(req.files.map(f => fse.unlink(f.path).catch(e => console.error(`[imageController] Cleanup failed due to gallery check error ${f.path}:`, e.message))));
         return res.status(400).send('Invalid Gallery ID format or error checking gallery.');
     }
 
     const galleryUploadDir = path.join(UPLOAD_DIR, galleryId);
-    let allTempFilePathsForCleanup = req.files.map(f => f.path); 
     const uploadedImageDocs = [];
     let filesProcessedSuccessfully = 0;
 
@@ -89,18 +84,20 @@ exports.uploadImages = async (req, res) => {
         for (let i = 0; i < req.files.length; i++) {
             const file = req.files[i];
             console.log(`[imageController] Traitement du fichier ${i + 1}/${req.files.length}: ${file.originalname}`);
-            let currentTempFilePath = file.path;
 
             try {
                 const existingImage = await Image.findOne({ galleryId: galleryId, originalFilename: file.originalname });
                 if (existingImage) {
                     console.log(`[imageController] Doublon ignoré: ${file.originalname} pour galerie ${galleryId}`);
-                    allTempFilePathsForCleanup = allTempFilePathsForCleanup.filter(p => p !== currentTempFilePath);
-                    await fse.unlink(currentTempFilePath).catch(e => console.error(`[imageController] Échec nettoyage temp duplicate ${currentTempFilePath}:`, e));
-                    continue; // Passe au fichier suivant
+                    continue;
                 }
-
-                const buffer = await fs.readFile(currentTempFilePath);
+                
+                // CORRECTION: Utiliser file.buffer directement, car Multer est configuré pour le stockage en mémoire.
+                const buffer = file.buffer;
+                if (!buffer) {
+                    console.error(`[imageController] ERREUR : Le fichier ${file.originalname} n'a pas de buffer. Il a peut-être été mal uploadé.`);
+                    continue;
+                }
 
                 const timestamp = Date.now();
                 const safeOriginalName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
@@ -121,10 +118,10 @@ exports.uploadImages = async (req, res) => {
                     .toFile(thumbFilePath);
                 console.log(`[imageController] Miniature créée pour ${file.originalname}`);
 
-                console.log(`[imageController] Déplacement de ${currentTempFilePath} vers ${finalFilePath}`);
-                await fse.move(currentTempFilePath, finalFilePath, { overwrite: false });
-                allTempFilePathsForCleanup = allTempFilePathsForCleanup.filter(p => p !== currentTempFilePath);
-                console.log(`[imageController] Fichier déplacé: ${file.originalname}`);
+                // CORRECTION: Écrire le buffer dans un fichier au lieu de le déplacer.
+                console.log(`[imageController] Écriture du fichier vers ${finalFilePath}`);
+                await fs.writeFile(finalFilePath, buffer);
+                console.log(`[imageController] Fichier écrit: ${file.originalname}`);
 
                 const imageDoc = new Image({
                     galleryId: galleryId,
@@ -136,7 +133,7 @@ exports.uploadImages = async (req, res) => {
                     mimeType: file.mimetype,
                     size: file.size,
                     exifDateTimeOriginal: exifDateTime,
-                    fileLastModified: (file.lastModifiedDate && !isNaN(new Date(file.lastModifiedDate))) ? new Date(file.lastModifiedDate) : new Date(), // multer peut fournir lastModifiedDate
+                    fileLastModified: new Date() // lastModifiedDate n'est pas fiable avec memoryStorage
                 });
                 await imageDoc.save();
                 uploadedImageDocs.push(imageDoc);
@@ -145,9 +142,6 @@ exports.uploadImages = async (req, res) => {
 
             } catch (fileProcessingError) {
                 console.error(`[imageController] ERREUR lors du traitement du fichier ${file.originalname}:`, fileProcessingError);
-                // Ne pas supprimer currentTempFilePath de allTempFilePathsForCleanup ici,
-                // car s'il y a une erreur après le move, il n'est plus temporaire.
-                // Si l'erreur est avant le move, il sera nettoyé dans le `finally` global.
             }
         }
         
@@ -157,25 +151,19 @@ exports.uploadImages = async (req, res) => {
 
     } catch (error) { 
         console.error("[imageController] ERREUR GLOBALE dans le processus d'upload:", error);
-        // Même en cas d'erreur globale, si des documents ont été créés, on pourrait choisir de les renvoyer.
-        // Ou, plus simplement, renvoyer une erreur 500.
-        // Pour l'instant, on s'assure qu'une réponse est envoyée.
         if (!res.headersSent) {
              res.status(500).send('Server error during image upload process.');
         }
     } finally {
-        console.log('[imageController] Bloc finally atteint.');
-        if (allTempFilePathsForCleanup.length > 0) {
-            console.log("[imageController] Tentative de nettoyage des fichiers temporaires restants:", allTempFilePathsForCleanup);
-            await Promise.all(allTempFilePathsForCleanup.map(filePath => 
-                fse.unlink(filePath).catch(e => console.error(`[imageController] Échec nettoyage final pour ${filePath}:`, e.message))
-            ));
-        }
+        // CORRECTION: Il n'y a plus de fichiers temporaires à nettoyer avec le stockage en mémoire.
+        console.log('[imageController] Bloc finally atteint. Pas de nettoyage de fichiers temporaires requis.');
         console.log('[imageController] Fin de uploadImages.');
     }
 };
 
-// ... reste du fichier imageController.js inchangé ...
+// =========================================================================
+
+// ... Le reste du fichier reste inchangé ...
 exports.getImagesForGallery = async (req, res) => {
     const galleryId = req.params.galleryId;
     try {

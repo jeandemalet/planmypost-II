@@ -1,5 +1,5 @@
 // ===============================
-//  Fichier: controllers\jourController.js
+//  Fichier: controllers\jourController.js (Corrigé)
 // ===============================
 const Jour = require('../models/Jour');
 const Gallery = require('../models/Gallery');
@@ -45,7 +45,7 @@ exports.createJour = async (req, res) => {
             galleryId,
             owner: req.user._id,
             letter,
-            index,
+            index: nextAvailableIndex, // <--- CORRECTION: Utilisation de la variable définie
             images: [],
             descriptionText: '',
             descriptionHashtags: ''
@@ -77,6 +77,7 @@ exports.createJour = async (req, res) => {
     }
 };
 
+// ... Le reste du fichier reste inchangé
 exports.getJoursForGallery = async (req, res) => {
     const { galleryId } = req.params;
     try {
