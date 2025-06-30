@@ -1,4 +1,3 @@
-
 // ===============================
 //  Fichier: public/script.js (Version complète, corrigée et restructurée)
 // ===============================
@@ -240,7 +239,16 @@ class GridItemBackend {
             this.orderTextElement.textContent = this.order;
             this.orderTextElement.style.color = this.color;
             this.orderTextElement.style.display = 'block';
-            const fontSize = Math.max(10, Math.min(32, Math.floor(this.thumbSize.height * 0.3)));
+    
+            // --- MODIFICATION (3/3) : Ajuster la police pour les labels longs ---
+            let fontSizeFactor = 0.3;
+            if (this.order.length > 5) { // Si le label est long (plus d'une utilisation)
+                fontSizeFactor = 0.22;
+            }
+            if (this.order.length > 15) { // Encore plus long
+                fontSizeFactor = 0.18;
+            }
+            const fontSize = Math.max(8, Math.min(32, Math.floor(this.thumbSize.height * fontSizeFactor)));
             this.orderTextElement.style.fontSize = `${fontSize}px`;
             this.element.classList.add('used');
         } else {
@@ -330,12 +338,8 @@ class JourFrameBackend {
 
         this.originalSaveBtnBg = this.saveBtn.style.backgroundColor || '';
 
-        // --- CORRECTION ---
-        // Le `jourData.images` est peuplé par le backend avec toutes les infos de l'image.
-        // On s'assure d'appeler notre fonction corrigée avec l'objet image complet.
         if (jourData.images && Array.isArray(jourData.images)) {
             jourData.images.sort((a, b) => a.order - b.order).forEach(imgEntry => {
-                // On vérifie que `imageId` est bien un objet peuplé
                 if (imgEntry && imgEntry.imageId && typeof imgEntry.imageId === 'object') { 
                     this.addImageFromBackendData(imgEntry.imageId);
                 } else {
@@ -482,17 +486,10 @@ class JourFrameBackend {
         }
     }
 
-    // --- CORRECTION ---
-    // Cette fonction est maintenant beaucoup plus simple et robuste.
-    // Elle se base uniquement sur l'objet `imageData` pour construire l'URL,
-    // garantissant que le `galleryId` est toujours le bon.
     addImageFromBackendData(imageData) {
-        // L'objet `imageData` (le document Image peuplé) est TOUJOURS
-        // la source de vérité pour son propre galleryId.
         const galleryIdForURL = imageData.galleryId;
         const thumbFilename = Utils.getFilenameFromURL(imageData.thumbnailPath);
     
-        // On vérifie que les données nécessaires sont présentes pour éviter les erreurs
         if (!galleryIdForURL || !thumbFilename) {
             console.error("Données d'image incomplètes, impossible de générer l'aperçu:", imageData);
             return;
@@ -502,14 +499,12 @@ class JourFrameBackend {
             imageId: imageData._id || imageData.id,
             displayPathKey: imageData._id || imageData.id,
             originalReferencePath: imageData.parentImageId || (imageData._id || imageData.id),
-            // L'URL est maintenant construite avec les bonnes informations
             dataURL: `${BASE_API_URL}/api/uploads/${galleryIdForURL}/${thumbFilename}`,
             isCropped: imageData.isCroppedVersion || false,
         };
         this.insertImageAt(imageItemData, this.imagesData.length);
     }
     
-
     checkAndApplyCroppedStyle() {
         this.hasBeenProcessedByCropper = this.imagesData.some(img => img.isCropped);
         if (this.hasBeenProcessedByCropper) {
@@ -3350,27 +3345,45 @@ class PublicationOrganizer {
     }
 
     updateGridUsage() {
-        const combinedUsage = this.getCombinedUsageMap(); 
-        for (const imageId in this.gridItemsDict) { 
+        // --- MODIFICATION (2/3) : Gérer l'affichage des labels multiples ---
+        const combinedUsage = this.getCombinedUsageMap(); // Renvoie maintenant { imageId: [usage1, usage2] }
+        for (const imageId in this.gridItemsDict) {
             const gridItem = this.gridItemsDict[imageId];
             const originalIdToCompare = gridItem.parentImageId || gridItem.id;
-
-            if (combinedUsage[originalIdToCompare]) {
-                const usageInfo = combinedUsage[originalIdToCompare];
-                gridItem.markUsed(usageInfo.label, usageInfo.color);
+    
+            const usageArray = combinedUsage[originalIdToCompare];
+    
+            if (usageArray && usageArray.length > 0) {
+                // On crée une chaîne avec tous les labels, séparés par " / "
+                const joinedLabels = usageArray.map(u => u.label).join(' / ');
+                // On utilise la couleur du premier jour où l'image apparaît pour la cohérence
+                const firstColor = usageArray[0].color;
+                gridItem.markUsed(joinedLabels, firstColor);
             } else {
                 gridItem.markUnused();
             }
         }
         this.updateStatsLabel();
     }
-
+    
+    // --- MODIFICATION (1/3) : Corriger la logique d'accumulation ---
     getCombinedUsageMap() {
-        let combined = {};
-        this.jourFrames.forEach(jf => {
-            Object.assign(combined, jf.getUsageData()); 
+        const combinedUsage = {};
+        // On trie les jours par leur index pour que les labels soient toujours dans un ordre logique (A, B, C...)
+        const sortedJourFrames = [...this.jourFrames].sort((a, b) => a.index - b.index);
+
+        sortedJourFrames.forEach(jf => {
+            const usageDataForOneJour = jf.getUsageData();
+            for (const originalId in usageDataForOneJour) {
+                // Si c'est la première fois qu'on voit cette image, on initialise son tableau d'usages
+                if (!combinedUsage[originalId]) {
+                    combinedUsage[originalId] = [];
+                }
+                // On ajoute l'info d'utilisation actuelle au tableau
+                combinedUsage[originalId].push(usageDataForOneJour[originalId]);
+            }
         });
-        return combined;
+        return combinedUsage;
     }
 
     updateStatsLabel() {
