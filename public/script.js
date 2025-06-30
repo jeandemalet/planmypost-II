@@ -1,3 +1,4 @@
+
 // ===============================
 //  Fichier: public/script.js (Version complète, corrigée et restructurée)
 // ===============================
@@ -3780,6 +3781,15 @@ async function checkUserStatus() {
             if (data.loggedIn) {
                 // L'utilisateur est connecté.
                 document.getElementById('userInfo').textContent = `Connecté: ${data.username}`;
+                
+                // ---- MODIFICATION : Mettre à jour l'image de profil ----
+                const profileImg = document.getElementById('profilePictureImg');
+                if (profileImg && data.user && data.user.picture) {
+                    profileImg.src = data.user.picture;
+                    profileImg.alt = `Profil de ${data.user.name}`;
+                }
+                // ---- FIN DE LA MODIFICATION ----
+
                 // C'est ici que l'on démarre l'application principale.
                 await startApp();
             } else {
