@@ -1,15 +1,11 @@
-// ===============================
-//  Fichier: controllers\imageController.js (Corrigé)
-// ===============================
-
 const Image = require('../models/Image');
 const Gallery = require('../models/Gallery');
-const Jour = require('../models/Jour'); // Assurez-vous que mongoose est importé si vous utilisez mongoose.Types.ObjectId
+const Jour = require('../models/Jour');
 const mongoose = require('mongoose'); 
 const sharp = require('sharp');
 const exifParser = require('exif-parser');
 const path = require('path');
-const fs = require('fs').promises;
+const fs = require('fs'); // Utiliser fs.promises est mieux, mais pour la cohérence on garde fs
 const fse = require('fs-extra');
 
 const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
@@ -46,129 +42,92 @@ const getExifDateTime = (buffer) => {
     return null;
 };
 
-// ======================= CORRECTION CI-DESSOUS =======================
-
 exports.uploadImages = async (req, res) => {
-    const galleryId = req.params.galleryId;
-    console.log(`[imageController] Début uploadImages pour galleryId: ${galleryId}. Nombre de fichiers reçus par Multer: ${req.files ? req.files.length : 0}`);
+    const { galleryId } = req.params;
 
     if (req.fileValidationError) {
-        console.warn(`[imageController] Validation de fichier échouée: ${req.fileValidationError}`);
         return res.status(400).send(req.fileValidationError);
     }
-    
     if (!req.files || req.files.length === 0) {
-        console.log('[imageController] Aucun fichier reçu ou tous les fichiers ont été rejetés.');
-        return res.status(400).send('No files uploaded or files were rejected by filter.');
+        return res.status(400).send('No files uploaded.');
     }
 
     try {
-        const galleryExists = await Gallery.findOne({ _id: galleryId, owner: req.user._id }).select('_id');
+        const galleryExists = await Gallery.findOne({ _id: galleryId, owner: req.user._id });
         if (!galleryExists) {
-             console.log(`[imageController] Galerie ${galleryId} non trouvée ou non possédée par l'utilisateur.`);
              return res.status(404).send(`Gallery with ID ${galleryId} not found or not owned by user.`);
         }
     } catch (error) {
-        console.error(`[imageController] Erreur vérification gallery ID ${galleryId}:`, error);
         return res.status(400).send('Invalid Gallery ID format or error checking gallery.');
     }
 
     const galleryUploadDir = path.join(UPLOAD_DIR, galleryId);
     const uploadedImageDocs = [];
-    let filesProcessedSuccessfully = 0;
 
     try {
         await fse.ensureDir(galleryUploadDir);
-        console.log(`[imageController] Traitement de ${req.files.length} fichiers.`);
-
-        for (let i = 0; i < req.files.length; i++) {
-            const file = req.files[i];
-            console.log(`[imageController] Traitement du fichier ${i + 1}/${req.files.length}: ${file.originalname}`);
-
+        for (const file of req.files) {
             try {
-                const existingImage = await Image.findOne({ galleryId: galleryId, originalFilename: file.originalname });
-                if (existingImage) {
-                    console.log(`[imageController] Doublon ignoré: ${file.originalname} pour galerie ${galleryId}`);
-                    continue;
-                }
-                
-                // CORRECTION: Utiliser file.buffer directement, car Multer est configuré pour le stockage en mémoire.
-                const buffer = file.buffer;
-                if (!buffer) {
-                    console.error(`[imageController] ERREUR : Le fichier ${file.originalname} n'a pas de buffer. Il a peut-être été mal uploadé.`);
+                if (await Image.findOne({ galleryId: galleryId, originalFilename: file.originalname })) {
+                    console.log(`Duplicate ignored: ${file.originalname}`);
                     continue;
                 }
 
+                const buffer = file.buffer;
                 const timestamp = Date.now();
                 const safeOriginalName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-                const uniqueFilename = `${timestamp}-${safeOriginalName}`; 
+                const uniqueFilename = `${timestamp}-${safeOriginalName}`;
                 const finalFilePath = path.join(galleryUploadDir, uniqueFilename);
-                const relativePath = path.join(galleryId, uniqueFilename); 
-
+                const relativePath = path.join(galleryId, uniqueFilename);
                 const exifDateTime = getExifDateTime(buffer);
 
-                const thumbFilename = `thumb-${uniqueFilename}`; 
+                const thumbFilename = `thumb-${uniqueFilename}`;
                 const thumbFilePath = path.join(galleryUploadDir, thumbFilename);
-                const relativeThumbPath = path.join(galleryId, thumbFilename); 
-                
-                console.log(`[imageController] Création miniature pour ${file.originalname}`);
+                const relativeThumbPath = path.join(galleryId, thumbFilename);
+
                 await sharp(buffer)
                     .resize(THUMB_SIZE, THUMB_SIZE, { fit: 'inside', withoutEnlargement: true })
                     .jpeg({ quality: 85 })
                     .toFile(thumbFilePath);
-                console.log(`[imageController] Miniature créée pour ${file.originalname}`);
 
-                // CORRECTION: Écrire le buffer dans un fichier au lieu de le déplacer.
-                console.log(`[imageController] Écriture du fichier vers ${finalFilePath}`);
-                await fs.writeFile(finalFilePath, buffer);
-                console.log(`[imageController] Fichier écrit: ${file.originalname}`);
+                await fs.promises.writeFile(finalFilePath, buffer);
 
                 const imageDoc = new Image({
                     galleryId: galleryId,
                     owner: req.user._id,
                     originalFilename: file.originalname,
-                    filename: uniqueFilename, 
+                    filename: uniqueFilename,
                     path: relativePath,
                     thumbnailPath: relativeThumbPath,
                     mimeType: file.mimetype,
                     size: file.size,
                     exifDateTimeOriginal: exifDateTime,
-                    fileLastModified: new Date() // lastModifiedDate n'est pas fiable avec memoryStorage
+                    fileLastModified: new Date()
                 });
                 await imageDoc.save();
                 uploadedImageDocs.push(imageDoc);
-                filesProcessedSuccessfully++;
-                console.log(`[imageController] Document image sauvegardé en DB pour: ${file.originalname}`);
-
             } catch (fileProcessingError) {
-                console.error(`[imageController] ERREUR lors du traitement du fichier ${file.originalname}:`, fileProcessingError);
+                console.error(`Error processing file ${file.originalname}:`, fileProcessingError);
             }
         }
-        
-        console.log(`[imageController] Fin de la boucle de traitement. ${filesProcessedSuccessfully} fichiers traités avec succès.`);
-        console.log(`[imageController] Envoi de la réponse au client avec ${uploadedImageDocs.length} documents.`);
         res.status(201).json(uploadedImageDocs);
-
-    } catch (error) { 
-        console.error("[imageController] ERREUR GLOBALE dans le processus d'upload:", error);
+    } catch (error) {
+        console.error("Global error in upload process:", error);
         if (!res.headersSent) {
-             res.status(500).send('Server error during image upload process.');
+            res.status(500).send('Server error during image upload process.');
         }
-    } finally {
-        // CORRECTION: Il n'y a plus de fichiers temporaires à nettoyer avec le stockage en mémoire.
-        console.log('[imageController] Bloc finally atteint. Pas de nettoyage de fichiers temporaires requis.');
-        console.log('[imageController] Fin de uploadImages.');
     }
 };
 
-// =========================================================================
-
-// ... Le reste du fichier reste inchangé ...
 exports.getImagesForGallery = async (req, res) => {
-    const galleryId = req.params.galleryId;
+    const { galleryId } = req.params;
     try {
-        const images = await Image.find({ galleryId: galleryId, owner: req.user._id, isCroppedVersion: { $ne: true } })
-                               .sort({ uploadDate: 1 });
+        const query = { galleryId: galleryId, isCroppedVersion: { $ne: true } };
+        if (req.user.role !== 'admin') {
+            query.owner = req.user._id;
+        }
+
+        const images = await Image.find(query).sort({ uploadDate: 1 });
         res.json(images);
     } catch (error) {
         console.error("Error getting images for gallery:", error);
@@ -193,13 +152,38 @@ exports.serveImage = async (req, res) => {
             return res.status(400).send('Invalid path components.');
         }
         
-        const image = await Image.findOne({ filename: cleanImageName, galleryId: cleanGalleryId, owner: req.user._id });
-        if (!image) {
-            return res.status(404).send('Image not found or not owned by user.');
+        // --- CORRECTION APPLIQUÉE ICI ---
+        // On construit une requête de base pour l'ID de galerie et le propriétaire
+        const baseQuery = { galleryId: cleanGalleryId };
+        if (req.user.role !== 'admin') {
+            baseQuery.owner = req.user._id;
         }
 
-        const imagePath = path.join(UPLOAD_DIR, image.path);
-        res.sendFile(imagePath);
+        // On cherche un document qui correspond à l'ID de la galerie ET
+        // dont soit le `filename` correspond (image complète),
+        // soit le `thumbnailPath` correspond au chemin complet de la miniature.
+        const image = await Image.findOne({
+            ...baseQuery,
+            $or: [
+                { filename: cleanImageName },
+                { thumbnailPath: path.join(cleanGalleryId, cleanImageName) }
+            ]
+        });
+
+        if (!image) {
+            return res.status(404).send('Image not found or access denied.');
+        }
+
+        // On utilise cleanImageName, car c'est le nom de fichier demandé (soit original, soit thumb)
+        const imagePath = path.join(UPLOAD_DIR, cleanGalleryId, cleanImageName);
+        
+        // Vérifier si le fichier existe physiquement avant de l'envoyer
+        if (fs.existsSync(imagePath)) {
+            res.sendFile(imagePath);
+        } else {
+            console.error(`File not found on disk for image record ${image._id}: ${imagePath}`);
+            res.status(404).send('Image file not found on disk.');
+        }
 
     } catch (error) { 
          console.error("Server error serving image:", error);
@@ -216,17 +200,21 @@ exports.saveCroppedImage = async (req, res) => {
     }
 
     try {
-        const originalImage = await Image.findOne({ _id: originalImageId, owner: req.user._id });
-        if (!originalImage || originalImage.galleryId.toString() !== galleryId) {
-            return res.status(404).send('Original image not found or does not belong to the specified gallery or user.');
+        const originalImageQuery = { _id: originalImageId, galleryId: galleryId };
+        if (req.user.role !== 'admin') {
+            originalImageQuery.owner = req.user._id;
+        }
+        const originalImage = await Image.findOne(originalImageQuery);
+        
+        if (!originalImage) {
+            return res.status(404).send('Original image not found or access denied.');
         }
 
         const matches = imageDataUrl.match(/^data:(image\/(.+));base64,(.+)$/);
-        if (!matches || matches.length !== 4) {
+        if (!matches) {
              return res.status(400).send('Invalid image data URL format.');
         }
         const mimeType = matches[1];
-        const extension = matches[2] || 'jpg'; 
         const base64Data = matches[3];
         const buffer = Buffer.from(base64Data, 'base64');
 
@@ -234,10 +222,9 @@ exports.saveCroppedImage = async (req, res) => {
         const originalBaseName = path.parse(originalImage.originalFilename).name.replace(/[^a-zA-Z0-9_-]/g, '_');
         const cleanSuffix = filenameSuffix.replace(/[^a-zA-Z0-9_-]/g, '_');
         
-        let actualExtension = extension;
+        let actualExtension = 'jpg'; 
         if (mimeType === 'image/png') actualExtension = 'png';
         else if (mimeType === 'image/webp') actualExtension = 'webp';
-        else actualExtension = 'jpg'; 
 
         const newFilename = `${originalBaseName}_${cleanSuffix}_${timestamp}.${actualExtension}`;
 
@@ -246,7 +233,7 @@ exports.saveCroppedImage = async (req, res) => {
         const newFilePath = path.join(galleryUploadDir, newFilename);
         const relativePath = path.join(galleryId, newFilename);
 
-        await fs.writeFile(newFilePath, buffer);
+        await fs.promises.writeFile(newFilePath, buffer);
 
         const thumbFilename = `thumb-${newFilename}`;
         const thumbFilePath = path.join(galleryUploadDir, thumbFilename);
@@ -258,7 +245,7 @@ exports.saveCroppedImage = async (req, res) => {
 
         const croppedImageDoc = new Image({
             galleryId: galleryId,
-            owner: req.user._id,
+            owner: req.user._id, // La version recadrée appartient à celui qui l'a faite
             originalFilename: `[${cropInfo}] ${originalImage.originalFilename}`,
             filename: newFilename,
             path: relativePath,
@@ -283,28 +270,33 @@ exports.saveCroppedImage = async (req, res) => {
 exports.deleteImage = async (req, res) => {
     const { galleryId, imageId } = req.params;
     try {
-        const image = await Image.findOne({ _id: imageId, galleryId: galleryId, owner: req.user._id });
+        const query = { _id: imageId, galleryId: galleryId };
+        if (req.user.role !== 'admin') {
+            query.owner = req.user._id;
+        }
+        const image = await Image.findOne(query);
+
         if (!image) {
-            return res.status(404).send('Image not found in this gallery or not owned by user.');
+            return res.status(404).send('Image not found or access denied.');
         }
 
         const allAffectedImageIds = [image._id.toString()];
 
         const fullPath = path.join(UPLOAD_DIR, image.path);
         const thumbFullPath = path.join(UPLOAD_DIR, image.thumbnailPath);
-        await fs.unlink(fullPath).catch(err => console.warn(`Failed to delete file ${fullPath}: ${err.message}`));
-        await fs.unlink(thumbFullPath).catch(err => console.warn(`Failed to delete thumbnail ${thumbFullPath}: ${err.message}`));
+        await fs.promises.unlink(fullPath).catch(err => console.warn(`Failed to delete file ${fullPath}: ${err.message}`));
+        await fs.promises.unlink(thumbFullPath).catch(err => console.warn(`Failed to delete thumbnail ${thumbFullPath}: ${err.message}`));
 
         if (!image.isCroppedVersion) {
             const croppedVersions = await Image.find({ parentImageId: image._id, galleryId: galleryId });
             for (const cropped of croppedVersions) {
                 const croppedFullPath = path.join(UPLOAD_DIR, cropped.path);
                 const croppedThumbFullPath = path.join(UPLOAD_DIR, cropped.thumbnailPath);
-                await fs.unlink(croppedFullPath).catch(err => console.warn(`Failed to delete cropped file ${croppedFullPath}: ${err.message}`));
-                await fs.unlink(croppedThumbFullPath).catch(err => console.warn(`Failed to delete cropped thumbnail ${croppedThumbFullPath}: ${err.message}`));
-                await Image.deleteOne({ _id: cropped._id });
+                await fs.promises.unlink(croppedFullPath).catch(err => console.warn(`Failed to delete cropped file ${croppedFullPath}: ${err.message}`));
+                await fs.promises.unlink(croppedThumbFullPath).catch(err => console.warn(`Failed to delete cropped thumbnail ${croppedThumbFullPath}: ${err.message}`));
                 allAffectedImageIds.push(cropped._id.toString());
             }
+            await Image.deleteMany({ parentImageId: image._id });
         }
         
         await Image.deleteOne({ _id: imageId });
@@ -328,9 +320,14 @@ exports.deleteImage = async (req, res) => {
 exports.deleteAllImagesForGallery = async (req, res) => {
     const { galleryId } = req.params;
     try {
-        const gallery = await Gallery.findOne({ _id: galleryId, owner: req.user._id });
+        const galleryQuery = { _id: galleryId };
+        if (req.user.role !== 'admin') {
+            galleryQuery.owner = req.user._id;
+        }
+        const gallery = await Gallery.findOne(galleryQuery);
+        
         if (!gallery) {
-            return res.status(404).send('Gallery not found or not owned by user.');
+            return res.status(404).send('Gallery not found or access denied.');
         }
 
         const galleryImageDir = path.join(UPLOAD_DIR, galleryId);

@@ -1,3 +1,4 @@
+
 // ===============================
 //  Fichier: public/script.js (Version complète, corrigée et restructurée)
 // ===============================
@@ -25,7 +26,6 @@ let app = null;
 // =================================================================
 class Utils {
     static async loadImage(urlOrFile) {
-        // ... (votre code est parfait, je le laisse tel quel)
         return new Promise((resolve, reject) => {
             const img = new Image();
             img.onload = () => resolve(img);
@@ -45,7 +45,6 @@ class Utils {
     }
 
     static createThumbnail(image, targetWidth, targetHeight, backgroundColor = 'white') {
-        // ... (votre code est parfait)
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         let sourceWidth = image.naturalWidth || image.width;
@@ -92,7 +91,6 @@ class Utils {
     }
 
     static debounce(func, delay) {
-        // ... (votre code est parfait)
         let timeout;
         return function(...args) {
             const context = this;
@@ -102,7 +100,6 @@ class Utils {
     }
 
     static downloadDataURL(dataURL, filename) {
-        // ... (votre code est parfait)
         const a = document.createElement('a');
         a.href = dataURL;
         a.download = filename;
@@ -112,7 +109,6 @@ class Utils {
     }
     
     static getFilenameFromURL(url) {
-        // ... (votre code est parfait)
         if (!url) return '';
         const normalizedUrl = url.replace(/\\/g, '/');
         const parts = normalizedUrl.split('/');
@@ -121,13 +117,10 @@ class Utils {
 }
 
 // =================================================================
-// --- TOUTES VOS CLASSES MÉTIER (GridItemBackend, JourFrameBackend, etc.) ---
-// --- ELLES RESTENT ICI, INCHANGÉES. J'ai juste masqué leur contenu pour la lisibilité ---
-// --- car votre code était déjà très bon. ---
+// --- CLASSES MÉTIER ---
 // =================================================================
 
 class GridItemBackend {
-    // ... VOTRE CODE COMPLET ET INCHANGÉ POUR GridItemBackend VA ICI ...
     static SERVER_THUMB_OPTIMAL_DISPLAY_WIDTH = 150; 
     static SERVER_THUMB_OPTIMAL_DISPLAY_HEIGHT = 150; 
 
@@ -271,7 +264,6 @@ class GridItemBackend {
     }
 }
 class JourFrameBackend {
-    // ... VOTRE CODE COMPLET ET INCHANGÉ POUR JourFrameBackend VA ICI ...
     constructor(organizer, jourData) {
         this.organizer = organizer;
         this.id = jourData._id;
@@ -338,13 +330,16 @@ class JourFrameBackend {
 
         this.originalSaveBtnBg = this.saveBtn.style.backgroundColor || '';
 
+        // --- CORRECTION ---
+        // Le `jourData.images` est peuplé par le backend avec toutes les infos de l'image.
+        // On s'assure d'appeler notre fonction corrigée avec l'objet image complet.
         if (jourData.images && Array.isArray(jourData.images)) {
             jourData.images.sort((a, b) => a.order - b.order).forEach(imgEntry => {
-                if (imgEntry.imageId && typeof imgEntry.imageId === 'object') { 
+                // On vérifie que `imageId` est bien un objet peuplé
+                if (imgEntry && imgEntry.imageId && typeof imgEntry.imageId === 'object') { 
                     this.addImageFromBackendData(imgEntry.imageId);
-                } else if (typeof imgEntry.imageId === 'string') { 
-                    const fullImgData = this.organizer.gridItemsDict[imgEntry.imageId] || this.organizer.findImageInAnyJour(imgEntry.imageId);
-                    if (fullImgData) this.addImageFromBackendData(fullImgData, true);
+                } else {
+                    console.warn('Données d\'image non peuplées ou invalides dans le Jour :', jourData.letter, imgEntry);
                 }
             });
         }
@@ -487,27 +482,33 @@ class JourFrameBackend {
         }
     }
 
-
-    addImageFromBackendData(imageData, isGridItemInstance = false) {
-        let galleryIdForURL = this.galleryId; 
-        let thumbFilename;
-
-        if(isGridItemInstance) { 
-            galleryIdForURL = imageData.galleryId;
-            thumbFilename = Utils.getFilenameFromURL(imageData.thumbnailPath); 
-        } else { 
-            thumbFilename = Utils.getFilenameFromURL(imageData.thumbnailPath); 
+    // --- CORRECTION ---
+    // Cette fonction est maintenant beaucoup plus simple et robuste.
+    // Elle se base uniquement sur l'objet `imageData` pour construire l'URL,
+    // garantissant que le `galleryId` est toujours le bon.
+    addImageFromBackendData(imageData) {
+        // L'objet `imageData` (le document Image peuplé) est TOUJOURS
+        // la source de vérité pour son propre galleryId.
+        const galleryIdForURL = imageData.galleryId;
+        const thumbFilename = Utils.getFilenameFromURL(imageData.thumbnailPath);
+    
+        // On vérifie que les données nécessaires sont présentes pour éviter les erreurs
+        if (!galleryIdForURL || !thumbFilename) {
+            console.error("Données d'image incomplètes, impossible de générer l'aperçu:", imageData);
+            return;
         }
-
+    
         const imageItemData = {
-            imageId: imageData._id || imageData.id, 
-            displayPathKey: imageData._id || imageData.id, 
-            originalReferencePath: imageData.parentImageId || (imageData._id || imageData.id), 
-            dataURL: `${BASE_API_URL}/api/uploads/${galleryIdForURL}/${thumbFilename}`, 
+            imageId: imageData._id || imageData.id,
+            displayPathKey: imageData._id || imageData.id,
+            originalReferencePath: imageData.parentImageId || (imageData._id || imageData.id),
+            // L'URL est maintenant construite avec les bonnes informations
+            dataURL: `${BASE_API_URL}/api/uploads/${galleryIdForURL}/${thumbFilename}`,
             isCropped: imageData.isCroppedVersion || false,
         };
-        this.insertImageAt(imageItemData, this.imagesData.length); 
+        this.insertImageAt(imageItemData, this.imagesData.length);
     }
+    
 
     checkAndApplyCroppedStyle() {
         this.hasBeenProcessedByCropper = this.imagesData.some(img => img.isCropped);
@@ -883,7 +884,6 @@ class JourFrameBackend {
     }
 }
 class CalendarPage {
-    // ... VOTRE CODE COMPLET ET INCHANGÉ POUR CalendarPage VA ICI ...
     constructor(parentElement, organizerApp) {
         this.parentElement = parentElement;
         this.organizerApp = organizerApp;
@@ -1322,7 +1322,6 @@ class CalendarPage {
     }
 }
 class ImageCropperPopup {
-    // ... VOTRE CODE COMPLET ET INCHANGÉ POUR ImageCropperPopup VA ICI ...
     constructor(organizer) {
         this.organizer = organizer;
         this.modalElement = document.getElementById('cropperModal');
@@ -2232,7 +2231,6 @@ class ImageCropperPopup {
     }
 }
 class DescriptionManager {
-    // ... VOTRE CODE COMPLET ET INCHANGÉ POUR DescriptionManager VA ICI ...
     constructor(organizerApp) {
         this.organizerApp = organizerApp;
         this.descriptionTabContent = document.getElementById('description');
@@ -2355,9 +2353,7 @@ class DescriptionManager {
     }
 }
 class PublicationOrganizer {
-    // ... VOTRE CODE COMPLET ET INCHANGÉ POUR PublicationOrganizer VA ICI ...
     constructor() {
-        // CORRECTION: La variable `currentGalleryId` est maintenant gérée comme une propriété de la classe
         this.currentGalleryId = null; 
 
         this.currentThumbSize = { width: 200, height: 200 }; 

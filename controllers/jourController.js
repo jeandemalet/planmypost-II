@@ -1,15 +1,12 @@
-// ===============================
-//  Fichier: controllers\jourController.js (Corrigé)
-// ===============================
 const Jour = require('../models/Jour');
 const Gallery = require('../models/Gallery');
-const Image = require('../models/Image'); // Ajouté pour peupler les images du Jour
+const Image = require('../models/Image');
 const mongoose = require('mongoose');
-const archiver = require('archiver'); // Ajouté pour le ZIP
-const path = require('path');       // Ajouté pour les chemins de fichiers
-const fs = require('fs');           // Ajouté pour vérifier l'existence des fichiers
+const archiver = require('archiver');
+const path = require('path');
+const fs = require('fs');
 
-const UPLOAD_DIR = path.join(__dirname, '..', 'uploads'); // S'assurer que UPLOAD_DIR est défini
+const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
 
 exports.createJour = async (req, res) => {
     const { galleryId } = req.params;
@@ -45,7 +42,7 @@ exports.createJour = async (req, res) => {
             galleryId,
             owner: req.user._id,
             letter,
-            index: nextAvailableIndex, // <--- CORRECTION: Utilisation de la variable définie
+            index: nextAvailableIndex,
             images: [],
             descriptionText: '',
             descriptionHashtags: ''
@@ -77,11 +74,15 @@ exports.createJour = async (req, res) => {
     }
 };
 
-// ... Le reste du fichier reste inchangé
 exports.getJoursForGallery = async (req, res) => {
     const { galleryId } = req.params;
     try {
-        const jours = await Jour.find({ galleryId: galleryId, owner: req.user._id })
+        const query = { galleryId: galleryId };
+        if (req.user.role !== 'admin') {
+            query.owner = req.user._id;
+        }
+
+        const jours = await Jour.find(query)
                               .populate('images.imageId') 
                               .sort({ index: 1 }); 
         res.json(jours);
@@ -129,14 +130,19 @@ exports.updateJour = async (req, res) => {
     }
 
     try {
+        const query = { _id: jourId, galleryId: galleryId };
+        if (req.user.role !== 'admin') {
+            query.owner = req.user._id;
+        }
+
         const updatedJour = await Jour.findOneAndUpdate(
-            { _id: jourId, galleryId: galleryId, owner: req.user._id }, 
+            query, 
             { $set: updatePayload },  
             { new: true, runValidators: true }     
         ).populate('images.imageId'); 
 
         if (!updatedJour) {
-            return res.status(404).send('Jour not found or does not belong to the specified gallery.');
+            return res.status(404).send('Jour not found or access denied.');
         }
         res.json(updatedJour); 
     } catch (error) {
@@ -152,10 +158,14 @@ exports.updateJour = async (req, res) => {
 exports.deleteJour = async (req, res) => {
     const { galleryId, jourId } = req.params;
     try {
-        const result = await Jour.deleteOne({ _id: jourId, galleryId: galleryId, owner: req.user._id });
+        const query = { _id: jourId, galleryId: galleryId };
+        if (req.user.role !== 'admin') {
+            query.owner = req.user._id;
+        }
+        const result = await Jour.deleteOne(query);
 
         if (result.deletedCount === 0) {
-            return res.status(404).send('Jour not found or does not belong to the specified gallery or user.');
+            return res.status(404).send('Jour not found or access denied.');
         }
         
         const gallery = await Gallery.findById(galleryId);
@@ -177,62 +187,53 @@ exports.deleteJour = async (req, res) => {
     }
 };
 
-// NOUVELLE FONCTION: Exporter les images d'un Jour en tant que ZIP
 exports.exportJourImagesAsZip = async (req, res) => {
     const { galleryId, jourId } = req.params;
 
     try {
-        const jour = await Jour.findOne({ _id: jourId, owner: req.user._id })
+        const query = { _id: jourId, galleryId: galleryId };
+        if (req.user.role !== 'admin') {
+            query.owner = req.user._id;
+        }
+
+        const jour = await Jour.findOne(query)
             .populate({
                 path: 'images.imageId',
-                model: 'Image' // Assurez-vous que 'Image' est le nom correct de votre modèle
+                model: 'Image'
             });
 
-        if (!jour || jour.galleryId.toString() !== galleryId) {
-            return res.status(404).send('Jour not found or does not belong to the specified gallery or user.');
+        if (!jour) {
+            return res.status(404).send('Jour not found or access denied.');
         }
 
         if (!jour.images || jour.images.length === 0) {
             return res.status(400).send('This Jour contains no images to export.');
         }
 
-        const archive = archiver('zip', {
-            zlib: { level: 9 } // Niveau de compression
-        });
+        const archive = archiver('zip', { zlib: { level: 9 } });
 
-        // Gérer les erreurs de l'archiveur
-        archive.on('warning', function (err) {
-            if (err.code === 'ENOENT') {
-                console.warn('Archiver warning (ENOENT):', err);
-            } else {
-                console.error('Archiver warning:', err);
-            }
+        archive.on('warning', (err) => {
+            if (err.code === 'ENOENT') console.warn('Archiver warning (ENOENT):', err);
+            else console.error('Archiver warning:', err);
         });
-        archive.on('error', function (err) {
+        archive.on('error', (err) => {
             console.error('Archiver error:', err);
-            // Si les en-têtes ne sont pas encore envoyés, envoyez une erreur 500
             if (!res.headersSent) {
                 res.status(500).send({ error: 'Failed to create zip archive.', details: err.message });
             }
         });
 
-        // Définir le nom du fichier ZIP pour le téléchargement
         const zipFileName = `Jour${jour.letter}.zip`;
-        res.attachment(zipFileName); // Définit Content-Disposition et Content-Type
-
-        // Pipe de l'archive vers la réponse HTTP
+        res.attachment(zipFileName);
         archive.pipe(res);
 
-        // Ajouter les fichiers à l'archive
         for (let i = 0; i < jour.images.length; i++) {
             const imageEntry = jour.images[i];
             if (imageEntry.imageId && imageEntry.imageId.path) {
                 const imageDoc = imageEntry.imageId;
                 const filePath = path.join(UPLOAD_DIR, imageDoc.path);
 
-                // Vérifier si le fichier existe avant de l'ajouter
                 if (fs.existsSync(filePath)) {
-                    // Nettoyer le nom de fichier original pour l'utiliser dans le ZIP
                     const originalFilenameSafe = (imageDoc.originalFilename || imageDoc.filename)
                                                 .replace(/[^a-zA-Z0-9_.\-]/g, '_');
                     const filenameInZip = `Jour${jour.letter}_${String(i + 1).padStart(2, '0')}_${originalFilenameSafe}`;
@@ -243,7 +244,6 @@ exports.exportJourImagesAsZip = async (req, res) => {
             }
         }
 
-        // Finaliser l'archive (ne plus ajouter de fichiers après cela)
         await archive.finalize();
 
     } catch (error) {
