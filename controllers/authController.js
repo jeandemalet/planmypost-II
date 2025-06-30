@@ -32,9 +32,15 @@ exports.googleSignIn = async (req, res) => {
             { expiresIn: '7d' } // Le token expire dans 7 jours
         );
 
+        res.cookie('token', appToken, { 
+            httpOnly: true, 
+            secure: process.env.NODE_ENV === 'production', // true en prod
+            sameSite: 'strict',
+            maxAge: 7 * 24 * 60 * 60 * 1000 // 7 jours
+        });
+
         res.status(200).json({
             message: 'Connexion réussie',
-            token: appToken,
             user: {
                 id: user._id,
                 name: user.name,
@@ -46,5 +52,45 @@ exports.googleSignIn = async (req, res) => {
     } catch (error) {
         console.error("Erreur de vérification du token Google:", error);
         res.status(401).json({ message: 'Token Google invalide ou expiré.' });
+    }
+};
+
+exports.logout = (req, res) => {
+    res.cookie('token', '', {
+        httpOnly: true,
+        expires: new Date(0),
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict'
+    });
+    res.status(200).json({ message: 'Déconnexion réussie.' });
+};
+
+exports.status = async (req, res) => {
+    try {
+        const token = req.cookies.token;
+        if (!token) {
+            return res.status(200).json({ loggedIn: false });
+        }
+
+        const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
+        const user = await User.findById(decodedToken.userId).select('-__v');
+
+        if (!user) {
+            return res.status(200).json({ loggedIn: false });
+        }
+
+        res.status(200).json({ 
+            loggedIn: true, 
+            username: user.name,
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                picture: user.picture,
+            }
+        });
+
+    } catch (error) {
+        res.status(200).json({ loggedIn: false });
     }
 };

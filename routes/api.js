@@ -9,9 +9,12 @@ const galleryController = require('../controllers/galleryController');
 const imageController = require('../controllers/imageController');
 const jourController = require('../controllers/jourController');
 const scheduleController = require('../controllers/scheduleController');
+const authMiddleware = require('../middleware/auth');
 
 // --- Route d'Authentification ---
 router.post('/auth/google-signin', authController.googleSignIn);
+router.post('/auth/logout', authController.logout);
+router.get('/auth/status', authController.status);
 
 const TEMP_UPLOAD_DIR = path.join(__dirname, '..', 'temp_uploads');
 if (!fs.existsSync(TEMP_UPLOAD_DIR)){
@@ -46,11 +49,11 @@ const upload = multer({
 });
 
 // --- Routes Galerie ---
-router.post('/galleries', galleryController.createGallery);
-router.get('/galleries', galleryController.listGalleries);
-router.get('/galleries/:galleryId', galleryController.getGalleryDetails);
-router.put('/galleries/:galleryId/state', galleryController.updateGalleryState);
-router.delete('/galleries/:galleryId', galleryController.deleteGallery);
+router.post('/galleries', authMiddleware, galleryController.createGallery);
+router.get('/galleries', authMiddleware, galleryController.listGalleries);
+router.get('/galleries/:galleryId', authMiddleware, galleryController.getGalleryDetails);
+router.put('/galleries/:galleryId/state', authMiddleware, galleryController.updateGalleryState);
+router.delete('/galleries/:galleryId', authMiddleware, galleryController.deleteGallery);
 
 // --- Routes Images ---
 const handleUploadErrors = (err, req, res, next) => {
@@ -72,6 +75,7 @@ const handleUploadErrors = (err, req, res, next) => {
 
 router.post(
     '/galleries/:galleryId/images',
+    authMiddleware,
     (req, res, next) => {
         next();
     },
@@ -80,22 +84,22 @@ router.post(
     imageController.uploadImages
 );
 
-router.get('/galleries/:galleryId/images', imageController.getImagesForGallery);
-router.get('/uploads/:galleryId/:imageName', imageController.serveImage);
-router.post('/galleries/:galleryId/images/:originalImageId/crop', imageController.saveCroppedImage);
-router.delete('/galleries/:galleryId/images/:imageId', imageController.deleteImage);
-router.delete('/galleries/:galleryId/images', imageController.deleteAllImagesForGallery);
+router.get('/galleries/:galleryId/images', authMiddleware, imageController.getImagesForGallery);
+router.get('/uploads/:galleryId/:imageName', authMiddleware, imageController.serveImage);
+router.post('/galleries/:galleryId/images/:originalImageId/crop', authMiddleware, imageController.saveCroppedImage);
+router.delete('/galleries/:galleryId/images/:imageId', authMiddleware, imageController.deleteImage);
+router.delete('/galleries/:galleryId/images', authMiddleware, imageController.deleteAllImagesForGallery);
 
 // --- Routes Jours ---
-router.post('/galleries/:galleryId/jours', jourController.createJour);
-router.get('/galleries/:galleryId/jours', jourController.getJoursForGallery);
-router.put('/galleries/:galleryId/jours/:jourId', jourController.updateJour);
-router.delete('/galleries/:galleryId/jours/:jourId', jourController.deleteJour);
+router.post('/galleries/:galleryId/jours', authMiddleware, jourController.createJour);
+router.get('/galleries/:galleryId/jours', authMiddleware, jourController.getJoursForGallery);
+router.put('/galleries/:galleryId/jours/:jourId', authMiddleware, jourController.updateJour);
+router.delete('/galleries/:galleryId/jours/:jourId', authMiddleware, jourController.deleteJour);
 // NOUVELLE ROUTE CI-DESSOUS
-router.get('/galleries/:galleryId/jours/:jourId/export', jourController.exportJourImagesAsZip);
+router.get('/galleries/:galleryId/jours/:jourId/export', authMiddleware, jourController.exportJourImagesAsZip);
 
 // --- Routes Calendrier ---
-router.get('/galleries/:galleryId/schedule', scheduleController.getScheduleForGallery);
-router.put('/galleries/:galleryId/schedule', scheduleController.updateSchedule);
+router.get('/galleries/:galleryId/schedule', authMiddleware, scheduleController.getScheduleForGallery);
+router.put('/galleries/:galleryId/schedule', authMiddleware, scheduleController.updateSchedule);
 
 module.exports = router;

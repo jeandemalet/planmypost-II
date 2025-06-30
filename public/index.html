@@ -18,9 +18,15 @@
                 <img src="assets/logo.png" alt="Organisateur de Publications Logo" id="appLogo">
             </div>
             <nav id="userActionsPlaceholder">
-                <button class="icon-button" aria-label="Profil">
-                    <img src="assets/profile.png" alt="Profil" class="profile-action-icon">
-                </button>
+                <div class="profile-container">
+                    <button class="icon-button" id="profileButton" aria-label="Profil">
+                        <img src="assets/profile.png" alt="Profil" class="profile-action-icon">
+                    </button>
+                    <div id="profileDropdown" class="dropdown-menu">
+                        <div id="userInfo">Connecté en tant que...</div>
+                        <a href="#" id="logoutLink">Déconnexion</a>
+                    </div>
+                </div>
                 <button class="icon-button" aria-label="Paramètres">
                     <img src="assets/settings.png" alt="Paramètres" class="profile-action-icon">
                 </button>

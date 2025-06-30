@@ -1,4 +1,3 @@
-
 body {
     font-family: sans-serif; /* Police sans-serif classique et commune */
     margin: 0;
@@ -75,7 +74,6 @@ button {
     cursor: pointer;
     background-color: #e7e7e7;
     border: 1px solid #ccc;
-    border-radius: 6px; /* Angles arrondis généraux */
     padding: 6px 12px;
     font-size: 1em;
     line-height: 1.4;
@@ -187,7 +185,6 @@ button:disabled .profile-action-icon {
 button.small-confirm-btn, button.small-cancel-btn {
     padding: 5px 8px;
     font-size: 0.9em;
-    border-radius: 4px; /* Arrondi plus petit pour petits boutons */
 }
 button.small-cancel-btn {
     background-color: #f8d7da;
@@ -258,7 +255,6 @@ button.small-cancel-btn:hover {
     margin-left: 5px;
     font-size: 0.8em;
     padding: 4px 6px;
-    border-radius: 4px; /* Arrondi pour petits boutons d'action */
 }
 
 #galleryPreviewArea {
@@ -1205,3 +1201,42 @@ button.small-cancel-btn:hover {
     font-size: 0.8em;
 }
 
+/* Styles pour le menu déroulant du profil */
+.profile-container {
+    position: relative;
+    display: inline-block;
+}
+
+.dropdown-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    background-color: #f9f9f9;
+    min-width: 160px;
+    box-shadow: 0px 8px 16px 0px rgba(0,0,0,0.2);
+    z-index: 1;
+    border-radius: 6px;
+    padding: 8px 0;
+}
+
+.dropdown-menu #userInfo {
+    padding: 8px 16px;
+    color: #333;
+    font-size: 0.9em;
+    border-bottom: 1px solid #ddd;
+    margin-bottom: 5px;
+}
+
+.dropdown-menu a {
+    color: black;
+    padding: 8px 16px;
+    text-decoration: none;
+    display: block;
+    font-size: 0.9em;
+}
+
+.dropdown-menu a:hover {background-color: #f1f1f1;}
+
+.show {
+    display: block;
+}
