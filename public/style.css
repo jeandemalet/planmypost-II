@@ -111,16 +111,21 @@ button:disabled .profile-action-icon {
     margin-bottom: 10px;
     background-color: #e8e8e8;
     padding: 0 10px;
+    gap: 5px;
 }
 
 .tab-button {
+    flex: 1;
+    text-align: center;
     padding: 10px 15px;
     border: 1px solid transparent;
     border-bottom: none;
     background-color: #eee;
-    margin-right: 5px;
     border-radius: 8px 8px 0 0; /* Onglets plus arrondis en haut */
     margin-top: 5px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .tab-button.active {
