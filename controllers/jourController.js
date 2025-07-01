@@ -8,6 +8,7 @@ const mongoose = require('mongoose');
 const archiver = require('archiver'); // Ajouté pour le ZIP
 const path = require('path');       // Ajouté pour les chemins de fichiers
 const fs = require('fs');           // Ajouté pour vérifier l'existence des fichiers
+const scheduleController = require('./scheduleController'); // Ajouté pour la mise à jour du calendrier
 
 const UPLOAD_DIR = path.join(__dirname, '..', 'uploads'); // S'assurer que UPLOAD_DIR est défini
 
@@ -91,8 +92,9 @@ exports.getJoursForGallery = async (req, res) => {
 
 exports.updateJour = async (req, res) => {
     const { galleryId, jourId } = req.params;
-    const { images, descriptionText, descriptionHashtags } = req.body;
+    const { images, descriptionText, descriptionHashtags, publicationDate } = req.body; // Ajout de publicationDate
 
+    // ... (le reste de la validation des images et du payload reste identique)
     if (images !== undefined && !Array.isArray(images)) {
         return res.status(400).send('Invalid images data format. Expected an array if provided.');
     }
@@ -122,21 +124,58 @@ exports.updateJour = async (req, res) => {
         updatePayload.descriptionHashtags = descriptionHashtags;
     }
     
-    if (Object.keys(updatePayload).length === 0) {
-        return res.status(400).send('No valid data provided for update.');
-    }
+    // On ne vérifie plus la longueur du payload ici, car on peut avoir seulement une date
 
     try {
-        const updatedJour = await Jour.findOneAndUpdate(
-            { _id: jourId, galleryId: galleryId }, 
-            { $set: updatePayload },  
-            { new: true, runValidators: true }     
-        ).populate('images.imageId'); 
-
-        if (!updatedJour) {
+        // On s'assure que le jour existe avant de continuer
+        const jour = await Jour.findOne({ _id: jourId, galleryId: galleryId });
+        if (!jour) {
             return res.status(404).send('Jour not found or does not belong to the specified gallery.');
         }
-        res.json(updatedJour); 
+
+        // Mettre à jour le jour si des données sont fournies
+        if (Object.keys(updatePayload).length > 0) {
+            await Jour.updateOne({ _id: jourId }, { $set: updatePayload });
+        }
+
+        // Si une date de publication est fournie, mettre à jour le calendrier
+        if (publicationDate) {
+            // Validation simple de la date
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(publicationDate)) {
+                return res.status(400).send('Invalid publicationDate format. Expected YYYY-MM-DD.');
+            }
+
+            // On simule un objet req pour le passer à la fonction du scheduleController
+            const scheduleReq = {
+                params: { galleryId, jourId },
+                body: { date: publicationDate },
+                user: req.user // On propage l'utilisateur authentifié
+            };
+
+            // On simule un objet res pour capturer la réponse
+            let scheduleResStatus = 200;
+            let scheduleResJson = {};
+            const scheduleRes = {
+                status: (code) => {
+                    scheduleResStatus = code;
+                    return { send: (msg) => scheduleResJson = { message: msg }, json: (data) => scheduleResJson = data };
+                },
+                send: (msg) => scheduleResJson = { message: msg },
+                json: (data) => scheduleResJson = data
+            };
+
+            await scheduleController.addOrUpdateJourInSchedule(scheduleReq, scheduleRes);
+
+            if (scheduleResStatus >= 400) {
+                // Si la mise à jour du calendrier échoue, on renvoie l'erreur
+                return res.status(scheduleResStatus).json(scheduleResJson);
+            }
+        }
+
+        // Récupérer le jour mis à jour pour le renvoyer
+        const updatedJour = await Jour.findById(jourId).populate('images.imageId');
+        res.json(updatedJour);
+
     } catch (error) {
         console.error("Error updating jour:", error);
          if (error.name === 'ValidationError') {

@@ -1,4 +1,5 @@
 const Schedule = require('../models/Schedule');
+const Jour = require('../models/Jour');
 const Gallery = require('../models/Gallery');
 const mongoose = require('mongoose');
 
@@ -96,10 +97,60 @@ exports.updateSchedule = async (req, res) => {
             });
         }
         
-        res.status(200).send('User schedule updated successfully.');
+                res.status(200).send('User schedule updated successfully.');
 
     } catch (error) {
         console.error(`Error updating user schedule via gallery ${galleryId}:`, error);
         res.status(500).send('Server error updating schedule.');
+    }
+};
+
+// Ajoute ou met à jour un jour spécifique dans le calendrier
+exports.addOrUpdateJourInSchedule = async (req, res) => {
+    const { galleryId, jourId } = req.params;
+    const { date } = req.body; // La date à laquelle assigner le jour
+
+    // Validation de la date
+    if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+        return res.status(400).send('Format de date invalide. Attendu: YYYY-MM-DD.');
+    }
+
+    try {
+        // 1. Vérifier que le jour et la galerie existent
+        const jour = await Jour.findOne({ _id: jourId, galleryId: galleryId }).select('letter');
+        if (!jour) {
+            return res.status(404).send('Jour non trouvé dans cette galerie.');
+        }
+
+        // 2. Vérifier les permissions (le propriétaire de la galerie est l'utilisateur actuel)
+        const gallery = await Gallery.findById(galleryId).select('owner');
+        if (!gallery || !req.user || gallery.owner.toString() !== req.user.id) {
+             return res.status(403).send('Permission refusée.');
+        }
+
+        // 3. Supprimer toutes les anciennes entrées de calendrier pour ce jour
+        await Schedule.deleteMany({
+            galleryId: galleryId,
+            jourLetter: jour.letter
+        });
+
+        // 4. Créer la nouvelle entrée de calendrier
+        const newScheduleEntry = new Schedule({
+            galleryId: galleryId,
+            date: date,
+            jourLetter: jour.letter
+        });
+        await newScheduleEntry.save();
+
+        // 5. Renvoyer la nouvelle entrée créée
+        res.status(201).json(newScheduleEntry);
+
+    } catch (error) {
+        console.error(`Erreur lors de l'ajout/mise à jour du jour ${jourId} au calendrier:`, error);
+        // Gérer les conflits (par exemple, si une contrainte d'unicité est violée)
+        if (error.code === 11000) {
+            return res.status(409).send('Conflit: Un jour avec la même lettre est déjà planifié à cette date dans cette galerie.');
+        }
+        res.status(500).send('Erreur serveur lors de la mise à jour du calendrier.');
     }
 };

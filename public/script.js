@@ -722,14 +722,14 @@ class JourFrameBackend {
             }
             await response.json(); 
             
-            if (this.organizer && this.organizer.calendarPage && this.imagesData.length > 0) {
-                 const galleryName = this.organizer.getCurrentGalleryName(); 
-                 this.organizer.calendarPage.scheduleJourInNextAvailableSlot(
-                    this.letter, 
-                    this.galleryId, 
-                    galleryName
-                );
-            }
+            // if (this.organizer && this.organizer.calendarPage && this.imagesData.length > 0) {
+            //      const galleryName = this.organizer.getCurrentGalleryName(); 
+            //      this.organizer.calendarPage.scheduleJourInNextAvailableSlot(
+            //         this.letter, 
+            //         this.galleryId, 
+            //         galleryName
+            //     );
+            // }
 
             console.log(`Jour ${this.letter} (Galerie ID: ${this.galleryId}) enregistré sur le serveur.`);
             return true;
