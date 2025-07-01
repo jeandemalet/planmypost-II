@@ -140,19 +140,13 @@
                     </ul>
                 </div>
                 <div id="descriptionEditorPanel">
-                    <h3 id="descriptionEditorTitle">Sélectionnez un jour pour éditer sa description</h3>
+                    <div id="dayPhotosPreview" class="day-photos-preview"></div>
                     <div id="descriptionEditorContent" style="display: none;">
-                        <div class="description-fields">
-                            <label for="descriptionText">Texte de la publication:</label>
-                            <textarea id="descriptionText" rows="10" placeholder="Écrivez votre description ici..."></textarea>
-                            <label for="descriptionHashtags">Hashtags (séparés par des espaces ou des virgules):</label>
-                            <textarea id="descriptionHashtags" rows="3" placeholder="#exemple #hashtag ..."></textarea>
-                        </div>
-                        <div class="description-filter-controls">
-                            <p><em>Fonctionnalités de traitement groupé à venir.</em></p>
-                        </div>
+                        <textarea id="descriptionText" rows="10" placeholder="Écrivez votre description ici..."></textarea>
+                        <textarea id="descriptionHashtags" rows="3" placeholder="#exemple #hashtag ..."></textarea>
+                        <span id="charCountIndicator" style="text-align: right; font-size: 0.9em; color: #555;"></span>
                     </div>
-                    <p id="descriptionEditorPlaceholder">Aucun jour sélectionné.</p>
+                    <p id="descriptionEditorPlaceholder">Sélectionnez un jour pour éditer sa description.</p>
                 </div>
             </div>
         </div>

@@ -2246,20 +2246,46 @@ class DescriptionManager {
         this.organizerApp = organizerApp;
         this.descriptionTabContent = document.getElementById('description');
         this.jourListElement = document.getElementById('descriptionJourList');
-        this.editorTitleElement = document.getElementById('descriptionEditorTitle');
+        this.dayPhotosPreviewElement = document.getElementById('dayPhotosPreview');
         this.editorContentElement = document.getElementById('descriptionEditorContent');
         this.editorPlaceholderElement = document.getElementById('descriptionEditorPlaceholder');
         this.descriptionTextElement = document.getElementById('descriptionText');
         this.descriptionHashtagsElement = document.getElementById('descriptionHashtags');
+        this.charCountIndicator = document.getElementById('charCountIndicator');
         
         this.currentSelectedJourFrame = null;
+        this.MAX_TOTAL_CHARS = 2200;
 
         this._initListeners();
     }
 
     _initListeners() {
-        this.descriptionTextElement.addEventListener('input', () => this.triggerAutoSave());
-        this.descriptionHashtagsElement.addEventListener('input', () => this.triggerAutoSave());
+        this.descriptionTextElement.addEventListener('input', () => {
+            this.updateCharCount();
+            this.triggerAutoSave();
+        });
+        this.descriptionHashtagsElement.addEventListener('input', () => {
+            this.updateCharCount();
+            this.triggerAutoSave();
+        });
+    }
+
+    updateCharCount() {
+        if (!this.charCountIndicator) return;
+
+        const textLength = this.descriptionTextElement.value.length;
+        const hashtagsLength = this.descriptionHashtagsElement.value.length;
+        const totalLength = textLength + hashtagsLength;
+
+        this.charCountIndicator.textContent = `Total : ${totalLength} / ${this.MAX_TOTAL_CHARS}`;
+
+        if (totalLength > this.MAX_TOTAL_CHARS) {
+            this.charCountIndicator.style.color = 'red';
+            this.charCountIndicator.style.fontWeight = 'bold';
+        } else {
+            this.charCountIndicator.style.color = '';
+            this.charCountIndicator.style.fontWeight = 'normal';
+        }
     }
 
     triggerAutoSave() {
@@ -2276,7 +2302,7 @@ class DescriptionManager {
             this.editorContentElement.style.display = 'none';
             this.editorPlaceholderElement.textContent = "Aucune galerie chargée.";
             this.editorPlaceholderElement.style.display = 'block';
-            this.editorTitleElement.textContent = "Description des Publications";
+            this.dayPhotosPreviewElement.innerHTML = '';
             return;
         }
         this.populateJourList();
@@ -2334,15 +2360,28 @@ class DescriptionManager {
             this.clearEditor();
             return;
         }
-        this.editorTitleElement.textContent = `Description pour Jour ${jourFrame.letter}`;
+
+        this.dayPhotosPreviewElement.innerHTML = '';
+        if (jourFrame.imagesData && jourFrame.imagesData.length > 0) {
+            jourFrame.imagesData.forEach(imgData => {
+                const photoItem = document.createElement('div');
+                photoItem.className = 'photo-item';
+                photoItem.style.backgroundImage = `url(${imgData.dataURL})`;
+                this.dayPhotosPreviewElement.appendChild(photoItem);
+            });
+        } else {
+            this.dayPhotosPreviewElement.innerHTML = '<p>Aucune photo dans ce jour.</p>';
+        }
+
         this.descriptionTextElement.value = jourFrame.descriptionText || '';
         this.descriptionHashtagsElement.value = jourFrame.descriptionHashtags || '';
-        this.editorContentElement.style.display = 'block';
+        this.editorContentElement.style.display = 'flex';
         this.editorPlaceholderElement.style.display = 'none';
+        this.updateCharCount();
     }
 
     clearEditor() {
-        this.editorTitleElement.textContent = "Sélectionnez un jour";
+        this.dayPhotosPreviewElement.innerHTML = '';
         this.descriptionTextElement.value = '';
         this.descriptionHashtagsElement.value = '';
         this.currentSelectedJourFrame = null;
@@ -2350,6 +2389,7 @@ class DescriptionManager {
         this.editorPlaceholderElement.textContent = "Aucun jour sélectionné, ou la galerie n'a pas de jours.";
         this.editorPlaceholderElement.style.display = 'block';
         this.jourListElement.querySelectorAll('li.active-description-jour').forEach(li => li.classList.remove('active-description-jour'));
+        if(this.charCountIndicator) this.charCountIndicator.textContent = '';
     }
 }
 class PublicationOrganizer {

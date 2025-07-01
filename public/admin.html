@@ -13,10 +13,49 @@
             <a href="/index.html" id="backToAppBtn">Retour à l'application</a>
         </header>
 
-        <div id="adminPanel">
-            <h2>Utilisateurs</h2>
-            <ul id="user-list"></ul>
+        '''        <div class="ribbon-bar">
+            <div class="ribbon-group">
+                <button class="ribbon-button" id="saveBtn">
+                    <img src="assets/add-button.png" alt="Enregistrer" class="btn-icon">
+                    Enregistrer
+                </button>
+                <button class="ribbon-button" id="cancelBtn">
+                    <img src="assets/add-button.png" alt="Annuler" class="btn-icon">
+                    Annuler
+                </button>
+            </div>
         </div>
+
+        <div class="content-under-ribbon">
+            <div class="form-section">
+                <h3>Détails de la publication</h3>
+                <div class="form-grid">
+                    <div class="form-group">
+                        <label for="title">Titre</label>
+                        <input type="text" id="title" name="title">
+                    </div>
+                    <div class="form-group">
+                        <label for="publication-date">Date de publication</label>
+                        <input type="date" id="publication-date" name="publication-date">
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="description">Description</label>
+                        <textarea id="description" name="description" rows="4"></textarea>
+                    </div>
+                    <div class="form-group full-width">
+                        <label for="hashtags">Hashtags</label>
+                        <textarea id="hashtags" name="hashtags" rows="2"></textarea>
+                    </div>
+                </div>
+            </div>
+
+            <div class="form-section">
+                <h3>Images</h3>
+                <div class="image-preview-zone" id="image-preview">
+                    <!-- Les images ajoutées apparaîtront ici -->
+                </div>
+            </div>
+        </div>''
         <div id="impersonation-banner" style="display:none; background-color: #f0ad4e; color: white; padding: 10px; text-align: center; font-weight: bold; position: fixed; bottom: 0; width: 100%; left: 0;">
             Vous naviguez en tant que <span id="impersonated-user-name"></span>. 
             <button id="stop-impersonation-btn">Arrêter et revenir à mon compte</button>
