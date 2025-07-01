@@ -2213,6 +2213,48 @@ class CalendarPage {
         }
     }
 
+    // CORRECTION: Renommage et ajustement de la fonction pour la rendre plus claire
+    addPublicationToDate(dateObj, jourLetter, galleryId, galleryName) { 
+        const dateStr = this.formatDateKey(dateObj);
+        if (!this.scheduleData[dateStr]) {
+            this.scheduleData[dateStr] = {};
+        }
+        this.scheduleData[dateStr][jourLetter] = {
+            label: `Jour ${jourLetter}`, 
+            galleryId: galleryId,
+            galleryName: galleryName
+        }; 
+        this.saveSchedule(); 
+        if (this.parentElement.classList.contains('active')) { 
+            this.buildCalendarUI();
+        }
+    }
+
+    // CORRECTION: NOUVELLE FONCTION pour placer automatiquement un jour
+    scheduleJourInNextAvailableSlot(jourInfo) {
+        if (!jourInfo || !jourInfo.galleryId) {
+            console.warn("Tentative de planification d'un jour sans info valide. Opération annulée.");
+            return;
+        }
+        let checkDate = new Date(); 
+        checkDate.setHours(0,0,0,0);
+        const MAX_SEARCH_DAYS = 365; 
+
+        for (let i = 0; i < MAX_SEARCH_DAYS; i++) {
+            const dateKey = this.formatDateKey(checkDate);
+            // On cherche un jour complètement vide
+            if (!this.scheduleData[dateKey]) {
+                this.addPublicationToDate(checkDate, jourInfo.letter, jourInfo.galleryId, jourInfo.galleryName);
+                console.log(`Jour ${jourInfo.letter} (Galerie: ${jourInfo.galleryName}) auto-placé le ${dateKey}`);
+                return;
+            }
+            checkDate.setDate(checkDate.getDate() + 1); 
+        }
+        
+        console.warn(`Impossible de trouver un slot libre pour le Jour ${jourInfo.letter} dans les ${MAX_SEARCH_DAYS} prochains jours.`);
+        alert(`Impossible de planifier automatiquement le Jour ${jourInfo.letter}. Veuillez le placer manuellement dans le calendrier.`);
+    }
+
     runAutoSchedule() {
         this.autoScheduleInfo.textContent = "Calcul en cours...";
         this.runAutoScheduleBtn.disabled = true;
@@ -3287,9 +3329,6 @@ class PublicationOrganizer {
         this.statsLabelText.textContent = `Grille: ${numGridImages} | Jours: ${numJourImages}`;
     }
 
-    // ===========================================================================
-    // CORRECTION : La logique de synchronisation avec le calendrier est ajoutée ici
-    // ===========================================================================
     async addJourFrame() {
         if (!this.currentGalleryId) return;
         this.recalculateNextJourIndex();
@@ -3310,7 +3349,6 @@ class PublicationOrganizer {
             this.updateStatsLabel();
             this.saveAppState();
             
-            // CORRECTION: Mettre à jour le contexte du calendrier avec le nouveau jour
             const newJourForScheduling = {
                 _id: newJourData._id,
                 letter: newJourData.letter,
@@ -3321,9 +3359,7 @@ class PublicationOrganizer {
 
             if (this.calendarPage) {
                 this.calendarPage.loadData(this.scheduleContext.schedule, this.scheduleContext.allUserJours);
-                if (document.getElementById('calendar').classList.contains('active')) {
-                    this.calendarPage.buildCalendarUI();
-                }
+                this.calendarPage.scheduleJourInNextAvailableSlot(newJourForScheduling);
             }
 
             if (this.descriptionManager && document.getElementById('description').classList.contains('active')) {
@@ -3355,7 +3391,6 @@ class PublicationOrganizer {
             await jourFrameToClose.destroy(); 
             this.jourFrames.splice(index, 1);
 
-            // CORRECTION: Mettre à jour le contexte du calendrier lors de la suppression
             this.scheduleContext.allUserJours = this.scheduleContext.allUserJours.filter(j => j._id !== jourFrameToClose.id);
             
             Object.keys(this.scheduleContext.schedule).forEach(dateStr => {
@@ -3372,10 +3407,8 @@ class PublicationOrganizer {
                 if (document.getElementById('calendar').classList.contains('active')) {
                     this.calendarPage.buildCalendarUI();
                 }
-                // Sauvegarder l'état du calendrier après suppression d'un élément
                 this.calendarPage.saveSchedule();
             }
-            // FIN DE LA CORRECTION
 
             if (this.currentJourFrame === jourFrameToClose) {
                 this.setCurrentJourFrame(this.jourFrames[0] || null);
@@ -3387,14 +3420,12 @@ class PublicationOrganizer {
 
             if (this.descriptionManager && document.getElementById('description').classList.contains('active')) {
                 this.descriptionManager.populateJourList();
-                // Si le jour supprimé était celui en cours d'édition, on nettoie l'éditeur
                 if (this.descriptionManager.currentSelectedJourFrame && this.descriptionManager.currentSelectedJourFrame.id === jourFrameToClose.id) {
                     this.descriptionManager.clearEditor();
                 }
             }
         }
     }
-    // ===========================================================================
     
     recalculateNextJourIndex() {
         const existingIndices = new Set(this.jourFrames.map(jf => jf.index));
@@ -3402,9 +3433,14 @@ class PublicationOrganizer {
         this.nextJourIndex = i;
     }
 
+    // CORRECTION: Logique améliorée pour déterminer si un jour est prêt
+    isJourReadyForPublishing(galleryId, letter) {
+        const jourFrame = this.jourFrames.find(jf => jf.galleryId === galleryId && jf.letter === letter);
+        return jourFrame && jourFrame.imagesData.length > 0;
+    }
+
     getCurrentGalleryName() { return this.galleryCache[this.currentGalleryId] || 'Galerie'; }
     getCachedGalleryName(galleryId) { return this.galleryCache[galleryId]; }
-    isJourReadyForPublishing(galleryId, letter) { return true; }
 
     openImageCropper(imagesDataForCropper, callingJourFrame) {
         this.cropper.open(imagesDataForCropper, callingJourFrame);
