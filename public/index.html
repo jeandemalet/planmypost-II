@@ -15,14 +15,12 @@
     <div class="app-container">
         <header class="app-header">
             <div id="logoPlaceholder">
-                <a href="/welcome.html">
-                    <img src="assets/logo.png" alt="Organisateur de Publications Logo" id="appLogo">
-                </a>
+                <img src="assets/logo.png" alt="Organisateur de Publications Logo" id="appLogo">
             </div>
             <nav id="userActionsPlaceholder">
                 <div class="profile-container">
                     <button class="icon-button" id="profileButton" aria-label="Profil">
-                        <img src="assets/profile-icon.svg" alt="Profil" class="profile-action-icon" id="profilePictureImg">
+                        <img src="assets/profile.png" alt="Profil" class="profile-action-icon">
                     </button>
                     <div id="profileDropdown" class="dropdown-menu">
                         <div id="userInfo">Connecté en tant que...</div>
@@ -37,7 +35,7 @@
 
         <div class="tabs">
             <button class="tab-button" data-tab="galleries">📚 Galeries</button>
-            <button class="tab-button active" data-tab="currentGallery">🖼️ Tri</button>
+            <button class="tab-button active" data-tab="currentGallery">🖼️ Galerie en cours</button>
             <button class="tab-button" data-tab="description">📝 Description</button>
             <button class="tab-button" data-tab="calendar">🗓️ Calendrier</button>
         </div>
@@ -126,6 +124,7 @@
                         <button id="addJourFrameBtn">
                              <img src="assets/add-button.png" alt="" class="btn-icon"> Ajouter Jour
                         </button>
+                        <button id="saveAllJourFramesBtn">💾 Tout Enregistrer</button>
                     </div>
                 </div>
             </div>
@@ -140,29 +139,71 @@
                     </ul>
                 </div>
                 <div id="descriptionEditorPanel">
-                    <div id="dayPhotosPreview" class="day-photos-preview"></div>
+                    <h3 id="descriptionEditorTitle">Sélectionnez un jour pour éditer sa description</h3>
                     <div id="descriptionEditorContent" style="display: none;">
-                        <textarea id="descriptionText" rows="10" placeholder="Écrivez votre description ici..."></textarea>
-                        <textarea id="descriptionHashtags" rows="3" placeholder="#exemple #hashtag ..."></textarea>
-                        <span id="charCountIndicator" style="text-align: right; font-size: 0.9em; color: #555;"></span>
+                        <div class="description-fields">
+                            <label for="descriptionText">Texte de la publication:</label>
+                            <textarea id="descriptionText" rows="10" placeholder="Écrivez votre description ici..."></textarea>
+                            <label for="descriptionHashtags">Hashtags (séparés par des espaces ou des virgules):</label>
+                            <textarea id="descriptionHashtags" rows="3" placeholder="#exemple #hashtag ..."></textarea>
+                        </div>
+                        <button id="saveDescriptionBtn" class="primary-action">💾 Enregistrer cette Description</button>
+                        <div class="description-filter-controls">
+                            <p><em>Fonctionnalités de traitement groupé à venir.</em></p>
+                        </div>
                     </div>
-                    <p id="descriptionEditorPlaceholder">Sélectionnez un jour pour éditer sa description.</p>
+                    <p id="descriptionEditorPlaceholder">Aucun jour sélectionné.</p>
                 </div>
             </div>
         </div>
 
 
+        <!-- NOUVELLE STRUCTURE POUR L'ONGLET CALENDRIER -->
         <div id="calendar" class="tab-content">
-            <div class="scheduler-header">
-                <h2 id="monthYearLabel">Mois Année</h2>
-                <button id="todayBtn">Aujourd'hui</button>
+            <div id="calendar-sidebar">
+                <div class="sidebar-section">
+                    <h4>Planification Automatique</h4>
+                    <div class="auto-schedule-options">
+                        <div class="option-group">
+                            <input type="radio" id="autoScheduleChrono" name="autoScheduleMode" value="chrono" checked>
+                            <label for="autoScheduleChrono">Chronologique</label>
+                        </div>
+                        <div class="option-group">
+                            <input type="radio" id="autoScheduleInterlaced" name="autoScheduleMode" value="interlaced">
+                            <label for="autoScheduleInterlaced">Chronologique Interlacé</label>
+                        </div>
+                        <div class="option-group">
+                            <input type="radio" id="autoScheduleRandom" name="autoScheduleMode" value="random">
+                            <label for="autoScheduleRandom">Aléatoire</label>
+                        </div>
+                    </div>
+                    <div class="auto-schedule-settings">
+                        <div class="setting-group">
+                            <label for="autoSchedulePerDay">Publier</label>
+                            <input type="number" id="autoSchedulePerDay" value="1" min="1">
+                            <label for="autoScheduleEveryXDays">tous les</label>
+                            <input type="number" id="autoScheduleEveryXDays" value="1" min="1">
+                            <label>jour(s)</label>
+                        </div>
+                    </div>
+                    <button id="runAutoScheduleBtn" class="primary-action">Lancer la Planification</button>
+                    <p id="auto-schedule-info" class="sidebar-info"></p>
+                </div>
             </div>
-            <div id="calendarGrid"></div>
+            <div id="calendar-main-content">
+                <div class="scheduler-header">
+                    <h2 id="monthYearLabel">Mois Année</h2>
+                    <button id="todayBtn">Aujourd'hui</button>
+                </div>
+                <div id="calendarGrid"></div>
+            </div>
             <div id="calendarContextPreviewModal" class="modal-preview">
                 <h4 id="calendarContextTitle">Aperçu</h4>
                 <div id="calendarContextImages"></div>
             </div>
         </div>
+        <!-- FIN DE LA NOUVELLE STRUCTURE -->
+
     </div>
 
     <div id="cropperModal" class="modal">
@@ -203,4 +244,3 @@
     <script src="script.js"></script>
 </body>
 </html>
-

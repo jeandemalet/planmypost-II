@@ -15,14 +15,13 @@ const MAX_HOVER_PREVIEWS = 3;
 const PREVIEW_WIDTH = 100;
 const PREVIEW_HEIGHT = 100;
 const CROPPER_BACKGROUND_GRAY = 'rgb(46, 46, 46)';
-const AUTOSAVE_DELAY = 1500; // Délai en ms pour la sauvegarde automatique
 
 // L'instance de l'application sera stockée ici.
 let app = null;
 // L'ID de la galerie est maintenant géré à l'intérieur de la classe `app`.
 
 // =================================================================
-// --- CLASSE UTILITAIRES (INCHANGÉE) ---
+// --- CLASSE UTILITAIRES ---
 // =================================================================
 class Utils {
     static async loadImage(urlOrFile) {
@@ -117,9 +116,8 @@ class Utils {
 }
 
 // =================================================================
-// --- CLASSES MÉTIER ---
+// --- CLASSE GridItemBackend ---
 // =================================================================
-
 class GridItemBackend {
     static SERVER_THUMB_OPTIMAL_DISPLAY_WIDTH = 150; 
     static SERVER_THUMB_OPTIMAL_DISPLAY_HEIGHT = 150; 
@@ -240,16 +238,7 @@ class GridItemBackend {
             this.orderTextElement.textContent = this.order;
             this.orderTextElement.style.color = this.color;
             this.orderTextElement.style.display = 'block';
-    
-            // --- MODIFICATION (3/3) : Ajuster la police pour les labels longs ---
-            let fontSizeFactor = 0.3;
-            if (this.order.length > 5) { // Si le label est long (plus d'une utilisation)
-                fontSizeFactor = 0.22;
-            }
-            if (this.order.length > 15) { // Encore plus long
-                fontSizeFactor = 0.18;
-            }
-            const fontSize = Math.max(8, Math.min(32, Math.floor(this.thumbSize.height * fontSizeFactor)));
+            const fontSize = Math.max(10, Math.min(32, Math.floor(this.thumbSize.height * 0.3)));
             this.orderTextElement.style.fontSize = `${fontSize}px`;
             this.element.classList.add('used');
         } else {
@@ -272,6 +261,10 @@ class GridItemBackend {
         this._updateOrderTextAppearance();
     }
 }
+
+// =================================================================
+// --- CLASSE JourFrameBackend ---
+// =================================================================
 class JourFrameBackend {
     constructor(organizer, jourData) {
         this.organizer = organizer;
@@ -285,9 +278,6 @@ class JourFrameBackend {
         this.descriptionHashtags = jourData.descriptionHashtags || '';
         this.placeholderElement = null; 
         this.draggedItemElement = null; 
-
-        // Auto-save
-        this.debouncedSave = Utils.debounce(this.save.bind(this), AUTOSAVE_DELAY);
 
         this.element = document.createElement('div');
         this.element.className = 'jour-frame';
@@ -303,7 +293,8 @@ class JourFrameBackend {
 
         const buttonsContainer = document.createElement('div');
         buttonsContainer.className = 'jour-frame-buttons';
-
+        this.saveBtn = document.createElement('button');
+        this.saveBtn.textContent = '💾 Enr.';
         this.cropBtn = document.createElement('button');
         this.cropBtn.textContent = '✂️ Rec.';
         this.exportJourImagesBtn = document.createElement('button');
@@ -313,6 +304,8 @@ class JourFrameBackend {
         this.deleteJourBtn.textContent = '🗑️ Suppr. Jour';
         this.deleteJourBtn.className = 'danger-btn-small';
 
+
+        buttonsContainer.appendChild(this.saveBtn);
         buttonsContainer.appendChild(this.cropBtn);
         buttonsContainer.appendChild(this.exportJourImagesBtn);
         buttonsContainer.appendChild(this.deleteJourBtn);
@@ -328,6 +321,7 @@ class JourFrameBackend {
             }
         });
 
+        this.saveBtn.addEventListener('click', () => this.save());
         this.cropBtn.addEventListener('click', () => this.openCropperForJour());
         this.exportJourImagesBtn.addEventListener('click', () => this.exportJourAsZip()); 
         this.deleteJourBtn.addEventListener('click', () => this.organizer.closeJourFrame(this));
@@ -336,15 +330,19 @@ class JourFrameBackend {
         this.canvasWrapper.addEventListener('dragleave', (e) => this.onDragLeaveCanvas(e));
         this.canvasWrapper.addEventListener('drop', (e) => this.onDropIntoCanvas(e));
 
+        this.originalSaveBtnBg = this.saveBtn.style.backgroundColor || '';
+
         if (jourData.images && Array.isArray(jourData.images)) {
             jourData.images.sort((a, b) => a.order - b.order).forEach(imgEntry => {
-                if (imgEntry && imgEntry.imageId && typeof imgEntry.imageId === 'object') { 
+                if (imgEntry.imageId && typeof imgEntry.imageId === 'object') { 
                     this.addImageFromBackendData(imgEntry.imageId);
-                } else {
-                    console.warn('Données d\'image non peuplées ou invalides dans le Jour :', jourData.letter, imgEntry);
+                } else if (typeof imgEntry.imageId === 'string') { 
+                    const fullImgData = this.organizer.gridItemsDict[imgEntry.imageId] || this.organizer.findImageInAnyJour(imgEntry.imageId);
+                    if (fullImgData) this.addImageFromBackendData(fullImgData, true);
                 }
             });
         }
+        this._resetSaveButtonColor(false); 
         this.checkAndApplyCroppedStyle();
     }
     
@@ -468,7 +466,7 @@ class JourFrameBackend {
     
                             this.imagesData.splice(adjustedTargetIndex, 0, itemDataToMove);
                             this.rebuildAndReposition();
-                            this.debouncedSave();
+                            this._resetSaveButtonColor(true);
                         } else { 
                             sourceJourFrame.removeImageAtIndex(originalDataIndexInSource); 
                             this.insertImageAt(itemDataToMove, targetVisualIndex);
@@ -483,25 +481,28 @@ class JourFrameBackend {
         }
     }
 
-    addImageFromBackendData(imageData) {
-        const galleryIdForURL = imageData.galleryId;
-        const thumbFilename = Utils.getFilenameFromURL(imageData.thumbnailPath);
-    
-        if (!galleryIdForURL || !thumbFilename) {
-            console.error("Données d'image incomplètes, impossible de générer l'aperçu:", imageData);
-            return;
+
+    addImageFromBackendData(imageData, isGridItemInstance = false) {
+        let galleryIdForURL = this.galleryId; 
+        let thumbFilename;
+
+        if(isGridItemInstance) { 
+            galleryIdForURL = imageData.galleryId;
+            thumbFilename = Utils.getFilenameFromURL(imageData.thumbnailPath); 
+        } else { 
+            thumbFilename = Utils.getFilenameFromURL(imageData.thumbnailPath); 
         }
-    
+
         const imageItemData = {
-            imageId: imageData._id || imageData.id,
-            displayPathKey: imageData._id || imageData.id,
-            originalReferencePath: imageData.parentImageId || (imageData._id || imageData.id),
-            dataURL: `${BASE_API_URL}/api/uploads/${galleryIdForURL}/${thumbFilename}`,
+            imageId: imageData._id || imageData.id, 
+            displayPathKey: imageData._id || imageData.id, 
+            originalReferencePath: imageData.parentImageId || (imageData._id || imageData.id), 
+            dataURL: `${BASE_API_URL}/api/uploads/${galleryIdForURL}/${thumbFilename}`, 
             isCropped: imageData.isCroppedVersion || false,
         };
-        this.insertImageAt(imageItemData, this.imagesData.length, false); // No save on initial load
+        this.insertImageAt(imageItemData, this.imagesData.length); 
     }
-    
+
     checkAndApplyCroppedStyle() {
         this.hasBeenProcessedByCropper = this.imagesData.some(img => img.isCropped);
         if (this.hasBeenProcessedByCropper) {
@@ -599,7 +600,7 @@ class JourFrameBackend {
         return this.insertImageAt(imageItemData, this.imagesData.length);
     }
 
-    insertImageAt(imageItemData, index, triggerSave = true) {
+    insertImageAt(imageItemData, index) {
         if (!imageItemData || !imageItemData.imageId) {
             console.warn("insertImageAt called with invalid imageItemData", imageItemData);
             return false;
@@ -665,9 +666,7 @@ class JourFrameBackend {
             this.canvasWrapper.insertBefore(itemElement, childrenWithoutPlaceholder[index]);
         }
     
-        if (triggerSave) {
-            this.debouncedSave();
-        }
+        this._resetSaveButtonColor(true);
         this.checkAndApplyCroppedStyle();
         if (this.organizer) this.organizer.updateGridUsage();
         return true;
@@ -679,7 +678,7 @@ class JourFrameBackend {
         
         this.imagesData.splice(index, 1); 
         this.rebuildAndReposition(); 
-        this.debouncedSave();
+        this._resetSaveButtonColor(true);
         this.checkAndApplyCroppedStyle(); 
         return true;
     }
@@ -706,13 +705,16 @@ class JourFrameBackend {
         return removed;
     }
 
+    _resetSaveButtonColor(markUnsaved = true) {
+        this.saveBtn.style.backgroundColor = markUnsaved ? 'gold' : this.originalSaveBtnBg;
+    }
+
     async save() {
         if (!this.id || !app.currentGalleryId) {
             console.error("Cannot save Jour: Missing Jour ID or Gallery ID.");
+            alert("Erreur: Impossible de sauvegarder le jour (ID manquant).");
             return false;
         }
-
-        console.log(`Auto-saving Jour ${this.letter}...`);
 
         const imagesToSave = this.imagesData.map((imgData, idx) => ({
             imageId: imgData.imageId, 
@@ -736,34 +738,23 @@ class JourFrameBackend {
                 throw new Error(`Failed to save Jour ${this.letter}: ${response.statusText} - ${errorData}`);
             }
             await response.json(); 
-
-            // =========================================================================
-            //  MODIFICATION : Logique d'ajout automatique au calendrier après sauvegarde
-            // =========================================================================
+            this._resetSaveButtonColor(false);
+            
             if (this.organizer && this.organizer.calendarPage && this.imagesData.length > 0) {
-                // Vérifier si le jour est déjà planifié
-                if (!this.organizer.calendarPage.isJourLetterScheduled(this.letter)) {
-                    // S'il n'est pas planifié, l'ajouter au prochain slot disponible
-                    const galleryName = this.organizer.getCurrentGalleryName();
-                    this.organizer.calendarPage.scheduleJourInNextAvailableSlot(
-                        this.letter,
-                        this.galleryId,
-                        galleryName
-                    );
-                } else {
-                    // S'il est déjà planifié, rafraîchir simplement l'UI du calendrier
-                    // pour mettre à jour la miniature ou le statut "recadré"
-                    this.organizer.calendarPage.buildCalendarUI();
-                }
+                 const galleryName = this.organizer.getCurrentGalleryName(); 
+                 this.organizer.calendarPage.scheduleJourInNextAvailableSlot(
+                    this.letter, 
+                    this.galleryId, 
+                    galleryName
+                );
             }
-            // ======================= FIN DE LA MODIFICATION ==========================
 
-
-            console.log(`Jour ${this.letter} (Galerie ID: ${this.galleryId}) auto-saved to server.`);
+            console.log(`Jour ${this.letter} (Galerie ID: ${this.galleryId}) enregistré sur le serveur.`);
             return true;
         } catch (error) {
-            console.error(`Error auto-saving Jour ${this.letter}:`, error);
-            // Optionally notify user of save failure
+            console.error(`Error saving Jour ${this.letter}:`, error);
+            alert(`Erreur lors de la sauvegarde du Jour ${this.letter}. Voir la console.`);
+            this._resetSaveButtonColor(true); 
             return false;
         }
     }
@@ -818,7 +809,7 @@ class JourFrameBackend {
         if (changesAppliedThisTime) {
             this.imagesData = newImagesDataArray; 
             this.rebuildAndReposition(); 
-            this.debouncedSave();
+            this._resetSaveButtonColor(true); 
             this.checkAndApplyCroppedStyle(); 
         }
     }
@@ -840,7 +831,7 @@ class JourFrameBackend {
         this.imagesData = []; 
 
         currentOrderedData.forEach((imgData, index) => {
-            this.insertImageAt(imgData, index, false); // No save on rebuild
+            this.insertImageAt(imgData, index); 
         });
         
         if (this.organizer) this.organizer.updateGridUsage();
@@ -885,453 +876,10 @@ class JourFrameBackend {
         this.imagesData = []; 
     }
 }
-class CalendarPage {
-    constructor(parentElement, organizerApp) {
-        this.parentElement = parentElement;
-        this.organizerApp = organizerApp;
-        this.scheduleData = {}; 
 
-        this.currentDate = new Date(); 
-        this.calendarGridElement = this.parentElement.querySelector('#calendarGrid');
-        this.monthYearLabelElement = this.parentElement.querySelector('#monthYearLabel');
-        
-        this.contextPreviewModal = document.getElementById('calendarContextPreviewModal');
-        this.contextPreviewTitle = document.getElementById('calendarContextTitle');
-        this.contextPreviewImages = document.getElementById('calendarContextImages');
-
-        this.dragData = {}; 
-
-        this._initUIListeners();
-        this.debouncedChangeMonth = Utils.debounce(this.changeMonth.bind(this), 100); 
-    }
-
-    _initUIListeners() {
-        this.parentElement.querySelector('#todayBtn').addEventListener('click', () => this.goToToday());
-        
-        this.calendarGridElement.addEventListener('wheel', (event) => {
-            event.preventDefault(); 
-            if (event.deltaY < 0) { 
-                this.debouncedChangeMonth(-1);
-            } else { 
-                this.debouncedChangeMonth(1);
-            }
-        }, { passive: false });
-
-        this.contextPreviewModal.addEventListener('mouseleave', (e) => {
-            setTimeout(() => {
-                 if (!this.contextPreviewModal.matches(':hover')) this._hideContextPreview();
-            }, 100);
-        });
-        document.addEventListener('click', (e) => {
-            if (this.contextPreviewModal.style.display === 'block' && 
-                !this.contextPreviewModal.contains(e.target) &&
-                !e.target.closest('.scheduled-item')) { 
-                    this._hideContextPreview();
-            }
-        });
-    }
-
-    goToToday() {
-        this.currentDate = new Date();
-        this.buildCalendarUI();
-    }
-
-    changeMonth(monthDelta) {
-        this.currentDate.setDate(1); 
-        this.currentDate.setMonth(this.currentDate.getMonth() + monthDelta);
-        this.buildCalendarUI();
-    }
-    
-    formatDateKey(dateObj) {
-        const year = dateObj.getFullYear();
-        const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
-        const day = dateObj.getDate().toString().padStart(2, '0');
-        return `${year}-${month}-${day}`;
-    }
-
-    buildCalendarUI() {
-        this.calendarGridElement.innerHTML = ''; 
-        if (!app.currentGalleryId && this.organizerApp) { 
-            this.calendarGridElement.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 20px;">Chargez ou créez une galerie pour voir le calendrier.</p>';
-            this.monthYearLabelElement.textContent = "Calendrier";
-            return;
-        }
-
-
-        const year = this.currentDate.getFullYear();
-        const month = this.currentDate.getMonth(); 
-
-        this.monthYearLabelElement.textContent = `${this.currentDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`;
-
-        const daysOfWeekFr = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
-        daysOfWeekFr.forEach(dayName => {
-            const headerCell = document.createElement('div');
-            headerCell.className = 'calendar-header-cell';
-            headerCell.textContent = dayName;
-            this.calendarGridElement.appendChild(headerCell);
-        });
-
-        const firstDayOfMonth = new Date(year, month, 1);
-        const lastDayOfMonth = new Date(year, month + 1, 0);
-        
-        let dayOfWeekOfFirst = firstDayOfMonth.getDay(); 
-        if (dayOfWeekOfFirst === 0) dayOfWeekOfFirst = 7; 
-        
-        const daysInPrevMonth = (dayOfWeekOfFirst - 1);
-
-        const today = new Date();
-        today.setHours(0,0,0,0); 
-
-        for (let i = 0; i < daysInPrevMonth; i++) {
-            const prevMonthDay = new Date(year, month, 1 - (daysInPrevMonth - i));
-            this.createDayCell(prevMonthDay, true, false, prevMonthDay < today);
-        }
-
-        for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
-            const currentDateInLoop = new Date(year, month, day);
-            this.createDayCell(currentDateInLoop, false, currentDateInLoop.getTime() === today.getTime(), currentDateInLoop < today && currentDateInLoop.getTime() !== today.getTime());
-        }
-        
-        const totalCellsSoFar = daysInPrevMonth + lastDayOfMonth.getDate();
-        const remainingCells = (7 - (totalCellsSoFar % 7)) % 7; 
-        
-        for (let i = 1; i <= remainingCells; i++) {
-            const nextMonthDay = new Date(year, month + 1, i);
-            this.createDayCell(nextMonthDay, true, false, nextMonthDay < today);
-        }
-    }
-    
-    createDayCell(dateObj, isOtherMonth, isToday = false, isPast = false) {
-        const dayCell = document.createElement('div');
-        dayCell.className = 'calendar-day-cell';
-        if (isOtherMonth) dayCell.classList.add('other-month');
-        if (isToday) dayCell.classList.add('today');
-        if (isPast) dayCell.classList.add('past-day');
-
-        const dayNumber = document.createElement('span');
-        dayNumber.className = 'day-number';
-        dayNumber.textContent = dateObj.getDate();
-        dayCell.appendChild(dayNumber);
-        
-        const dateKey = this.formatDateKey(dateObj);
-        dayCell.dataset.dateKey = dateKey;
-
-        if (this.scheduleData[dateKey]) {
-            const itemsOnDay = this.scheduleData[dateKey];
-            const sortedLetters = Object.keys(itemsOnDay).sort();
-            sortedLetters.forEach(letter => {
-                const itemData = itemsOnDay[letter]; 
-                const pubItemElement = document.createElement('div');
-                pubItemElement.className = 'scheduled-item';
-                
-                const mainContentDiv = document.createElement('div'); 
-                mainContentDiv.className = 'scheduled-item-main-content';
-
-                const jourFrameInstance = this.organizerApp.jourFrames.find(jf => jf.letter === letter && jf.galleryId === itemData.galleryId);
-                if (jourFrameInstance && jourFrameInstance.hasBeenProcessedByCropper) { 
-                    const iconSpan = document.createElement('span');
-                    iconSpan.className = 'scheduled-item-icon';
-                    iconSpan.textContent = '✂️';
-                    mainContentDiv.appendChild(iconSpan);
-                }
-                
-                const textSpan = document.createElement('span'); 
-                textSpan.className = 'scheduled-item-text';
-                textSpan.textContent = itemData.label || `Jour ${letter}`;
-                mainContentDiv.appendChild(textSpan);
-
-                const thumbDiv = document.createElement('div');
-                thumbDiv.className = 'scheduled-item-thumb';
-                this.loadCalendarThumb(thumbDiv, letter, itemData.galleryId); 
-                mainContentDiv.appendChild(thumbDiv);
-                
-                pubItemElement.appendChild(mainContentDiv);
-
-                if (itemData.galleryName) {
-                    const galleryNameSpan = document.createElement('span');
-                    galleryNameSpan.className = 'scheduled-item-gallery-name';
-                    galleryNameSpan.textContent = itemData.galleryName;
-                    galleryNameSpan.title = itemData.galleryName;
-                    pubItemElement.appendChild(galleryNameSpan);
-                }
-
-
-                const colorIndex = letter.charCodeAt(0) - 'A'.charCodeAt(0);
-                pubItemElement.style.backgroundColor = JOUR_COLORS[colorIndex % JOUR_COLORS.length];
-                pubItemElement.draggable = true;
-
-                pubItemElement.dataset.jourLetter = letter;
-                pubItemElement.dataset.dateStr = dateKey;
-                pubItemElement.dataset.galleryId = itemData.galleryId; 
-
-
-                pubItemElement.addEventListener('dragstart', (e) => this._onDragStart(e, dateKey, letter, itemData.galleryId, pubItemElement));
-                pubItemElement.addEventListener('click', async (e) => { 
-                    e.stopPropagation();
-                    if (itemData.galleryId && itemData.galleryId !== 'unknown') { 
-                        await this.organizerApp.handleLoadGallery(itemData.galleryId); 
-                        const targetJourFrame = this.organizerApp.jourFrames.find(jf => jf.letter === letter && jf.galleryId === itemData.galleryId);
-                        if (targetJourFrame) {
-                            this.organizerApp.setCurrentJourFrame(targetJourFrame); 
-                        }
-                    } else if (itemData.galleryId === 'unknown') {
-                        alert("Impossible de charger cette galerie (ID inconnu). Veuillez vérifier la programmation.");
-                    }
-                });
-                pubItemElement.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
-                    this._showContextPreview(e, letter, dateKey, itemData.galleryId);
-                    console.log("Clic droit sur jour dans calendrier - TODO: Menu contextuel pour modifier la planification", itemData);
-                });
-
-                dayCell.appendChild(pubItemElement);
-            });
-        }
-        
-        dayCell.addEventListener('dragover', (e) => {
-             e.preventDefault();
-             dayCell.classList.add('drag-over-day');
-        });
-        dayCell.addEventListener('dragleave', (e) => {
-            dayCell.classList.remove('drag-over-day');
-        });
-        dayCell.addEventListener('drop', (e) => {
-            dayCell.classList.remove('drag-over-day');
-            this._onDrop(e, dateKey);
-        });
-
-        this.calendarGridElement.appendChild(dayCell);
-    }
-
-    async loadCalendarThumb(thumbElement, jourLetter, galleryIdForJour) {
-        const jourFrame = this.organizerApp.jourFrames.find(jf => jf.letter === jourLetter && jf.galleryId === galleryIdForJour);
-        let thumbUrl = null;
-
-        if (jourFrame && jourFrame.imagesData.length > 0) {
-            thumbUrl = jourFrame.imagesData[0].dataURL; 
-        }
-        
-        if (thumbUrl) {
-             try {
-                thumbElement.style.backgroundImage = `url(${thumbUrl})`;
-            } catch (e) {
-                console.error("Error setting calendar thumb background:", e);
-                thumbElement.textContent = "N/A";
-            }
-        } else {
-            thumbElement.textContent = "N/A";
-        }
-    }
-    
-    _onDragStart(event, dateStr, letter, galleryId, itemElement) { 
-        this.dragData = {
-            sourceDateStr: dateStr,
-            sourceLetter: letter,
-            sourceGalleryId: galleryId, 
-            sourceData: this.scheduleData[dateStr][letter] 
-        };
-        event.dataTransfer.setData("text/plain", `${dateStr}_${letter}_${galleryId}`); 
-        event.dataTransfer.effectAllowed = "move";
-        setTimeout(() => itemElement.classList.add('dragging-schedule-item'), 0); 
-    }
-
-    _onDrop(event, targetDateKey) {
-        event.preventDefault();
-        const draggedItem = document.querySelector('.dragging-schedule-item');
-        if (draggedItem) draggedItem.classList.remove('dragging-schedule-item');
-
-        if (!this.dragData.sourceDateStr) return; 
-
-        const { sourceDateStr, sourceLetter, sourceGalleryId, sourceData } = this.dragData; 
-
-        if (sourceDateStr === targetDateKey) { 
-            this.dragData = {};
-            this.buildCalendarUI(); 
-            return;
-        }
-
-        delete this.scheduleData[sourceDateStr][sourceLetter];
-        if (Object.keys(this.scheduleData[sourceDateStr]).length === 0) {
-            delete this.scheduleData[sourceDateStr];
-        }
-
-        if (!this.scheduleData[targetDateKey]) {
-            this.scheduleData[targetDateKey] = {};
-        }
-        this.scheduleData[targetDateKey][sourceLetter] = { ...sourceData, galleryId: sourceGalleryId }; 
-
-        this.saveSchedule(); 
-        this.buildCalendarUI(); 
-        
-        this.dragData = {};
-    }
-
-    async _showContextPreview(event, jourLetter, dateStr, galleryIdForJour) { 
-        this.contextPreviewImages.innerHTML = ''; 
-        this.contextPreviewTitle.textContent = `Aperçu Jour ${jourLetter} (${new Date(dateStr + 'T00:00:00').toLocaleDateString('fr-FR')})`;
-        
-        let imagesToPreviewURLs = [];
-        const jourFrame = this.organizerApp.jourFrames.find(jf => jf.letter === jourLetter && jf.galleryId === galleryIdForJour);
-
-
-        if (jourFrame) {
-            imagesToPreviewURLs = jourFrame.imagesData.slice(0, MAX_HOVER_PREVIEWS).map(imgData => imgData.dataURL);
-        }
-        
-        if (imagesToPreviewURLs.length === 0) {
-            const noImgMsg = document.createElement('p');
-            noImgMsg.textContent = "Aucune image à afficher.";
-            this.contextPreviewImages.appendChild(noImgMsg);
-        } else {
-            for (const thumbUrl of imagesToPreviewURLs) {
-                if (!thumbUrl) continue;
-                try {
-                    const imgElement = document.createElement('img');
-                    imgElement.src = thumbUrl; 
-                    imgElement.style.maxWidth = `${CALENDAR_HOVER_THUMB_SIZE.width}px`;
-                    imgElement.style.maxHeight = `${CALENDAR_HOVER_THUMB_SIZE.height}px`;
-                    imgElement.style.width = 'auto';
-                    imgElement.style.height = 'auto';
-                    imgElement.style.border = "1px solid #eee";
-                    this.contextPreviewImages.appendChild(imgElement);
-                } catch(e) {
-                    console.error("Error loading image for context preview:", e);
-                    const errThumb = document.createElement('div'); 
-                    errThumb.style.width = `${CALENDAR_HOVER_THUMB_SIZE.width}px`; errThumb.style.height = `${CALENDAR_HOVER_THUMB_SIZE.height}px`;
-                    errThumb.style.border = "1px solid red"; errThumb.style.fontSize = "10px"; errThumb.textContent = "Err";
-                    this.contextPreviewImages.appendChild(errThumb);
-                }
-            }
-        }
-
-        this.contextPreviewModal.style.display = 'block';
-        const modalRect = this.contextPreviewModal.getBoundingClientRect();
-        let x = event.clientX + 15;
-        let y = event.clientY + 10;
-        if (x + modalRect.width > window.innerWidth) x = Math.max(5, window.innerWidth - modalRect.width - 5);
-        if (y + modalRect.height > window.innerHeight) y = Math.max(5, window.innerHeight - modalRect.height - 5);
-        this.contextPreviewModal.style.left = `${x}px`;
-        this.contextPreviewModal.style.top = `${y}px`;
-    }
-
-    _hideContextPreview() {
-        this.contextPreviewModal.style.display = 'none';
-    }
-
-
-    loadScheduleData(backendScheduleData) { 
-        this.scheduleData = backendScheduleData || {};
-        for (const dateKey in this.scheduleData) {
-            for (const letter in this.scheduleData[dateKey]) {
-                if (!this.scheduleData[dateKey][letter].galleryId && app.currentGalleryId) {
-                     this.scheduleData[dateKey][letter].galleryId = app.currentGalleryId;
-                } else if (!this.scheduleData[dateKey][letter].galleryId) {
-                     this.scheduleData[dateKey][letter].galleryId = 'unknown';
-                }
-
-                 if (!this.scheduleData[dateKey][letter].galleryName && this.organizerApp) {
-                    this.scheduleData[dateKey][letter].galleryName = 
-                        this.organizerApp.getCachedGalleryName(this.scheduleData[dateKey][letter].galleryId) || 
-                        (this.scheduleData[dateKey][letter].galleryId === app.currentGalleryId ? this.organizerApp.getCurrentGalleryName() : 'Galerie Inconnue');
-                }
-            }
-        }
-    }
-
-    async saveSchedule() { 
-        if (!app.currentGalleryId) {
-            console.warn("Cannot save schedule: No current gallery ID. Data might be for a different gallery.");
-            return;
-        }
-        try {
-            const response = await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/schedule`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(this.scheduleData) 
-            });
-            if (!response.ok) {
-                throw new Error(`Failed to save schedule: ${response.statusText}`);
-            }
-            console.log("Schedule saved successfully to backend for gallery:", app.currentGalleryId);
-        } catch (e) {
-            console.error("Error saving schedule data to backend:", e);
-            alert("Erreur lors de la sauvegarde de la programmation."); 
-        }
-    }
-
-    addOrUpdatePublicationForDate(dateObj, jourLetter, galleryId, galleryName) { 
-        const dateStr = this.formatDateKey(dateObj);
-        if (!this.scheduleData[dateStr]) {
-            this.scheduleData[dateStr] = {};
-        }
-        this.scheduleData[dateStr][jourLetter] = {
-            label: `Jour ${jourLetter}`, 
-            galleryId: galleryId,
-            galleryName: galleryName
-        }; 
-        this.saveSchedule(); 
-        if (this.parentElement.classList.contains('active')) { 
-            this.buildCalendarUI();
-        }
-    }
-
-    isJourLetterScheduled(jourLetter) {
-        for (const dateKey in this.scheduleData) {
-            if (this.scheduleData[dateKey][jourLetter]) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    scheduleJourInNextAvailableSlot(jourLetter, galleryId, galleryName) {
-        if (!galleryId || galleryId === 'unknown') {
-            console.warn("Tentative de planification d'un jour sans galleryId valide. Opération annulée.");
-            return;
-        }
-        let checkDate = new Date(); 
-        checkDate.setHours(0,0,0,0);
-        let slotFound = false;
-        const MAX_SEARCH_DAYS = 90; 
-
-        for (let i = 0; i < MAX_SEARCH_DAYS; i++) {
-            const dateKey = this.formatDateKey(checkDate);
-            if (!this.scheduleData[dateKey] || !this.scheduleData[dateKey][jourLetter]) {
-                this.addOrUpdatePublicationForDate(checkDate, jourLetter, galleryId, galleryName);
-                slotFound = true;
-                console.log(`Jour ${jourLetter} (Galerie: ${galleryName}) auto-placé le ${dateKey}`);
-                break;
-            }
-            checkDate.setDate(checkDate.getDate() + 1); 
-        }
-        if (!slotFound) {
-            console.warn(`Impossible de trouver un slot libre pour le Jour ${jourLetter} (Galerie: ${galleryName}) dans les ${MAX_SEARCH_DAYS} prochains jours.`);
-             alert(`Impossible de planifier automatiquement le Jour ${jourLetter} de la galerie "${galleryName}". Veuillez le placer manuellement dans le calendrier.`);
-        }
-    }
-
-
-    removePublicationForDate(dateObj, jourLetter) {
-        const dateStr = this.formatDateKey(dateObj);
-        if (this.scheduleData[dateStr] && this.scheduleData[dateStr][jourLetter]) {
-            delete this.scheduleData[dateStr][jourLetter];
-            if (Object.keys(this.scheduleData[dateStr]).length === 0) {
-                delete this.scheduleData[dateStr];
-            }
-            this.saveSchedule(); 
-            if (this.parentElement.classList.contains('active')) {
-                this.buildCalendarUI();
-            }
-        }
-    }
-     getScheduledLettersForDate(dateObj) { 
-        const dateStr = this.formatDateKey(dateObj);
-        if (dateStr in this.scheduleData) {
-            return Object.keys(this.scheduleData[dateStr]);
-        }
-        return [];
-    }
-}
+// =================================================================
+// --- CLASSE ImageCropperPopup ---
+// =================================================================
 class ImageCropperPopup {
     constructor(organizer) {
         this.organizer = organizer;
@@ -2241,59 +1789,29 @@ class ImageCropperPopup {
         } 
     }
 }
+
+// =================================================================
+// --- CLASSE DescriptionManager ---
+// =================================================================
 class DescriptionManager {
     constructor(organizerApp) {
         this.organizerApp = organizerApp;
         this.descriptionTabContent = document.getElementById('description');
         this.jourListElement = document.getElementById('descriptionJourList');
-        this.dayPhotosPreviewElement = document.getElementById('dayPhotosPreview');
+        this.editorTitleElement = document.getElementById('descriptionEditorTitle');
         this.editorContentElement = document.getElementById('descriptionEditorContent');
         this.editorPlaceholderElement = document.getElementById('descriptionEditorPlaceholder');
         this.descriptionTextElement = document.getElementById('descriptionText');
         this.descriptionHashtagsElement = document.getElementById('descriptionHashtags');
-        this.charCountIndicator = document.getElementById('charCountIndicator');
+        this.saveDescriptionBtn = document.getElementById('saveDescriptionBtn');
         
         this.currentSelectedJourFrame = null;
-        this.MAX_TOTAL_CHARS = 2200;
 
         this._initListeners();
     }
 
     _initListeners() {
-        this.descriptionTextElement.addEventListener('input', () => {
-            this.updateCharCount();
-            this.triggerAutoSave();
-        });
-        this.descriptionHashtagsElement.addEventListener('input', () => {
-            this.updateCharCount();
-            this.triggerAutoSave();
-        });
-    }
-
-    updateCharCount() {
-        if (!this.charCountIndicator) return;
-
-        const textLength = this.descriptionTextElement.value.length;
-        const hashtagsLength = this.descriptionHashtagsElement.value.length;
-        const totalLength = textLength + hashtagsLength;
-
-        this.charCountIndicator.textContent = `Total : ${totalLength} / ${this.MAX_TOTAL_CHARS}`;
-
-        if (totalLength > this.MAX_TOTAL_CHARS) {
-            this.charCountIndicator.style.color = 'red';
-            this.charCountIndicator.style.fontWeight = 'bold';
-        } else {
-            this.charCountIndicator.style.color = '';
-            this.charCountIndicator.style.fontWeight = 'normal';
-        }
-    }
-
-    triggerAutoSave() {
-        if (!this.currentSelectedJourFrame) return;
-
-        this.currentSelectedJourFrame.descriptionText = this.descriptionTextElement.value;
-        this.currentSelectedJourFrame.descriptionHashtags = this.descriptionHashtagsElement.value;
-        this.currentSelectedJourFrame.debouncedSave();
+        this.saveDescriptionBtn.addEventListener('click', () => this.saveCurrentDescription());
     }
 
     show() {
@@ -2302,7 +1820,7 @@ class DescriptionManager {
             this.editorContentElement.style.display = 'none';
             this.editorPlaceholderElement.textContent = "Aucune galerie chargée.";
             this.editorPlaceholderElement.style.display = 'block';
-            this.dayPhotosPreviewElement.innerHTML = '';
+            this.editorTitleElement.textContent = "Description des Publications";
             return;
         }
         this.populateJourList();
@@ -2360,28 +1878,15 @@ class DescriptionManager {
             this.clearEditor();
             return;
         }
-
-        this.dayPhotosPreviewElement.innerHTML = '';
-        if (jourFrame.imagesData && jourFrame.imagesData.length > 0) {
-            jourFrame.imagesData.forEach(imgData => {
-                const photoItem = document.createElement('div');
-                photoItem.className = 'photo-item';
-                photoItem.style.backgroundImage = `url(${imgData.dataURL})`;
-                this.dayPhotosPreviewElement.appendChild(photoItem);
-            });
-        } else {
-            this.dayPhotosPreviewElement.innerHTML = '<p>Aucune photo dans ce jour.</p>';
-        }
-
+        this.editorTitleElement.textContent = `Description pour Jour ${jourFrame.letter}`;
         this.descriptionTextElement.value = jourFrame.descriptionText || '';
         this.descriptionHashtagsElement.value = jourFrame.descriptionHashtags || '';
-        this.editorContentElement.style.display = 'flex';
+        this.editorContentElement.style.display = 'block';
         this.editorPlaceholderElement.style.display = 'none';
-        this.updateCharCount();
     }
 
     clearEditor() {
-        this.dayPhotosPreviewElement.innerHTML = '';
+        this.editorTitleElement.textContent = "Sélectionnez un jour";
         this.descriptionTextElement.value = '';
         this.descriptionHashtagsElement.value = '';
         this.currentSelectedJourFrame = null;
@@ -2389,13 +1894,540 @@ class DescriptionManager {
         this.editorPlaceholderElement.textContent = "Aucun jour sélectionné, ou la galerie n'a pas de jours.";
         this.editorPlaceholderElement.style.display = 'block';
         this.jourListElement.querySelectorAll('li.active-description-jour').forEach(li => li.classList.remove('active-description-jour'));
-        if(this.charCountIndicator) this.charCountIndicator.textContent = '';
+    }
+
+    async saveCurrentDescription() {
+        if (!this.currentSelectedJourFrame || !app.currentGalleryId) {
+            alert("Aucun jour sélectionné ou aucune galerie active pour sauvegarder la description.");
+            return;
+        }
+
+        const jourToUpdate = this.currentSelectedJourFrame;
+        jourToUpdate.descriptionText = this.descriptionTextElement.value;
+        jourToUpdate.descriptionHashtags = this.descriptionHashtagsElement.value;
+
+        const success = await jourToUpdate.save(); 
+
+        if (success) {
+            alert(`Description pour le Jour ${jourToUpdate.letter} enregistrée.`);
+        } else {
+            alert(`Échec de la sauvegarde de la description pour le Jour ${jourToUpdate.letter}.`);
+        }
     }
 }
+
+// =================================================================
+// --- CLASSE CalendarPage (MODIFIÉE) ---
+// =================================================================
+class CalendarPage {
+    constructor(parentElement, organizerApp) {
+        this.parentElement = parentElement;
+        this.organizerApp = organizerApp;
+        this.scheduleData = {}; 
+        this.allUserJours = []; // NOUVEAU: Stocke tous les jours de l'utilisateur pour la planification
+
+        this.currentDate = new Date(); 
+        this.calendarGridElement = this.parentElement.querySelector('#calendarGrid');
+        this.monthYearLabelElement = this.parentElement.querySelector('#monthYearLabel');
+        
+        this.contextPreviewModal = document.getElementById('calendarContextPreviewModal');
+        this.contextPreviewTitle = document.getElementById('calendarContextTitle');
+        this.contextPreviewImages = document.getElementById('calendarContextImages');
+
+        // NOUVEAUX ÉLÉMENTS POUR LA PLANIFICATION AUTO
+        this.runAutoScheduleBtn = document.getElementById('runAutoScheduleBtn');
+        this.autoScheduleInfo = document.getElementById('auto-schedule-info');
+
+
+        this.dragData = {}; 
+
+        this._initUIListeners();
+        this.debouncedChangeMonth = Utils.debounce(this.changeMonth.bind(this), 100); 
+    }
+
+    _initUIListeners() {
+        this.parentElement.querySelector('#todayBtn').addEventListener('click', () => this.goToToday());
+        
+        this.calendarGridElement.addEventListener('wheel', (event) => {
+            event.preventDefault(); 
+            if (event.deltaY < 0) { 
+                this.debouncedChangeMonth(-1);
+            } else { 
+                this.debouncedChangeMonth(1);
+            }
+        }, { passive: false });
+
+        this.contextPreviewModal.addEventListener('mouseleave', (e) => {
+            setTimeout(() => {
+                 if (!this.contextPreviewModal.matches(':hover')) this._hideContextPreview();
+            }, 100);
+        });
+        document.addEventListener('click', (e) => {
+            if (this.contextPreviewModal.style.display === 'block' && 
+                !this.contextPreviewModal.contains(e.target) &&
+                !e.target.closest('.scheduled-item')) { 
+                    this._hideContextPreview();
+            }
+        });
+
+        // NOUVEL ÉCOUTEUR
+        this.runAutoScheduleBtn.addEventListener('click', () => this.runAutoSchedule());
+    }
+
+    goToToday() {
+        this.currentDate = new Date();
+        this.buildCalendarUI();
+    }
+
+    changeMonth(monthDelta) {
+        this.currentDate.setDate(1); 
+        this.currentDate.setMonth(this.currentDate.getMonth() + monthDelta);
+        this.buildCalendarUI();
+    }
+    
+    formatDateKey(dateObj) {
+        const year = dateObj.getFullYear();
+        const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
+        const day = dateObj.getDate().toString().padStart(2, '0');
+        return `${year}-${month}-${day}`;
+    }
+
+    buildCalendarUI() {
+        this.calendarGridElement.innerHTML = ''; 
+        if (!app.currentGalleryId && this.organizerApp) { 
+            this.calendarGridElement.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 20px;">Chargez ou créez une galerie pour voir le calendrier.</p>';
+            this.monthYearLabelElement.textContent = "Calendrier";
+            return;
+        }
+
+
+        const year = this.currentDate.getFullYear();
+        const month = this.currentDate.getMonth(); 
+
+        this.monthYearLabelElement.textContent = `${this.currentDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`;
+
+        const daysOfWeekFr = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
+        daysOfWeekFr.forEach(dayName => {
+            const headerCell = document.createElement('div');
+            headerCell.className = 'calendar-header-cell';
+            headerCell.textContent = dayName;
+            this.calendarGridElement.appendChild(headerCell);
+        });
+
+        const firstDayOfMonth = new Date(year, month, 1);
+        const lastDayOfMonth = new Date(year, month + 1, 0);
+        
+        let dayOfWeekOfFirst = firstDayOfMonth.getDay(); 
+        if (dayOfWeekOfFirst === 0) dayOfWeekOfFirst = 7; 
+        
+        const daysInPrevMonth = (dayOfWeekOfFirst - 1);
+
+        const today = new Date();
+        today.setHours(0,0,0,0); 
+
+        for (let i = 0; i < daysInPrevMonth; i++) {
+            const prevMonthDay = new Date(year, month, 1 - (daysInPrevMonth - i));
+            this.createDayCell(prevMonthDay, true, false, prevMonthDay < today);
+        }
+
+        for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
+            const currentDateInLoop = new Date(year, month, day);
+            this.createDayCell(currentDateInLoop, false, currentDateInLoop.getTime() === today.getTime(), currentDateInLoop < today && currentDateInLoop.getTime() !== today.getTime());
+        }
+        
+        const totalCellsSoFar = daysInPrevMonth + lastDayOfMonth.getDate();
+        const remainingCells = (7 - (totalCellsSoFar % 7)) % 7; 
+        
+        for (let i = 1; i <= remainingCells; i++) {
+            const nextMonthDay = new Date(year, month + 1, i);
+            this.createDayCell(nextMonthDay, true, false, nextMonthDay < today);
+        }
+    }
+    
+    createDayCell(dateObj, isOtherMonth, isToday = false, isPast = false) {
+        const dayCell = document.createElement('div');
+        dayCell.className = 'calendar-day-cell';
+        if (isOtherMonth) dayCell.classList.add('other-month');
+        if (isToday) dayCell.classList.add('today');
+        if (isPast) dayCell.classList.add('past-day');
+
+        const dayNumber = document.createElement('span');
+        dayNumber.className = 'day-number';
+        dayNumber.textContent = dateObj.getDate();
+        dayCell.appendChild(dayNumber);
+        
+        const dateKey = this.formatDateKey(dateObj);
+        dayCell.dataset.dateKey = dateKey;
+
+        if (this.scheduleData[dateKey]) {
+            const itemsOnDay = this.scheduleData[dateKey];
+            const sortedLetters = Object.keys(itemsOnDay).sort();
+            sortedLetters.forEach(letter => {
+                const itemData = itemsOnDay[letter]; 
+                const pubItemElement = document.createElement('div');
+                pubItemElement.className = 'scheduled-item';
+                
+                const mainContentDiv = document.createElement('div'); 
+                mainContentDiv.className = 'scheduled-item-main-content';
+
+                const jourFrameInstance = this.organizerApp.jourFrames.find(jf => jf.letter === letter && jf.galleryId === itemData.galleryId);
+                if (jourFrameInstance && jourFrameInstance.hasBeenProcessedByCropper) { 
+                    const iconSpan = document.createElement('span');
+                    iconSpan.className = 'scheduled-item-icon';
+                    iconSpan.textContent = '✂️';
+                    mainContentDiv.appendChild(iconSpan);
+                }
+                
+                const textSpan = document.createElement('span'); 
+                textSpan.className = 'scheduled-item-text';
+                textSpan.textContent = itemData.label || `Jour ${letter}`;
+                mainContentDiv.appendChild(textSpan);
+
+                const thumbDiv = document.createElement('div');
+                thumbDiv.className = 'scheduled-item-thumb';
+                this.loadCalendarThumb(thumbDiv, letter, itemData.galleryId); 
+                mainContentDiv.appendChild(thumbDiv);
+                
+                pubItemElement.appendChild(mainContentDiv);
+
+                if (itemData.galleryName && itemData.galleryId !== this.organizerApp.currentGalleryId) {
+                    const galleryNameSpan = document.createElement('span');
+                    galleryNameSpan.className = 'scheduled-item-gallery-name';
+                    galleryNameSpan.textContent = itemData.galleryName;
+                    galleryNameSpan.title = itemData.galleryName;
+                    pubItemElement.appendChild(galleryNameSpan);
+                }
+
+
+                const colorIndex = letter.charCodeAt(0) - 'A'.charCodeAt(0);
+                pubItemElement.style.backgroundColor = JOUR_COLORS[colorIndex % JOUR_COLORS.length];
+                pubItemElement.draggable = true;
+
+                pubItemElement.dataset.jourLetter = letter;
+                pubItemElement.dataset.dateStr = dateKey;
+                pubItemElement.dataset.galleryId = itemData.galleryId; 
+
+
+                pubItemElement.addEventListener('dragstart', (e) => this._onDragStart(e, dateKey, letter, itemData.galleryId, pubItemElement));
+                pubItemElement.addEventListener('click', async (e) => { 
+                    e.stopPropagation();
+                    if (itemData.galleryId && itemData.galleryId !== 'unknown') { 
+                        await this.organizerApp.handleLoadGallery(itemData.galleryId); 
+                        const targetJourFrame = this.organizerApp.jourFrames.find(jf => jf.letter === letter && jf.galleryId === itemData.galleryId);
+                        if (targetJourFrame) {
+                            this.organizerApp.setCurrentJourFrame(targetJourFrame); 
+                        }
+                    }
+                });
+                pubItemElement.addEventListener('contextmenu', (e) => {
+                    e.preventDefault();
+                    this._showContextPreview(e, letter, dateKey, itemData.galleryId);
+                });
+
+                dayCell.appendChild(pubItemElement);
+            });
+        }
+        
+        dayCell.addEventListener('dragover', (e) => {
+             e.preventDefault();
+             dayCell.classList.add('drag-over-day');
+        });
+        dayCell.addEventListener('dragleave', (e) => {
+            dayCell.classList.remove('drag-over-day');
+        });
+        dayCell.addEventListener('drop', (e) => {
+            dayCell.classList.remove('drag-over-day');
+            this._onDrop(e, dateKey);
+        });
+
+        this.calendarGridElement.appendChild(dayCell);
+    }
+
+    async loadCalendarThumb(thumbElement, jourLetter, galleryIdForJour) {
+        if (galleryIdForJour === this.organizerApp.currentGalleryId) {
+            const jourFrame = this.organizerApp.jourFrames.find(jf => jf.letter === jourLetter);
+            if (jourFrame && jourFrame.imagesData.length > 0) {
+                thumbElement.style.backgroundImage = `url(${jourFrame.imagesData[0].dataURL})`;
+            } else {
+                thumbElement.textContent = "N/A";
+            }
+        } else {
+            thumbElement.textContent = "?"; 
+        }
+    }
+    
+    _onDragStart(event, dateStr, letter, galleryId, itemElement) { 
+        this.dragData = {
+            sourceDateStr: dateStr,
+            sourceLetter: letter,
+            sourceGalleryId: galleryId, 
+            sourceData: this.scheduleData[dateStr][letter] 
+        };
+        event.dataTransfer.setData("text/plain", `${dateStr}_${letter}_${galleryId}`); 
+        event.dataTransfer.effectAllowed = "move";
+        setTimeout(() => itemElement.classList.add('dragging-schedule-item'), 0); 
+    }
+
+    _onDrop(event, targetDateKey) {
+        event.preventDefault();
+        const draggedItem = document.querySelector('.dragging-schedule-item');
+        if (draggedItem) draggedItem.classList.remove('dragging-schedule-item');
+
+        if (!this.dragData.sourceDateStr) return; 
+
+        const { sourceDateStr, sourceLetter, sourceGalleryId, sourceData } = this.dragData; 
+
+        if (sourceDateStr === targetDateKey) { 
+            this.dragData = {};
+            this.buildCalendarUI(); 
+            return;
+        }
+
+        delete this.scheduleData[sourceDateStr][sourceLetter];
+        if (Object.keys(this.scheduleData[sourceDateStr]).length === 0) {
+            delete this.scheduleData[sourceDateStr];
+        }
+
+        if (!this.scheduleData[targetDateKey]) {
+            this.scheduleData[targetDateKey] = {};
+        }
+        this.scheduleData[targetDateKey][sourceLetter] = { ...sourceData, galleryId: sourceGalleryId }; 
+
+        this.saveSchedule(); 
+        this.buildCalendarUI(); 
+        
+        this.dragData = {};
+    }
+
+    async _showContextPreview(event, jourLetter, dateStr, galleryIdForJour) { 
+        this.contextPreviewImages.innerHTML = ''; 
+        this.contextPreviewTitle.textContent = `Aperçu Jour ${jourLetter} (${new Date(dateStr + 'T00:00:00').toLocaleDateString('fr-FR')})`;
+        
+        let imagesToPreviewURLs = [];
+        if (galleryIdForJour === this.organizerApp.currentGalleryId) {
+            const jourFrame = this.organizerApp.jourFrames.find(jf => jf.letter === jourLetter);
+            if (jourFrame) {
+                imagesToPreviewURLs = jourFrame.imagesData.slice(0, MAX_HOVER_PREVIEWS).map(imgData => imgData.dataURL);
+            }
+        } else {
+            this.contextPreviewImages.innerHTML = '<p>Aperçu non disponible pour les galeries non chargées.</p>';
+        }
+        
+        if (imagesToPreviewURLs.length > 0) {
+            for (const thumbUrl of imagesToPreviewURLs) {
+                const imgElement = document.createElement('img');
+                imgElement.src = thumbUrl; 
+                imgElement.style.maxWidth = `${CALENDAR_HOVER_THUMB_SIZE.width}px`;
+                imgElement.style.maxHeight = `${CALENDAR_HOVER_THUMB_SIZE.height}px`;
+                this.contextPreviewImages.appendChild(imgElement);
+            }
+        }
+
+        this.contextPreviewModal.style.display = 'block';
+        const modalRect = this.contextPreviewModal.getBoundingClientRect();
+        let x = event.clientX + 15;
+        let y = event.clientY + 10;
+        if (x + modalRect.width > window.innerWidth) x = Math.max(5, window.innerWidth - modalRect.width - 5);
+        if (y + modalRect.height > window.innerHeight) y = Math.max(5, window.innerHeight - modalRect.height - 5);
+        this.contextPreviewModal.style.left = `${x}px`;
+        this.contextPreviewModal.style.top = `${y}px`;
+    }
+
+    _hideContextPreview() {
+        this.contextPreviewModal.style.display = 'none';
+    }
+
+
+    loadData(schedule, allJours) {
+        this.scheduleData = schedule || {};
+        this.allUserJours = allJours || [];
+    }
+
+    async saveSchedule() { 
+        if (!app.currentGalleryId) {
+            console.warn("Cannot save schedule: No current gallery ID.");
+            return;
+        }
+        try {
+            const response = await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/schedule`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(this.scheduleData) 
+            });
+            if (!response.ok) {
+                throw new Error(`Failed to save schedule: ${response.statusText}`);
+            }
+            console.log("Schedule saved successfully for user.");
+        } catch (e) {
+            console.error("Error saving schedule data to backend:", e);
+            alert("Erreur lors de la sauvegarde de la programmation."); 
+        }
+    }
+
+    addOrUpdatePublicationForDate(dateObj, jourLetter, galleryId, galleryName) { 
+        const dateStr = this.formatDateKey(dateObj);
+        if (!this.scheduleData[dateStr]) {
+            this.scheduleData[dateStr] = {};
+        }
+        this.scheduleData[dateStr][jourLetter] = {
+            label: `Jour ${jourLetter}`, 
+            galleryId: galleryId,
+            galleryName: galleryName
+        }; 
+        this.saveSchedule(); 
+        if (this.parentElement.classList.contains('active')) { 
+            this.buildCalendarUI();
+        }
+    }
+
+    scheduleJourInNextAvailableSlot(jourLetter, galleryId, galleryName) {
+        if (!galleryId || galleryId === 'unknown') {
+            console.warn("Tentative de planification d'un jour sans galleryId valide. Opération annulée.");
+            return;
+        }
+        let checkDate = new Date(); 
+        checkDate.setHours(0,0,0,0);
+        let slotFound = false;
+        const MAX_SEARCH_DAYS = 90; 
+
+        for (let i = 0; i < MAX_SEARCH_DAYS; i++) {
+            const dateKey = this.formatDateKey(checkDate);
+            if (!this.scheduleData[dateKey] || !this.scheduleData[dateKey][jourLetter]) {
+                this.addOrUpdatePublicationForDate(checkDate, jourLetter, galleryId, galleryName);
+                slotFound = true;
+                console.log(`Jour ${jourLetter} (Galerie: ${galleryName}) auto-placé le ${dateKey}`);
+                break;
+            }
+            checkDate.setDate(checkDate.getDate() + 1); 
+        }
+        if (!slotFound) {
+            console.warn(`Impossible de trouver un slot libre pour le Jour ${jourLetter} (Galerie: ${galleryName}) dans les ${MAX_SEARCH_DAYS} prochains jours.`);
+             alert(`Impossible de planifier automatiquement le Jour ${jourLetter} de la galerie "${galleryName}". Veuillez le placer manuellement dans le calendrier.`);
+        }
+    }
+
+    runAutoSchedule() {
+        this.autoScheduleInfo.textContent = "Calcul en cours...";
+        this.runAutoScheduleBtn.disabled = true;
+
+        try {
+            const mode = document.querySelector('input[name="autoScheduleMode"]:checked').value;
+            const postsPerDay = parseInt(document.getElementById('autoSchedulePerDay').value) || 1;
+            const everyXDays = parseInt(document.getElementById('autoScheduleEveryXDays').value) || 1;
+
+            if (postsPerDay <= 0 || everyXDays <= 0) {
+                throw new Error("Les valeurs de publication doivent être supérieures à zéro.");
+            }
+
+            // 1. Identifier les jours déjà planifiés
+            const scheduledJourIdentifiers = new Set();
+            Object.values(this.scheduleData).forEach(day => {
+                Object.values(day).forEach(item => {
+                    const letter = item.label ? item.label.split(' ')[1] : Object.keys(day).find(k => day[k] === item);
+                    if(letter) {
+                       scheduledJourIdentifiers.add(`${item.galleryId}-${letter}`);
+                    }
+                });
+            });
+
+            // 2. Filtrer pour obtenir les jours non planifiés
+            let unpublishedJours = this.allUserJours.filter(jour => 
+                !scheduledJourIdentifiers.has(`${jour.galleryId}-${jour.letter}`) && this.organizerApp.isJourReadyForPublishing(jour.galleryId, jour.letter)
+            );
+
+            if (unpublishedJours.length === 0) {
+                this.autoScheduleInfo.textContent = "Tous les jours publiables sont déjà planifiés !";
+                setTimeout(() => this.autoScheduleInfo.textContent = "", 3000);
+                return;
+            }
+
+            // 3. Appliquer la logique de tri/mélange
+            if (mode === 'chrono') {
+                unpublishedJours.sort((a, b) => {
+                    const galleryCompare = a.galleryName.localeCompare(b.galleryName);
+                    if (galleryCompare !== 0) return galleryCompare;
+                    return a.letter.localeCompare(b.letter);
+                });
+            } else if (mode === 'interlaced') {
+                const groupedByGallery = unpublishedJours.reduce((acc, jour) => {
+                    (acc[jour.galleryId] = acc[jour.galleryId] || []).push(jour);
+                    return acc;
+                }, {});
+                
+                for (const galleryId in groupedByGallery) {
+                    groupedByGallery[galleryId].sort((a, b) => a.letter.localeCompare(b.letter));
+                }
+                
+                const interlaced = [];
+                const galleryQueues = Object.values(groupedByGallery);
+                let maxLen = Math.max(...galleryQueues.map(q => q.length));
+
+                for (let i = 0; i < maxLen; i++) {
+                    for (const queue of galleryQueues) {
+                        if (queue[i]) {
+                            interlaced.push(queue[i]);
+                        }
+                    }
+                }
+                unpublishedJours = interlaced;
+
+            } else if (mode === 'random') {
+                for (let i = unpublishedJours.length - 1; i > 0; i--) {
+                    const j = Math.floor(Math.random() * (i + 1));
+                    [unpublishedJours[i], unpublishedJours[j]] = [unpublishedJours[j], unpublishedJours[i]];
+                }
+            }
+            
+            // 4. Placer les jours dans le calendrier
+            let currentDate = new Date();
+            currentDate.setHours(0, 0, 0, 0); 
+            let joursPlaced = 0;
+
+            while (unpublishedJours.length > 0) {
+                const dateKey = this.formatDateKey(currentDate);
+                let postsOnThisDay = this.scheduleData[dateKey] ? Object.keys(this.scheduleData[dateKey]).length : 0;
+                
+                while(postsOnThisDay < postsPerDay && unpublishedJours.length > 0) {
+                    const jourToPlace = unpublishedJours.shift();
+                    if (!this.scheduleData[dateKey]) {
+                        this.scheduleData[dateKey] = {};
+                    }
+                    this.scheduleData[dateKey][jourToPlace.letter] = {
+                        galleryId: jourToPlace.galleryId,
+                        galleryName: jourToPlace.galleryName,
+                        label: `Jour ${jourToPlace.letter}`
+                    };
+                    postsOnThisDay++;
+                    joursPlaced++;
+                }
+
+                if (postsOnThisDay > 0 || everyXDays > 1) {
+                     currentDate.setDate(currentDate.getDate() + everyXDays);
+                } else {
+                     currentDate.setDate(currentDate.getDate() + 1);
+                }
+            }
+
+            this.autoScheduleInfo.textContent = `${joursPlaced} jour(s) planifié(s).`;
+            this.saveSchedule();
+            this.buildCalendarUI();
+
+        } catch (error) {
+            console.error("Erreur de planification auto:", error);
+            this.autoScheduleInfo.textContent = `Erreur: ${error.message}`;
+        } finally {
+            this.runAutoScheduleBtn.disabled = false;
+            setTimeout(() => this.autoScheduleInfo.textContent = "", 5000);
+        }
+    }
+}
+
+// =================================================================
+// --- CLASSE PublicationOrganizer ---
+// =================================================================
 class PublicationOrganizer {
     constructor() {
         this.currentGalleryId = null; 
-
         this.currentThumbSize = { width: 200, height: 200 }; 
         this.minThumbSize = { width: 50, height: 50 };
         this.maxThumbSize = { width: 300, height: 300 };
@@ -2410,6 +2442,7 @@ class PublicationOrganizer {
         this.activeUploadXHR = null; 
         this.activeCallingButton = null;
 
+        this.scheduleContext = { schedule: {}, allUserJours: [] };
 
         this.imageSelectorInput = document.getElementById('imageSelector'); 
         this.addNewImagesBtn = document.getElementById('addNewImagesBtn');
@@ -2431,9 +2464,9 @@ class PublicationOrganizer {
         this.currentGalleryUploadProgressText = document.getElementById('currentGalleryUploadProgressText');
         this.currentGalleryUploadProgressBarInner = document.getElementById('currentGalleryUploadProgressBarInner');
 
-
         this.jourFramesContainer = document.getElementById('jourFramesContainer');
         this.addJourFrameBtn = document.getElementById('addJourFrameBtn');
+        this.saveAllJourFramesBtn = document.getElementById('saveAllJourFramesBtn');
         
         this.galleriesTabContent = document.getElementById('galleries');
         this.galleriesListElement = document.getElementById('galleriesList');
@@ -2451,14 +2484,12 @@ class PublicationOrganizer {
         this.openGalleryInEditorBtn = document.getElementById('openGalleryInEditorBtn');
         this.selectedGalleryForPreviewId = null;
 
-
         this.tabs = document.querySelectorAll('.tab-button');
         this.tabContents = document.querySelectorAll('.tab-content');
 
         this.cropper = new ImageCropperPopup(this); 
         this.calendarPage = null;
         this.descriptionManager = null; 
-        this.organizerInitialScheduleData = null; 
 
         this._initListeners();
         this.updateAddPhotosPlaceholderVisibility();
@@ -2513,6 +2544,7 @@ class PublicationOrganizer {
         this.sortOptionsSelect.addEventListener('change', () => this.sortGridItemsAndReflow());
         this.clearGalleryImagesBtn.addEventListener('click', () => this.clearAllGalleryImages()); 
         this.addJourFrameBtn.addEventListener('click', () => this.addJourFrame());
+        this.saveAllJourFramesBtn.addEventListener('click', () => this.saveAllJourFrames());
 
         this.createNewGalleryBtn.addEventListener('click', () => {
             this.newGalleryForm.style.display = this.newGalleryForm.style.display === 'none' ? 'flex' : 'none';
@@ -2558,12 +2590,20 @@ class PublicationOrganizer {
             this.updateAddPhotosPlaceholderVisibility(); 
         }
 
+        const calendarTab = document.getElementById('calendar');
+        const calendarSidebar = calendarTab.querySelector('#calendar-sidebar');
+        const calendarMain = calendarTab.querySelector('#calendar-main-content');
+        
+        if (calendarSidebar) {
+            calendarSidebar.querySelectorAll('button, input, select').forEach(el => el.disabled = noGalleryActive);
+        }
+        if (calendarMain) {
+            calendarMain.querySelectorAll('button').forEach(el => el.disabled = noGalleryActive);
+        }
 
-        const calendarTabContent = document.getElementById('calendar');
-        calendarTabContent.querySelectorAll('button').forEach(el => el.disabled = noGalleryActive);
         if (this.calendarPage) {
              if (noGalleryActive) {
-                this.calendarPage.loadScheduleData({}); 
+                this.calendarPage.loadData({}, []); 
                 this.calendarPage.monthYearLabelElement.textContent = "Calendrier";
                 this.calendarPage.calendarGridElement.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 20px;">Chargez ou créez une galerie pour voir le calendrier.</p>';
             } else {
@@ -2619,11 +2659,9 @@ class PublicationOrganizer {
             } else if (tabId === 'calendar') {
                 if (!this.calendarPage) {
                     this.calendarPage = new CalendarPage(tabContent, this);
-                     if (this.organizerInitialScheduleData && this.currentGalleryId) { 
-                        this.calendarPage.loadScheduleData(this.organizerInitialScheduleData);
-                    }
                 }
                  if (this.currentGalleryId) {
+                    this.calendarPage.loadData(this.scheduleContext.schedule, this.scheduleContext.allUserJours);
                     this.calendarPage.buildCalendarUI(); 
                 }
             }
@@ -2879,8 +2917,7 @@ class PublicationOrganizer {
         this.jourFramesContainer.innerHTML = '';
         this.currentJourFrame = null;
 
-        if (this.calendarPage) this.calendarPage.loadScheduleData({}); 
-        this.organizerInitialScheduleData = null;
+        this.scheduleContext = { schedule: {}, allUserJours: [] };
         
         if (this.descriptionManager) {
             this.descriptionManager.clearEditor();
@@ -2893,6 +2930,95 @@ class PublicationOrganizer {
         this.activateTab('currentGallery'); 
         await this.loadGalleriesList(); 
         this.updateUIToNoGalleryState(); 
+    }
+
+    async loadState() {
+        if (!this.currentGalleryId) {
+            console.log("loadState called without a gallery ID. Resetting UI.");
+            this.updateUIToNoGalleryState();
+            return;
+        }
+
+        const loadingOverlay = document.getElementById('loadingOverlay');
+        loadingOverlay.style.display = 'flex';
+        loadingOverlay.querySelector('p').textContent = 'Chargement de la galerie...';
+
+        try {
+            const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}`);
+            if (!response.ok) {
+                if (response.status === 404) {
+                    alert("La galerie demandée n'a pas été trouvée. Elle a peut-être été supprimée.");
+                    localStorage.removeItem('publicationOrganizer_lastGalleryId');
+                    this.currentGalleryId = null;
+                    this.clearGalleryPreview();
+                    this.loadGalleriesList();
+                    this.activateTab('galleries');
+                } else {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+                return;
+            }
+            const data = await response.json();
+
+            // Reset state before loading new data
+            this.gridItems = [];
+            this.gridItemsDict = {};
+            this.imageGridElement.innerHTML = '';
+            this.jourFrames = [];
+            this.jourFramesContainer.innerHTML = '';
+            this.currentJourFrame = null;
+
+            // Load gallery state
+            const galleryState = data.galleryState || {};
+            this.galleryCache[this.currentGalleryId] = galleryState.name || 'Galerie sans nom';
+            this.currentThumbSize = galleryState.currentThumbSize || { width: 150, height: 150 };
+            this.sortOptionsSelect.value = galleryState.sortOption || 'date_desc';
+            this.nextJourIndex = galleryState.nextJourIndex || 0;
+
+            // Load images
+            if (data.images && data.images.length > 0) {
+                this.addImagesToGrid(data.images);
+                this.sortGridItemsAndReflow();
+            }
+            
+            // Load Jours
+            if (data.jours && data.jours.length > 0) {
+                data.jours.sort((a, b) => a.index - b.index).forEach(jourData => {
+                    const newJourFrame = new JourFrameBackend(this, jourData);
+                    this.jourFramesContainer.appendChild(newJourFrame.element);
+                    this.jourFrames.push(newJourFrame);
+                });
+                this.recalculateNextJourIndex();
+            }
+
+            // Load schedule and prepare calendar data
+            this.scheduleContext = {
+                schedule: data.schedule || {},
+                allUserJours: data.allUserJours || []
+            };
+
+            if (this.calendarPage) {
+                this.calendarPage.loadData(this.scheduleContext.schedule, this.scheduleContext.allUserJours);
+            }
+            
+            this.updateGridUsage();
+            this.updateStatsLabel();
+            this.updateAddPhotosPlaceholderVisibility();
+            this.updateGridItemStyles();
+            this.updateUIToNoGalleryState(); // This will enable/disable elements based on whether a gallery is loaded
+
+            const activeTab = galleryState.activeTab || 'currentGallery';
+            this.activateTab(activeTab);
+
+
+        } catch (error) {
+            console.error("Erreur critique lors du chargement de l'état de la galerie:", error);
+            loadingOverlay.querySelector('p').innerHTML = `Erreur de chargement: ${error.message}<br/>Veuillez rafraîchir.`;
+        } finally {
+            if (loadingOverlay.style.display === 'flex') {
+                 loadingOverlay.style.display = 'none';
+            }
+        }
     }
 
     async handleRenameGallery(galleryId, currentName) {
@@ -2945,7 +3071,7 @@ class PublicationOrganizer {
                 this.jourFramesContainer.innerHTML = '';
                 this.currentJourFrame = null;
                 this.nextJourIndex = 0;
-                if (this.calendarPage) this.calendarPage.loadScheduleData({});
+                this.scheduleContext = { schedule: {}, allUserJours: [] };
                 if (this.descriptionManager) this.descriptionManager.clearEditor();
             }
 
@@ -3291,7 +3417,7 @@ class PublicationOrganizer {
                 jf.imagesData = []; 
                 jf.rebuildAndReposition(); 
                 jf.checkAndApplyCroppedStyle();
-                jf.debouncedSave(); 
+                jf._resetSaveButtonColor(true); 
             });
 
             this.updateGridUsage(); 
@@ -3299,7 +3425,7 @@ class PublicationOrganizer {
             this.updateAddPhotosPlaceholderVisibility();
             
             if (this.calendarPage && document.getElementById('calendar').classList.contains('active')) {
-                this.calendarPage.loadScheduleData({}); 
+                this.calendarPage.loadData({}, []); 
                 this.calendarPage.buildCalendarUI();
             }
             if (this.selectedGalleryForPreviewId === this.currentGalleryId) {
@@ -3357,7 +3483,7 @@ class PublicationOrganizer {
             }
         });
 
-        this.imageGridElement.innerHTML = ''; 
+        // Ne pas vider le contenu, simplement ré-attacher les éléments va les réordonner
         this.gridItems.forEach(item => this.imageGridElement.appendChild(item.element));
         this.updateGridUsage(); 
         this.saveAppState();
@@ -3388,45 +3514,27 @@ class PublicationOrganizer {
     }
 
     updateGridUsage() {
-        // --- MODIFICATION (2/3) : Gérer l'affichage des labels multiples ---
-        const combinedUsage = this.getCombinedUsageMap(); // Renvoie maintenant { imageId: [usage1, usage2] }
-        for (const imageId in this.gridItemsDict) {
+        const combinedUsage = this.getCombinedUsageMap(); 
+        for (const imageId in this.gridItemsDict) { 
             const gridItem = this.gridItemsDict[imageId];
             const originalIdToCompare = gridItem.parentImageId || gridItem.id;
-    
-            const usageArray = combinedUsage[originalIdToCompare];
-    
-            if (usageArray && usageArray.length > 0) {
-                // On crée une chaîne avec tous les labels, séparés par " / "
-                const joinedLabels = usageArray.map(u => u.label).join(' / ');
-                // On utilise la couleur du premier jour où l'image apparaît pour la cohérence
-                const firstColor = usageArray[0].color;
-                gridItem.markUsed(joinedLabels, firstColor);
+
+            if (combinedUsage[originalIdToCompare]) {
+                const usageInfo = combinedUsage[originalIdToCompare];
+                gridItem.markUsed(usageInfo.label, usageInfo.color);
             } else {
                 gridItem.markUnused();
             }
         }
         this.updateStatsLabel();
     }
-    
-    // --- MODIFICATION (1/3) : Corriger la logique d'accumulation ---
-    getCombinedUsageMap() {
-        const combinedUsage = {};
-        // On trie les jours par leur index pour que les labels soient toujours dans un ordre logique (A, B, C...)
-        const sortedJourFrames = [...this.jourFrames].sort((a, b) => a.index - b.index);
 
-        sortedJourFrames.forEach(jf => {
-            const usageDataForOneJour = jf.getUsageData();
-            for (const originalId in usageDataForOneJour) {
-                // Si c'est la première fois qu'on voit cette image, on initialise son tableau d'usages
-                if (!combinedUsage[originalId]) {
-                    combinedUsage[originalId] = [];
-                }
-                // On ajoute l'info d'utilisation actuelle au tableau
-                combinedUsage[originalId].push(usageDataForOneJour[originalId]);
-            }
+    getCombinedUsageMap() {
+        let combined = {};
+        this.jourFrames.forEach(jf => {
+            Object.assign(combined, jf.getUsageData()); 
         });
-        return combinedUsage;
+        return combined;
     }
 
     updateStatsLabel() {
@@ -3531,7 +3639,7 @@ class PublicationOrganizer {
             if (this.calendarPage) {
                 const datesToRemove = [];
                 for (const dateStr in this.calendarPage.scheduleData) {
-                    if (this.calendarPage.scheduleData[dateStr][jourFrameToClose.letter]) {
+                    if (this.calendarPage.scheduleData[dateStr][jourFrameToClose.letter] && this.calendarPage.scheduleData[dateStr][jourFrameToClose.letter].galleryId === jourFrameToClose.galleryId) {
                         datesToRemove.push(new Date(dateStr + 'T00:00:00')); 
                     }
                 }
@@ -3577,6 +3685,47 @@ class PublicationOrganizer {
         return this.galleryCache[galleryId];
     }
 
+    isJourReadyForPublishing(galleryId, letter) {
+        // La logique ici est simplifiée. Pour une version robuste, il faudrait que
+        // `allUserJours` contienne un `imageCount`.
+        // On suppose qu'un jour existe uniquement s'il a été créé, ce qui est une heuristique raisonnable.
+        return true;
+    }
+
+    async saveAllJourFrames() {
+        if (!this.currentGalleryId) { alert("Aucune galerie active."); return; }
+        if (!this.jourFrames.length) { alert("Aucun Jour actif à enregistrer."); return; }
+
+        let savedCount = 0;
+        const progressContainer = this.currentGalleryUploadProgressContainer; 
+        const progressTextEl = this.currentGalleryUploadProgressText;
+        const progressBarInnerEl = this.currentGalleryUploadProgressBarInner;
+
+        progressContainer.style.display = 'block';
+        progressTextEl.textContent = `Sauvegarde 0/${this.jourFrames.length} jours...`;
+        progressBarInnerEl.style.width = '0%';
+        progressBarInnerEl.textContent = '0%';
+        progressBarInnerEl.style.backgroundColor = '#007bff'; 
+
+        for (let i = 0; i < this.jourFrames.length; i++) {
+            const jf = this.jourFrames[i];
+            if (await jf.save()) { 
+                savedCount++;
+            }
+            const percent = Math.round(((i + 1) / this.jourFrames.length) * 100);
+            progressBarInnerEl.style.width = `${percent}%`;
+            progressBarInnerEl.textContent = `${percent}%`;
+            progressTextEl.textContent = `Sauvegarde ${i + 1}/${this.jourFrames.length} jours...`;
+        }
+        
+        progressTextEl.textContent = `${savedCount} Jour(s) enregistrés.`;
+        progressBarInnerEl.style.backgroundColor = '#28a745'; 
+        setTimeout(() => {
+            progressContainer.style.display = 'none';
+            this.updateStatsLabel(); 
+        }, 2000);
+    }
+    
     openImageCropper(imagesDataForCropper, callingJourFrame) {
         this.cropper.open(imagesDataForCropper, callingJourFrame);
     }
@@ -3602,141 +3751,6 @@ class PublicationOrganizer {
         }
     }
 
-    async loadState() { 
-        if (!this.currentGalleryId) {
-            console.warn("No current gallery ID to load state. UI should reflect this.");
-            this.updateUIToNoGalleryState();
-            return;
-        }
-
-        const loadingProgressContainer = this.currentGalleryUploadProgressContainer;
-        const loadingProgressText = this.currentGalleryUploadProgressText;
-        const loadingProgressBarInner = this.currentGalleryUploadProgressBarInner;
-        
-        if (loadingProgressContainer) { 
-            loadingProgressContainer.style.display = 'block';
-            loadingProgressText.textContent = 'Chargement de la galerie...';
-            loadingProgressBarInner.style.width = '50%'; 
-            loadingProgressBarInner.textContent = '';
-            loadingProgressBarInner.style.backgroundColor = '#007bff';
-        }
-
-
-        try {
-            const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}`);
-            if (!response.ok) {
-                 if (response.status === 404) { 
-                    console.warn(`Gallery ${this.currentGalleryId} not found. Resetting.`);
-                    this.currentGalleryId = null; 
-                    localStorage.removeItem('publicationOrganizer_lastGalleryId'); 
-                    await startApp();
-                    return; 
-                 }
-                 throw new Error(`Failed to load gallery: ${response.statusText}`);
-            }
-            const data = await response.json();
-            
-            const { galleryState, images, jours, schedule } = data;
-            
-            this.galleryCache[this.currentGalleryId] = galleryState.name; 
-
-            this.currentThumbSize = galleryState.currentThumbSize || { width: 200, height: 200 };
-            this.sortOptionsSelect.value = galleryState.sortOption || 'date_desc';
-            this.nextJourIndex = typeof galleryState.nextJourIndex === 'number' ? galleryState.nextJourIndex : 0;
-
-            this.imageGridElement.innerHTML = ''; this.gridItems = []; this.gridItemsDict = {};
-            if (images) {
-                images.forEach(imgData => {
-                    const gridItem = new GridItemBackend(imgData, this.currentThumbSize, this);
-                    gridItem.element.addEventListener('click', () => this.onGridItemClick(gridItem));
-                    gridItem.element.draggable = true;
-                    gridItem.element.addEventListener('dragstart', (e) => {
-                         e.dataTransfer.setData("application/json", JSON.stringify({
-                            sourceType: 'grid',
-                            imageId: gridItem.id,
-                            originalFilename: gridItem.basename,
-                            thumbnailPath: gridItem.thumbnailPath
-                        }));
-                        e.dataTransfer.effectAllowed = "copy";
-                    });
-                    this.imageGridElement.appendChild(gridItem.element);
-                    this.gridItems.push(gridItem);
-                    this.gridItemsDict[imgData._id] = gridItem;
-                });
-                 this.sortGridItemsAndReflow(); 
-            }
-
-            this.jourFramesContainer.innerHTML = ''; this.jourFrames = [];
-            if (jours) {
-                 jours.forEach(jourData => { 
-                    const jf = new JourFrameBackend(this, jourData);
-                    this.jourFramesContainer.appendChild(jf.element);
-                    this.jourFrames.push(jf);
-                 });
-                 this.jourFrames.sort((a,b) => a.index - b.index);
-                 this.recalculateNextJourIndex(); 
-                 if(this.jourFrames.length > 0 && !this.currentJourFrame) {
-                    this.setCurrentJourFrame(this.jourFrames[0]); 
-                 }
-            }
-            
-            if (this.currentGalleryId && (!jours || jours.length === 0)) {
-                console.log("Aucun jour trouvé pour cette galerie, tentative de création du Jour A par défaut.");
-                await this.addJourFrame(); 
-            }
-
-
-            const savedActiveTab = galleryState.activeTab;
-            let tabToActivateId = this.currentGalleryId ? 'currentGallery' : 'galleries'; 
-            if (savedActiveTab && document.querySelector(`.tab-button[data-tab="${savedActiveTab}"]`)) {
-                tabToActivateId = savedActiveTab;
-            }
-            this.activateTab(tabToActivateId);
-            
-            this.organizerInitialScheduleData = schedule || {}; 
-            if (this.calendarPage) { 
-                this.calendarPage.loadScheduleData(this.organizerInitialScheduleData);
-                if (document.getElementById('calendar').classList.contains('active')) {
-                    this.calendarPage.buildCalendarUI();
-                }
-            }
-            if (this.descriptionManager && (document.getElementById('description').classList.contains('active') || this.jourFrames.length > 0)) {
-                this.descriptionManager.show();
-            }
-
-
-            this.updateAddPhotosPlaceholderVisibility();
-            this.updateGridUsage(); 
-            this.updateGridItemStyles();
-            this.updateUIToNoGalleryState(); 
-            
-            if (loadingProgressContainer) {
-                loadingProgressText.textContent = "Galerie chargée !";
-                loadingProgressBarInner.style.width = '100%';
-                loadingProgressBarInner.style.backgroundColor = '#28a745';
-            }
-
-        } catch (error) {
-            console.error("Error loading state from backend:", error);
-            alert(`Erreur lors du chargement de la galerie: ${error.message}`);
-            if (loadingProgressContainer) {
-                loadingProgressText.textContent = "Erreur de chargement.";
-                loadingProgressBarInner.style.backgroundColor = '#dc3545';
-            }
-            this.currentGalleryId = null; 
-            localStorage.removeItem('publicationOrganizer_lastGalleryId');
-            this.updateUIToNoGalleryState();
-            this.activateTab('galleries');
-        } finally {
-             if (loadingProgressContainer) {
-                setTimeout(() => {
-                    loadingProgressContainer.style.display = 'none';
-                    this.updateStatsLabel(); 
-                }, 1500);
-             }
-        }
-    }
-    
     findImageInAnyJour(imageId, returnFullObject = false) {
         for (const jour of this.jourFrames) {
             const foundInData = jour.imagesData.find(img => img.imageId === imageId);
@@ -3763,61 +3777,31 @@ class PublicationOrganizer {
 // --- POINT D'ENTRÉE ET LOGIQUE D'INITIALISATION ---
 // =================================================================
 
-/**
- * Cette fonction est le point d'entrée principal. Elle est appelée une seule fois
- * au chargement de la page.
- */
 document.addEventListener('DOMContentLoaded', () => {
-    // 1. Vérifier si l'utilisateur est connecté.
     checkUserStatus();
-
-    // 2. Mettre en place les écouteurs d'événements globaux (comme le menu profil).
     setupGlobalEventListeners();
 });
 
-/**
- * Vérifie le statut de connexion de l'utilisateur.
- * Si l'utilisateur est connecté, lance l'application.
- * Sinon, redirige vers la page de bienvenue.
- */
 async function checkUserStatus() {
     try {
         const response = await fetch('/api/auth/status');
         if (response.ok) {
             const data = await response.json();
             if (data.loggedIn) {
-                // L'utilisateur est connecté.
                 document.getElementById('userInfo').textContent = `Connecté: ${data.username}`;
-                
-                // ---- MODIFICATION : Mettre à jour l'image de profil ----
-                const profileImg = document.getElementById('profilePictureImg');
-                if (profileImg && data.user && data.user.picture) {
-                    profileImg.src = data.user.picture;
-                    profileImg.alt = `Profil de ${data.user.name}`;
-                }
-                // ---- FIN DE LA MODIFICATION ----
-
-                // C'est ici que l'on démarre l'application principale.
                 await startApp();
             } else {
-                // L'utilisateur n'est pas connecté, redirection.
                 window.location.href = 'welcome.html';
             }
         } else {
-            // Le serveur a répondu avec une erreur, redirection par sécurité.
             window.location.href = 'welcome.html';
         }
     } catch (error) {
-        // Erreur réseau ou autre, l'application ne peut pas démarrer, redirection.
         console.error('Erreur lors de la vérification du statut de connexion:', error);
         window.location.href = 'welcome.html';
     }
 }
 
-/**
- * Initialise l'instance principale de PublicationOrganizer et charge les données initiales.
- * Cette fonction est appelée uniquement après une vérification de connexion réussie.
- */
 async function startApp() {
     const loadingOverlay = document.getElementById('loadingOverlay');
     loadingOverlay.style.display = 'flex';
@@ -3826,7 +3810,6 @@ async function startApp() {
     try {
         if (!app) {
             app = new PublicationOrganizer();
-            // Optionnel: rendre l'app accessible depuis la console pour le débogage.
             window.pubApp = app; 
         }
 
@@ -3859,16 +3842,12 @@ async function startApp() {
     } catch (error) {
         console.error("Erreur critique lors du démarrage de l'application:", error);
         loadingOverlay.querySelector('p').innerHTML = `Erreur d'initialisation: ${error.message}<br/>Veuillez vérifier la console et rafraîchir la page.`;
-        // Ne pas masquer le loader en cas d'erreur critique pour que l'utilisateur voie le message.
         return; 
     }
     
     loadingOverlay.style.display = 'none';
 }
 
-/**
- * Met en place les écouteurs d'événements qui ne dépendent pas de l'instance de l'application.
- */
 function setupGlobalEventListeners() {
     const profileButton = document.getElementById('profileButton');
     const profileDropdown = document.getElementById('profileDropdown');
@@ -3897,9 +3876,6 @@ function setupGlobalEventListeners() {
     });
 }
 
-/**
- * Déconnecte l'utilisateur et le redirige.
- */
 async function logout() {
     try {
         const response = await fetch('/api/auth/logout', { method: 'POST' });

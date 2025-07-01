@@ -1,20 +1,23 @@
+// ===============================
+//  Fichier: controllers\jourController.js
+// ===============================
 const Jour = require('../models/Jour');
 const Gallery = require('../models/Gallery');
-const Image = require('../models/Image');
+const Image = require('../models/Image'); // Ajouté pour peupler les images du Jour
 const mongoose = require('mongoose');
-const archiver = require('archiver');
-const path = require('path');
-const fs = require('fs');
+const archiver = require('archiver'); // Ajouté pour le ZIP
+const path = require('path');       // Ajouté pour les chemins de fichiers
+const fs = require('fs');           // Ajouté pour vérifier l'existence des fichiers
 
-const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
+const UPLOAD_DIR = path.join(__dirname, '..', 'uploads'); // S'assurer que UPLOAD_DIR est défini
 
 exports.createJour = async (req, res) => {
     const { galleryId } = req.params;
 
     try {
-        const gallery = await Gallery.findOne({ _id: galleryId, owner: req.user._id });
+        const gallery = await Gallery.findById(galleryId);
         if (!gallery) {
-            return res.status(404).json({ message: `Gallery with ID ${galleryId} not found or not owned by user.` });
+            return res.status(404).json({ message: `Gallery with ID ${galleryId} not found.` });
         }
 
         const existingJours = await Jour.find({ galleryId: galleryId }).select('index letter').sort({ index: 1 });
@@ -40,7 +43,6 @@ exports.createJour = async (req, res) => {
 
         const newJour = new Jour({
             galleryId,
-            owner: req.user._id,
             letter,
             index: nextAvailableIndex,
             images: [],
@@ -77,12 +79,7 @@ exports.createJour = async (req, res) => {
 exports.getJoursForGallery = async (req, res) => {
     const { galleryId } = req.params;
     try {
-        const query = { galleryId: galleryId };
-        if (req.user.role !== 'admin') {
-            query.owner = req.user._id;
-        }
-
-        const jours = await Jour.find(query)
+        const jours = await Jour.find({ galleryId: galleryId })
                               .populate('images.imageId') 
                               .sort({ index: 1 }); 
         res.json(jours);
@@ -130,19 +127,14 @@ exports.updateJour = async (req, res) => {
     }
 
     try {
-        const query = { _id: jourId, galleryId: galleryId };
-        if (req.user.role !== 'admin') {
-            query.owner = req.user._id;
-        }
-
         const updatedJour = await Jour.findOneAndUpdate(
-            query, 
+            { _id: jourId, galleryId: galleryId }, 
             { $set: updatePayload },  
             { new: true, runValidators: true }     
         ).populate('images.imageId'); 
 
         if (!updatedJour) {
-            return res.status(404).send('Jour not found or access denied.');
+            return res.status(404).send('Jour not found or does not belong to the specified gallery.');
         }
         res.json(updatedJour); 
     } catch (error) {
@@ -158,14 +150,10 @@ exports.updateJour = async (req, res) => {
 exports.deleteJour = async (req, res) => {
     const { galleryId, jourId } = req.params;
     try {
-        const query = { _id: jourId, galleryId: galleryId };
-        if (req.user.role !== 'admin') {
-            query.owner = req.user._id;
-        }
-        const result = await Jour.deleteOne(query);
+        const result = await Jour.deleteOne({ _id: jourId, galleryId: galleryId });
 
         if (result.deletedCount === 0) {
-            return res.status(404).send('Jour not found or access denied.');
+            return res.status(404).send('Jour not found or does not belong to the specified gallery.');
         }
         
         const gallery = await Gallery.findById(galleryId);
@@ -187,53 +175,62 @@ exports.deleteJour = async (req, res) => {
     }
 };
 
+// NOUVELLE FONCTION: Exporter les images d'un Jour en tant que ZIP
 exports.exportJourImagesAsZip = async (req, res) => {
     const { galleryId, jourId } = req.params;
 
     try {
-        const query = { _id: jourId, galleryId: galleryId };
-        if (req.user.role !== 'admin') {
-            query.owner = req.user._id;
-        }
-
-        const jour = await Jour.findOne(query)
+        const jour = await Jour.findById(jourId)
             .populate({
                 path: 'images.imageId',
-                model: 'Image'
+                model: 'Image' // Assurez-vous que 'Image' est le nom correct de votre modèle
             });
 
-        if (!jour) {
-            return res.status(404).send('Jour not found or access denied.');
+        if (!jour || jour.galleryId.toString() !== galleryId) {
+            return res.status(404).send('Jour not found or does not belong to the specified gallery.');
         }
 
         if (!jour.images || jour.images.length === 0) {
             return res.status(400).send('This Jour contains no images to export.');
         }
 
-        const archive = archiver('zip', { zlib: { level: 9 } });
-
-        archive.on('warning', (err) => {
-            if (err.code === 'ENOENT') console.warn('Archiver warning (ENOENT):', err);
-            else console.error('Archiver warning:', err);
+        const archive = archiver('zip', {
+            zlib: { level: 9 } // Niveau de compression
         });
-        archive.on('error', (err) => {
+
+        // Gérer les erreurs de l'archiveur
+        archive.on('warning', function (err) {
+            if (err.code === 'ENOENT') {
+                console.warn('Archiver warning (ENOENT):', err);
+            } else {
+                console.error('Archiver warning:', err);
+            }
+        });
+        archive.on('error', function (err) {
             console.error('Archiver error:', err);
+            // Si les en-têtes ne sont pas encore envoyés, envoyez une erreur 500
             if (!res.headersSent) {
                 res.status(500).send({ error: 'Failed to create zip archive.', details: err.message });
             }
         });
 
+        // Définir le nom du fichier ZIP pour le téléchargement
         const zipFileName = `Jour${jour.letter}.zip`;
-        res.attachment(zipFileName);
+        res.attachment(zipFileName); // Définit Content-Disposition et Content-Type
+
+        // Pipe de l'archive vers la réponse HTTP
         archive.pipe(res);
 
+        // Ajouter les fichiers à l'archive
         for (let i = 0; i < jour.images.length; i++) {
             const imageEntry = jour.images[i];
             if (imageEntry.imageId && imageEntry.imageId.path) {
                 const imageDoc = imageEntry.imageId;
                 const filePath = path.join(UPLOAD_DIR, imageDoc.path);
 
+                // Vérifier si le fichier existe avant de l'ajouter
                 if (fs.existsSync(filePath)) {
+                    // Nettoyer le nom de fichier original pour l'utiliser dans le ZIP
                     const originalFilenameSafe = (imageDoc.originalFilename || imageDoc.filename)
                                                 .replace(/[^a-zA-Z0-9_.\-]/g, '_');
                     const filenameInZip = `Jour${jour.letter}_${String(i + 1).padStart(2, '0')}_${originalFilenameSafe}`;
@@ -244,6 +241,7 @@ exports.exportJourImagesAsZip = async (req, res) => {
             }
         }
 
+        // Finaliser l'archive (ne plus ajouter de fichiers après cela)
         await archive.finalize();
 
     } catch (error) {

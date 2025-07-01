@@ -9,32 +9,35 @@ const galleryController = require('../controllers/galleryController');
 const imageController = require('../controllers/imageController');
 const jourController = require('../controllers/jourController');
 const scheduleController = require('../controllers/scheduleController');
-const adminController = require('../controllers/adminController');
 const authMiddleware = require('../middleware/auth');
-const adminAuthMiddleware = require('../middleware/adminAuth');
 
-// --- Routes d'Authentification ---
+// --- Route d'Authentification ---
 router.post('/auth/google-signin', authController.googleSignIn);
 router.post('/auth/logout', authController.logout);
 router.get('/auth/status', authController.status);
 
-// --- Route spéciale pour l'usurpation d'identité par l'admin ---
-router.post('/auth/impersonate', authMiddleware, adminAuthMiddleware, adminController.impersonateUser);
+const TEMP_UPLOAD_DIR = path.join(__dirname, '..', 'temp_uploads');
+if (!fs.existsSync(TEMP_UPLOAD_DIR)){
+    fs.mkdirSync(TEMP_UPLOAD_DIR, { recursive: true });
+}
 
-
-// ======================= CORRECTION PRINCIPALE CI-DESSOUS =======================
-// On passe de `diskStorage` à `memoryStorage` pour que `req.files[i].buffer` soit disponible dans le contrôleur.
-// Cela correspond à la nouvelle logique dans `imageController.js`.
-
-const storage = multer.memoryStorage(); // <-- Utilisation du stockage en mémoire
+const storage = multer.diskStorage({
+    destination: function (req, file, cb) {
+      cb(null, TEMP_UPLOAD_DIR)
+    },
+    filename: function (req, file, cb) {
+      const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+      cb(null, 'tempfile-' + uniqueSuffix + path.extname(file.originalname))
+    }
+});
 
 const multerLimits = {
-    fileSize: 50 * 1024 * 1024, // 50 MB
-    files: 3000 // Limite arbitraire
+    fileSize: 50 * 1024 * 1024, 
+    files: 3000 
 };
 
 const upload = multer({
-    storage: storage, // <-- Application du memoryStorage
+    storage: storage,
     limits: multerLimits, 
     fileFilter: function (req, file, cb) {
         if (!file.mimetype.startsWith('image/')) {
@@ -45,6 +48,14 @@ const upload = multer({
     }
 });
 
+// --- Routes Galerie ---
+router.post('/galleries', authMiddleware, galleryController.createGallery);
+router.get('/galleries', authMiddleware, galleryController.listGalleries);
+router.get('/galleries/:galleryId', authMiddleware, galleryController.getGalleryDetails);
+router.put('/galleries/:galleryId/state', authMiddleware, galleryController.updateGalleryState);
+router.delete('/galleries/:galleryId', authMiddleware, galleryController.deleteGallery);
+
+// --- Routes Images ---
 const handleUploadErrors = (err, req, res, next) => {
     if (err instanceof multer.MulterError) {
         console.error("Erreur Multer interceptée :", err);
@@ -61,21 +72,14 @@ const handleUploadErrors = (err, req, res, next) => {
     }
     next();
 };
-// ========================= FIN DE LA CORRECTION PRINCIPALE =========================
 
-
-// --- Routes Galerie ---
-router.post('/galleries', authMiddleware, galleryController.createGallery);
-router.get('/galleries', authMiddleware, galleryController.listGalleries);
-router.get('/galleries/:galleryId', authMiddleware, galleryController.getGalleryDetails);
-router.put('/galleries/:galleryId/state', authMiddleware, galleryController.updateGalleryState);
-router.delete('/galleries/:galleryId', authMiddleware, galleryController.deleteGallery);
-
-// --- Routes Images ---
 router.post(
     '/galleries/:galleryId/images',
     authMiddleware,
-    upload.array('images', 3000), // Utilisation de `.array()` qui est plus standard avec `memoryStorage`
+    (req, res, next) => {
+        next();
+    },
+    upload.any(), 
     handleUploadErrors, 
     imageController.uploadImages
 );
@@ -91,15 +95,11 @@ router.post('/galleries/:galleryId/jours', authMiddleware, jourController.create
 router.get('/galleries/:galleryId/jours', authMiddleware, jourController.getJoursForGallery);
 router.put('/galleries/:galleryId/jours/:jourId', authMiddleware, jourController.updateJour);
 router.delete('/galleries/:galleryId/jours/:jourId', authMiddleware, jourController.deleteJour);
+// NOUVELLE ROUTE CI-DESSOUS
 router.get('/galleries/:galleryId/jours/:jourId/export', authMiddleware, jourController.exportJourImagesAsZip);
 
 // --- Routes Calendrier ---
 router.get('/galleries/:galleryId/schedule', authMiddleware, scheduleController.getScheduleForGallery);
 router.put('/galleries/:galleryId/schedule', authMiddleware, scheduleController.updateSchedule);
-
-// --- ROUTES SPÉCIFIQUES ADMIN ---
-router.get('/admin/users', authMiddleware, adminAuthMiddleware, adminController.listUsers);
-router.get('/admin/users/:userId/galleries', authMiddleware, adminAuthMiddleware, adminController.getGalleriesForUser);
-
 
 module.exports = router;

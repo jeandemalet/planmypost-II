@@ -1,21 +1,20 @@
-
 // ===============================
 //  Fichier: models\Gallery.js
 // ===============================
 const mongoose = require('mongoose');
 
 const GallerySchema = new mongoose.Schema({
+    owner: { // CHAMP AJOUTÉ - INDISPENSABLE POUR LA LOGIQUE UTILISATEUR
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+        required: true,
+        index: true
+    },
     name: {
         type: String,
         required: true,
         trim: true,
         default: () => `Galerie du ${new Date().toLocaleDateString('fr-FR')}`
-    },
-    owner: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true,
-        index: true
     },
     createdAt: {
         type: Date,

@@ -1,11 +1,15 @@
+// ===============================
+//  Fichier: controllers\imageController.js
+// ===============================
+
 const Image = require('../models/Image');
 const Gallery = require('../models/Gallery');
-const Jour = require('../models/Jour');
+const Jour = require('../models/Jour'); // Assurez-vous que mongoose est importé si vous utilisez mongoose.Types.ObjectId
 const mongoose = require('mongoose'); 
 const sharp = require('sharp');
 const exifParser = require('exif-parser');
 const path = require('path');
-const fs = require('fs'); // Utiliser fs.promises est mieux, mais pour la cohérence on garde fs
+const fs = require('fs').promises;
 const fse = require('fs-extra');
 
 const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
@@ -43,91 +47,139 @@ const getExifDateTime = (buffer) => {
 };
 
 exports.uploadImages = async (req, res) => {
-    const { galleryId } = req.params;
+    const galleryId = req.params.galleryId;
+    console.log(`[imageController] Début uploadImages pour galleryId: ${galleryId}. Nombre de fichiers reçus par Multer: ${req.files ? req.files.length : 0}`);
 
     if (req.fileValidationError) {
+        console.warn(`[imageController] Validation de fichier échouée: ${req.fileValidationError}`);
+        if (req.files && req.files.length > 0) {
+            await Promise.all(req.files.map(f => fse.unlink(f.path).catch(e => console.error(`[imageController] Cleanup failed for rejected file ${f.path}:`, e.message))));
+        }
         return res.status(400).send(req.fileValidationError);
     }
+    
     if (!req.files || req.files.length === 0) {
-        return res.status(400).send('No files uploaded.');
+        console.log('[imageController] Aucun fichier reçu ou tous les fichiers ont été rejetés.');
+        return res.status(400).send('No files uploaded or files were rejected by filter.');
     }
 
     try {
-        const galleryExists = await Gallery.findOne({ _id: galleryId, owner: req.user._id });
+        const galleryExists = await Gallery.findById(galleryId).select('_id');
         if (!galleryExists) {
-             return res.status(404).send(`Gallery with ID ${galleryId} not found or not owned by user.`);
+             console.log(`[imageController] Galerie ${galleryId} non trouvée.`);
+             // Nettoyer les fichiers temporaires car la galerie n'existe pas
+             await Promise.all(req.files.map(f => fse.unlink(f.path).catch(e => console.error(`[imageController] Cleanup failed for non-existent gallery file ${f.path}:`, e.message))));
+             return res.status(404).send(`Gallery with ID ${galleryId} not found.`);
         }
     } catch (error) {
+        console.error(`[imageController] Erreur vérification gallery ID ${galleryId}:`, error);
+        await Promise.all(req.files.map(f => fse.unlink(f.path).catch(e => console.error(`[imageController] Cleanup failed due to gallery check error ${f.path}:`, e.message))));
         return res.status(400).send('Invalid Gallery ID format or error checking gallery.');
     }
 
     const galleryUploadDir = path.join(UPLOAD_DIR, galleryId);
+    let allTempFilePathsForCleanup = req.files.map(f => f.path); 
     const uploadedImageDocs = [];
+    let filesProcessedSuccessfully = 0;
 
     try {
         await fse.ensureDir(galleryUploadDir);
-        for (const file of req.files) {
+        console.log(`[imageController] Traitement de ${req.files.length} fichiers.`);
+
+        for (let i = 0; i < req.files.length; i++) {
+            const file = req.files[i];
+            console.log(`[imageController] Traitement du fichier ${i + 1}/${req.files.length}: ${file.originalname}`);
+            let currentTempFilePath = file.path;
+
             try {
-                if (await Image.findOne({ galleryId: galleryId, originalFilename: file.originalname })) {
-                    console.log(`Duplicate ignored: ${file.originalname}`);
-                    continue;
+                const existingImage = await Image.findOne({ galleryId: galleryId, originalFilename: file.originalname });
+                if (existingImage) {
+                    console.log(`[imageController] Doublon ignoré: ${file.originalname} pour galerie ${galleryId}`);
+                    allTempFilePathsForCleanup = allTempFilePathsForCleanup.filter(p => p !== currentTempFilePath);
+                    await fse.unlink(currentTempFilePath).catch(e => console.error(`[imageController] Échec nettoyage temp duplicate ${currentTempFilePath}:`, e));
+                    continue; // Passe au fichier suivant
                 }
 
-                const buffer = file.buffer;
+                const buffer = await fs.readFile(currentTempFilePath);
+
                 const timestamp = Date.now();
                 const safeOriginalName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-                const uniqueFilename = `${timestamp}-${safeOriginalName}`;
+                const uniqueFilename = `${timestamp}-${safeOriginalName}`; 
                 const finalFilePath = path.join(galleryUploadDir, uniqueFilename);
-                const relativePath = path.join(galleryId, uniqueFilename);
+                const relativePath = path.join(galleryId, uniqueFilename); 
+
                 const exifDateTime = getExifDateTime(buffer);
 
-                const thumbFilename = `thumb-${uniqueFilename}`;
+                const thumbFilename = `thumb-${uniqueFilename}`; 
                 const thumbFilePath = path.join(galleryUploadDir, thumbFilename);
-                const relativeThumbPath = path.join(galleryId, thumbFilename);
-
+                const relativeThumbPath = path.join(galleryId, thumbFilename); 
+                
+                console.log(`[imageController] Création miniature pour ${file.originalname}`);
                 await sharp(buffer)
                     .resize(THUMB_SIZE, THUMB_SIZE, { fit: 'inside', withoutEnlargement: true })
                     .jpeg({ quality: 85 })
                     .toFile(thumbFilePath);
+                console.log(`[imageController] Miniature créée pour ${file.originalname}`);
 
-                await fs.promises.writeFile(finalFilePath, buffer);
+                console.log(`[imageController] Déplacement de ${currentTempFilePath} vers ${finalFilePath}`);
+                await fse.move(currentTempFilePath, finalFilePath, { overwrite: false });
+                allTempFilePathsForCleanup = allTempFilePathsForCleanup.filter(p => p !== currentTempFilePath);
+                console.log(`[imageController] Fichier déplacé: ${file.originalname}`);
 
                 const imageDoc = new Image({
                     galleryId: galleryId,
-                    owner: req.user._id,
                     originalFilename: file.originalname,
-                    filename: uniqueFilename,
+                    filename: uniqueFilename, 
                     path: relativePath,
                     thumbnailPath: relativeThumbPath,
                     mimeType: file.mimetype,
                     size: file.size,
                     exifDateTimeOriginal: exifDateTime,
-                    fileLastModified: new Date()
+                    fileLastModified: (file.lastModifiedDate && !isNaN(new Date(file.lastModifiedDate))) ? new Date(file.lastModifiedDate) : new Date(), // multer peut fournir lastModifiedDate
                 });
                 await imageDoc.save();
                 uploadedImageDocs.push(imageDoc);
+                filesProcessedSuccessfully++;
+                console.log(`[imageController] Document image sauvegardé en DB pour: ${file.originalname}`);
+
             } catch (fileProcessingError) {
-                console.error(`Error processing file ${file.originalname}:`, fileProcessingError);
+                console.error(`[imageController] ERREUR lors du traitement du fichier ${file.originalname}:`, fileProcessingError);
+                // Ne pas supprimer currentTempFilePath de allTempFilePathsForCleanup ici,
+                // car s'il y a une erreur après le move, il n'est plus temporaire.
+                // Si l'erreur est avant le move, il sera nettoyé dans le `finally` global.
             }
         }
+        
+        console.log(`[imageController] Fin de la boucle de traitement. ${filesProcessedSuccessfully} fichiers traités avec succès.`);
+        console.log(`[imageController] Envoi de la réponse au client avec ${uploadedImageDocs.length} documents.`);
         res.status(201).json(uploadedImageDocs);
-    } catch (error) {
-        console.error("Global error in upload process:", error);
+
+    } catch (error) { 
+        console.error("[imageController] ERREUR GLOBALE dans le processus d'upload:", error);
+        // Même en cas d'erreur globale, si des documents ont été créés, on pourrait choisir de les renvoyer.
+        // Ou, plus simplement, renvoyer une erreur 500.
+        // Pour l'instant, on s'assure qu'une réponse est envoyée.
         if (!res.headersSent) {
-            res.status(500).send('Server error during image upload process.');
+             res.status(500).send('Server error during image upload process.');
         }
+    } finally {
+        console.log('[imageController] Bloc finally atteint.');
+        if (allTempFilePathsForCleanup.length > 0) {
+            console.log("[imageController] Tentative de nettoyage des fichiers temporaires restants:", allTempFilePathsForCleanup);
+            await Promise.all(allTempFilePathsForCleanup.map(filePath => 
+                fse.unlink(filePath).catch(e => console.error(`[imageController] Échec nettoyage final pour ${filePath}:`, e.message))
+            ));
+        }
+        console.log('[imageController] Fin de uploadImages.');
     }
 };
 
+// ... reste du fichier imageController.js inchangé ...
 exports.getImagesForGallery = async (req, res) => {
-    const { galleryId } = req.params;
+    const galleryId = req.params.galleryId;
     try {
-        const query = { galleryId: galleryId, isCroppedVersion: { $ne: true } };
-        if (req.user.role !== 'admin') {
-            query.owner = req.user._id;
-        }
-
-        const images = await Image.find(query).sort({ uploadDate: 1 });
+        const images = await Image.find({ galleryId: galleryId, isCroppedVersion: { $ne: true } })
+                               .sort({ uploadDate: 1 });
         res.json(images);
     } catch (error) {
         console.error("Error getting images for gallery:", error);
@@ -152,39 +204,15 @@ exports.serveImage = async (req, res) => {
             return res.status(400).send('Invalid path components.');
         }
         
-        // --- CORRECTION APPLIQUÉE ICI ---
-        // On construit une requête de base pour l'ID de galerie et le propriétaire
-        const baseQuery = { galleryId: cleanGalleryId };
-        if (req.user.role !== 'admin') {
-            baseQuery.owner = req.user._id;
-        }
-
-        // On cherche un document qui correspond à l'ID de la galerie ET
-        // dont soit le `filename` correspond (image complète),
-        // soit le `thumbnailPath` correspond au chemin complet de la miniature.
-        const image = await Image.findOne({
-            ...baseQuery,
-            $or: [
-                { filename: cleanImageName },
-                { thumbnailPath: path.join(cleanGalleryId, cleanImageName) }
-            ]
-        });
-
-        if (!image) {
-            return res.status(404).send('Image not found or access denied.');
-        }
-
-        // On utilise cleanImageName, car c'est le nom de fichier demandé (soit original, soit thumb)
         const imagePath = path.join(UPLOAD_DIR, cleanGalleryId, cleanImageName);
-        
-        // Vérifier si le fichier existe physiquement avant de l'envoyer
-        if (fs.existsSync(imagePath)) {
-            res.sendFile(imagePath);
-        } else {
-            console.error(`File not found on disk for image record ${image._id}: ${imagePath}`);
-            res.status(404).send('Image file not found on disk.');
-        }
 
+        try {
+            await fs.access(imagePath);
+            res.sendFile(imagePath);
+        } catch (accessError) {
+            console.error(`File not found at ${imagePath}: `, accessError);
+            res.status(404).send(`Image not found at path: ${cleanGalleryId}/${cleanImageName}.`);
+        }
     } catch (error) { 
          console.error("Server error serving image:", error);
          res.status(500).send('Server error serving image.');
@@ -200,21 +228,17 @@ exports.saveCroppedImage = async (req, res) => {
     }
 
     try {
-        const originalImageQuery = { _id: originalImageId, galleryId: galleryId };
-        if (req.user.role !== 'admin') {
-            originalImageQuery.owner = req.user._id;
-        }
-        const originalImage = await Image.findOne(originalImageQuery);
-        
-        if (!originalImage) {
-            return res.status(404).send('Original image not found or access denied.');
+        const originalImage = await Image.findById(originalImageId);
+        if (!originalImage || originalImage.galleryId.toString() !== galleryId) {
+            return res.status(404).send('Original image not found or does not belong to the specified gallery.');
         }
 
         const matches = imageDataUrl.match(/^data:(image\/(.+));base64,(.+)$/);
-        if (!matches) {
+        if (!matches || matches.length !== 4) {
              return res.status(400).send('Invalid image data URL format.');
         }
         const mimeType = matches[1];
+        const extension = matches[2] || 'jpg'; 
         const base64Data = matches[3];
         const buffer = Buffer.from(base64Data, 'base64');
 
@@ -222,9 +246,10 @@ exports.saveCroppedImage = async (req, res) => {
         const originalBaseName = path.parse(originalImage.originalFilename).name.replace(/[^a-zA-Z0-9_-]/g, '_');
         const cleanSuffix = filenameSuffix.replace(/[^a-zA-Z0-9_-]/g, '_');
         
-        let actualExtension = 'jpg'; 
+        let actualExtension = extension;
         if (mimeType === 'image/png') actualExtension = 'png';
         else if (mimeType === 'image/webp') actualExtension = 'webp';
+        else actualExtension = 'jpg'; 
 
         const newFilename = `${originalBaseName}_${cleanSuffix}_${timestamp}.${actualExtension}`;
 
@@ -233,7 +258,7 @@ exports.saveCroppedImage = async (req, res) => {
         const newFilePath = path.join(galleryUploadDir, newFilename);
         const relativePath = path.join(galleryId, newFilename);
 
-        await fs.promises.writeFile(newFilePath, buffer);
+        await fs.writeFile(newFilePath, buffer);
 
         const thumbFilename = `thumb-${newFilename}`;
         const thumbFilePath = path.join(galleryUploadDir, thumbFilename);
@@ -245,7 +270,6 @@ exports.saveCroppedImage = async (req, res) => {
 
         const croppedImageDoc = new Image({
             galleryId: galleryId,
-            owner: req.user._id, // La version recadrée appartient à celui qui l'a faite
             originalFilename: `[${cropInfo}] ${originalImage.originalFilename}`,
             filename: newFilename,
             path: relativePath,
@@ -270,33 +294,28 @@ exports.saveCroppedImage = async (req, res) => {
 exports.deleteImage = async (req, res) => {
     const { galleryId, imageId } = req.params;
     try {
-        const query = { _id: imageId, galleryId: galleryId };
-        if (req.user.role !== 'admin') {
-            query.owner = req.user._id;
-        }
-        const image = await Image.findOne(query);
-
+        const image = await Image.findOne({ _id: imageId, galleryId: galleryId });
         if (!image) {
-            return res.status(404).send('Image not found or access denied.');
+            return res.status(404).send('Image not found in this gallery.');
         }
 
         const allAffectedImageIds = [image._id.toString()];
 
         const fullPath = path.join(UPLOAD_DIR, image.path);
         const thumbFullPath = path.join(UPLOAD_DIR, image.thumbnailPath);
-        await fs.promises.unlink(fullPath).catch(err => console.warn(`Failed to delete file ${fullPath}: ${err.message}`));
-        await fs.promises.unlink(thumbFullPath).catch(err => console.warn(`Failed to delete thumbnail ${thumbFullPath}: ${err.message}`));
+        await fs.unlink(fullPath).catch(err => console.warn(`Failed to delete file ${fullPath}: ${err.message}`));
+        await fs.unlink(thumbFullPath).catch(err => console.warn(`Failed to delete thumbnail ${thumbFullPath}: ${err.message}`));
 
         if (!image.isCroppedVersion) {
             const croppedVersions = await Image.find({ parentImageId: image._id, galleryId: galleryId });
             for (const cropped of croppedVersions) {
                 const croppedFullPath = path.join(UPLOAD_DIR, cropped.path);
                 const croppedThumbFullPath = path.join(UPLOAD_DIR, cropped.thumbnailPath);
-                await fs.promises.unlink(croppedFullPath).catch(err => console.warn(`Failed to delete cropped file ${croppedFullPath}: ${err.message}`));
-                await fs.promises.unlink(croppedThumbFullPath).catch(err => console.warn(`Failed to delete cropped thumbnail ${croppedThumbFullPath}: ${err.message}`));
+                await fs.unlink(croppedFullPath).catch(err => console.warn(`Failed to delete cropped file ${croppedFullPath}: ${err.message}`));
+                await fs.unlink(croppedThumbFullPath).catch(err => console.warn(`Failed to delete cropped thumbnail ${croppedThumbFullPath}: ${err.message}`));
+                await Image.deleteOne({ _id: cropped._id });
                 allAffectedImageIds.push(cropped._id.toString());
             }
-            await Image.deleteMany({ parentImageId: image._id });
         }
         
         await Image.deleteOne({ _id: imageId });
@@ -320,14 +339,9 @@ exports.deleteImage = async (req, res) => {
 exports.deleteAllImagesForGallery = async (req, res) => {
     const { galleryId } = req.params;
     try {
-        const galleryQuery = { _id: galleryId };
-        if (req.user.role !== 'admin') {
-            galleryQuery.owner = req.user._id;
-        }
-        const gallery = await Gallery.findOne(galleryQuery);
-        
+        const gallery = await Gallery.findById(galleryId);
         if (!gallery) {
-            return res.status(404).send('Gallery not found or access denied.');
+            return res.status(404).send('Gallery not found.');
         }
 
         const galleryImageDir = path.join(UPLOAD_DIR, galleryId);

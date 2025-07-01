@@ -2,10 +2,9 @@
 // Fichier: middleware/auth.js (CORRIGÉ)
 // ===============================
 const jwt = require('jsonwebtoken');
-const User = require('../models/User');
 
 // Ce middleware est conçu pour fonctionner avec des cookies httpOnly.
-module.exports = async (req, res, next) => {
+module.exports = (req, res, next) => {
     // 1. Récupérer le token depuis les cookies de la requête
     const token = req.cookies.token;
 
@@ -19,21 +18,13 @@ module.exports = async (req, res, next) => {
         // 3. Vérifier la validité du token
         const decodedToken = jwt.verify(token, process.env.JWT_SECRET);
         
-        // 4. Récupérer l'enregistrement complet de l'utilisateur depuis la base de données
-        const user = await User.findById(decodedToken.userId);
-
-        if (!user) {
-            return res.status(401).json({ message: 'Utilisateur non trouvé.' });
-        }
-
-        // 5. Attacher l'objet utilisateur trouvé à l'objet de la requête
-        req.user = user;
+        // 4. Ajouter les données de l'utilisateur à l'objet de requête pour les prochains middlewares/contrôleurs
+        req.userData = { userId: decodedToken.userId, googleId: decodedToken.googleId };
         
-        // 6. Passer au prochain middleware/contrôleur
+        // 5. Passer au prochain middleware/contrôleur
         next();
     } catch (error) {
         // Gérer les erreurs de token invalide ou expiré
-        console.error("Erreur d'authentification:", error);
         res.status(401).json({ message: 'Token invalide ou expiré.' });
     }
 };

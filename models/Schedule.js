@@ -8,12 +8,6 @@ const ScheduleSchema = new mongoose.Schema({
         required: true,
         index: true // Indexer pour recherche rapide par galerie
     },
-    owner: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true,
-        index: true
-    },
     date: { // Date de publication prévue au format YYYY-MM-DD
         type: String,
         required: true,

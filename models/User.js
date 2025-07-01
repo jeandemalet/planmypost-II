@@ -1,39 +1,30 @@
 const mongoose = require('mongoose');
 
 const userSchema = new mongoose.Schema({
-    oauthProvider: {
+    googleId: {
         type: String,
-        required: true
-    },
-    oauthId: {
-        type: String,
-        required: true
+        required: true,
+        unique: true,
+        index: true,
     },
     email: {
         type: String,
         required: true,
-        unique: true
+        unique: true,
+        lowercase: true,
+        trim: true,
     },
-    displayName: {
+    name: {
         type: String,
-        required: true
+        required: true,
     },
-    profilePictureUrl: {
+    picture: {
         type: String,
-        required: false
     },
-    // --- NOUVEAU CHAMP ---
-    role: {
-        type: String,
-        enum: ['user', 'admin'], // Définit les rôles possibles
-        default: 'user' // Par défaut, tout nouvel utilisateur est un "user"
-    }
-}, {
-    timestamps: true
+    createdAt: {
+        type: Date,
+        default: Date.now,
+    },
 });
 
-userSchema.index({ oauthProvider: 1, oauthId: 1 }, { unique: true });
-
-const User = mongoose.model('User', userSchema);
-
-module.exports = User;
+module.exports = mongoose.model('User', userSchema);
