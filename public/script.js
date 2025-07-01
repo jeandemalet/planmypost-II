@@ -1804,6 +1804,7 @@ class DescriptionManager {
         this.descriptionTextElement = document.getElementById('descriptionText');
         this.descriptionHashtagsElement = document.getElementById('descriptionHashtags');
         this.saveDescriptionBtn = document.getElementById('saveDescriptionBtn');
+        this.imagesPreviewBanner = document.getElementById('descriptionImagesPreview');
         
         this.currentSelectedJourFrame = null;
 
@@ -1883,6 +1884,21 @@ class DescriptionManager {
         this.descriptionHashtagsElement.value = jourFrame.descriptionHashtags || '';
         this.editorContentElement.style.display = 'block';
         this.editorPlaceholderElement.style.display = 'none';
+
+        this.imagesPreviewBanner.innerHTML = ''; // Clear previous
+        if (jourFrame.imagesData && jourFrame.imagesData.length > 0) {
+            jourFrame.imagesData.forEach(imgData => {
+                const previewDiv = document.createElement('div');
+                previewDiv.className = 'img-preview';
+                const imgElement = document.createElement('img');
+                imgElement.src = imgData.dataURL;
+                previewDiv.appendChild(imgElement);
+                this.imagesPreviewBanner.appendChild(previewDiv);
+            });
+            this.imagesPreviewBanner.style.display = 'flex';
+        } else {
+            this.imagesPreviewBanner.style.display = 'none';
+        }
     }
 
     clearEditor() {
@@ -1894,6 +1910,10 @@ class DescriptionManager {
         this.editorPlaceholderElement.textContent = "Aucun jour sélectionné, ou la galerie n'a pas de jours.";
         this.editorPlaceholderElement.style.display = 'block';
         this.jourListElement.querySelectorAll('li.active-description-jour').forEach(li => li.classList.remove('active-description-jour'));
+        if (this.imagesPreviewBanner) {
+            this.imagesPreviewBanner.innerHTML = '';
+            this.imagesPreviewBanner.style.display = 'none';
+        }
     }
 
     async saveCurrentDescription() {

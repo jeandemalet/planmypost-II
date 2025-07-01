@@ -35,7 +35,7 @@
 
         <div class="tabs">
             <button class="tab-button" data-tab="galleries">📚 Galeries</button>
-            <button class="tab-button active" data-tab="currentGallery">🖼️ Galerie en cours</button>
+            <button class="tab-button active" data-tab="currentGallery">🖼️ Tri</button>
             <button class="tab-button" data-tab="description">📝 Description</button>
             <button class="tab-button" data-tab="calendar">🗓️ Calendrier</button>
         </div>
@@ -141,6 +141,7 @@
                 <div id="descriptionEditorPanel">
                     <h3 id="descriptionEditorTitle">Sélectionnez un jour pour éditer sa description</h3>
                     <div id="descriptionEditorContent" style="display: none;">
+                        <div id="descriptionImagesPreview" class="images-preview-banner"></div>
                         <div class="description-fields">
                             <label for="descriptionText">Texte de la publication:</label>
                             <textarea id="descriptionText" rows="10" placeholder="Écrivez votre description ici..."></textarea>
