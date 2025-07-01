@@ -56,7 +56,8 @@ body {
 .profile-action-icon { /* Utilisé aussi pour settings.png */
     width: 28px;
     height: 28px;
-    object-fit: contain;
+    object-fit: cover; /* CHANGEMENT: Pour remplir le cercle sans déformer */
+    border-radius: 50%; /* CHANGEMENT: Pour rendre l'image circulaire */
 }
 
 

@@ -1,31 +1,127 @@
 publication-organizer/
-├── server.js               # Fichier principal du serveur Node.js
-├── package.json
-├── .env                    # Variables d'environnement (connexion DB)
-├── public/                 # Fichiers statiques du frontend
-│   ├── index.html
-│   ├── style.css
-│   ├── script.js           # Frontend JS (modifié)
-│   └── exif.js
-├── uploads/                # Dossier pour stocker les images (sera créé)
-├── models/                 # Modèles Mongoose (schémas DB)
-│   ├── Gallery.js
-│   ├── Image.js
-│   ├── Jour.js
-│   └── Schedule.js
-├── routes/                 # Définitions des routes API
-│   └── api.js
-└── controllers/            # Logique de traitement des routes
-    ├── galleryController.js
-    ├── imageController.js
-    ├── jourController.js
-    └── scheduleController.js
-└── assets/    
-    └── logo.png
-    └── add-button.png
-    └── settings.png
-    └── profile.png
 
+
+├── .env                    # Variables d'environnement (DB_CONNECT, JWT_SECRET, etc.)
+
+
+├── .gitignore              # Pour ignorer node_modules, .env, uploads, etc.
+
+├── package.json
+
+
+├── server.js               # Point d'entrée : configure Express, connecte la DB, lance le serveur
+
+
+
+
+
+
+├── public/                 # Fichiers statiques accessibles par le client
+
+
+│   ├── index.html          # Page principale pour les utilisateurs
+
+
+│   ├── script.js           # JS pour la page principale
+
+
+│   ├── admin.html          # Panel d'administration
+
+
+│   ├── admin.js            # JS pour le panel d'administration
+
+
+│   ├── style.css           # Feuille de style principale
+
+
+│   └── assets/             # Ressources visuelles de l'interface
+
+
+│       ├── logo.png
+
+
+│       ├── add-button.svg
+
+
+│       ├── settings-icon.svg
+
+
+│       └── profile-icon.svg
+
+
+│
+
+
+├── uploads/                # Dossier (généré) pour les images uploadées par les utilisateurs
+
+
+│
+
+
+├── src/                    # Code source de l'application (meilleure pratique)
+
+
+│   ├── controllers/        # Logique métier (quoi faire quand une route est appelée)
+
+
+│   │   ├── authController.js       # Gestion inscription, connexion, déconnexion
+
+
+│   │   ├── galleryController.js
+
+
+│   │   ├── imageController.js
+
+
+│   │   ├── jourController.js
+
+
+│   │   └── scheduleController.js
+
+
+│   │
+
+
+│   ├── middleware/         # Fonctions exécutées entre la requête et le controller
+
+
+│   │   └── auth.js         # Vérifie si l'utilisateur est authentifié (token JWT)
+
+
+│   │
+
+
+│   ├── models/             # Schémas de données pour la base de données (Mongoose)
+
+
+│   │   ├── Gallery.js
+
+
+│   │   ├── Image.js
+
+
+│   │   ├── Jour.js
+
+
+│   │   ├── Schedule.js
+
+
+│   │   └── User.js         # Indispensable pour l'authentification
+
+
+│   │
+
+
+│   └── routes/             # Définition des points d'accès de l'API
+
+
+│       └── api.js          # Regroupe toutes les routes de l'application
+
+
+│
+
+
+└── start_app.bat           # Votre script pour lancer l'app, c'est parfait
 
 Style visuel du UI : 
 
