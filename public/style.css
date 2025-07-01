@@ -1,3 +1,4 @@
+
 body {
     font-family: sans-serif; /* Police sans-serif classique et commune */
     margin: 0;
@@ -174,7 +175,6 @@ button:disabled .profile-action-icon {
     display: flex;
     flex-direction: column;
     height: calc(100vh - 220px);
-    /* Pas de border-radius ici car c'est une colonne latérale */
 }
 
 .gallery-management-controls {
@@ -245,20 +245,6 @@ button.small-cancel-btn:hover {
     color: #0056b3;
 }
 
-.jour-image-placeholder {
-    width: 60px; /* Ou la taille de vos .jour-image-item */
-    height: 60px;
-    border: 2px dashed #007bff;
-    background-color: rgba(0, 123, 255, 0.1);
-    box-sizing: border-box;
-    margin: 2.5px; /* Pour correspondre au gap si vous en avez un */
-    border-radius: 4px;
-}
-
-.jour-image-item.dragging-jour-item {
-    opacity: 0.5; /* Rend l'élément glissé semi-transparent */
-
-}
 .gallery-name.current-loaded-gallery {
     color: dodgerblue;
     font-weight: bold;
@@ -519,7 +505,7 @@ button.small-cancel-btn:hover {
 .grid-item {
     position: relative;
     border: 1px solid #ccc;
-    background-color: white; /* S'assure que le fond est blanc pour les "barres blanches" */
+    background-color: white; 
     overflow: hidden;
     cursor: pointer;
     display: flex; 
@@ -532,7 +518,7 @@ button.small-cancel-btn:hover {
 .grid-item img {
     max-width: 100%;
     max-height: 100%;
-    object-fit: contain; /* MODIFIÉ: Assure que l'image est entière, les barres blanches sont le fond du .grid-item */
+    object-fit: contain; 
 }
 .grid-item.used {
     opacity: 0.6;
@@ -712,6 +698,7 @@ button.small-cancel-btn:hover {
     flex-grow: 1;
     border-radius: 6px; /* Arrondi */
 }
+
 
 /* --- DEBUT STYLES CALENDRIER MODIFIES --- */
 
@@ -1121,10 +1108,25 @@ button.small-cancel-btn:hover {
     color: #555;
 }
 
+/* ===== STYLES AJOUTÉS POUR LE DRAG AND DROP ===== */
 .jour-frame-canvas-wrapper.drag-over {
     outline: 2px dashed dodgerblue;
     background-color: #e0efff;
 }
+.jour-image-placeholder {
+    width: 60px;
+    height: 60px;
+    border: 2px dashed #007bff;
+    background-color: rgba(0, 123, 255, 0.1);
+    box-sizing: border-box;
+    margin: 2.5px;
+    border-radius: 4px;
+}
+.jour-image-item.dragging-jour-item {
+    opacity: 0.5;
+}
+/* ===== FIN DES STYLES AJOUTÉS ===== */
+
 .calendar-day-cell.drag-over-day {
     background-color: #e6f7ff;
     outline: 1px dashed dodgerblue;
