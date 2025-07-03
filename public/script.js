@@ -293,8 +293,7 @@ class JourFrameBackend {
 
         const buttonsContainer = document.createElement('div');
         buttonsContainer.className = 'jour-frame-buttons';
-        this.saveBtn = document.createElement('button');
-        this.saveBtn.textContent = '💾 Enr.';
+        
         this.cropBtn = document.createElement('button');
         this.cropBtn.textContent = '✂️ Rec.';
         this.exportJourImagesBtn = document.createElement('button');
@@ -305,7 +304,6 @@ class JourFrameBackend {
         this.deleteJourBtn.className = 'danger-btn-small';
 
 
-        buttonsContainer.appendChild(this.saveBtn);
         buttonsContainer.appendChild(this.cropBtn);
         buttonsContainer.appendChild(this.exportJourImagesBtn);
         buttonsContainer.appendChild(this.deleteJourBtn);
@@ -321,16 +319,17 @@ class JourFrameBackend {
             }
         });
 
-        this.saveBtn.addEventListener('click', () => this.save());
         this.cropBtn.addEventListener('click', () => this.openCropperForJour());
         this.exportJourImagesBtn.addEventListener('click', () => this.exportJourAsZip()); 
         this.deleteJourBtn.addEventListener('click', () => this.organizer.closeJourFrame(this));
+
+        this.debouncedSave = Utils.debounce(() => this.save(), 1500);
 
         this.canvasWrapper.addEventListener('dragover', (e) => this.onDragOverInCanvas(e));
         this.canvasWrapper.addEventListener('dragleave', (e) => this.onDragLeaveCanvas(e));
         this.canvasWrapper.addEventListener('drop', (e) => this.onDropIntoCanvas(e));
 
-        this.originalSaveBtnBg = this.saveBtn.style.backgroundColor || '';
+        
 
         if (jourData.images && Array.isArray(jourData.images)) {
             jourData.images.sort((a, b) => a.order - b.order).forEach(imgEntry => {
@@ -344,6 +343,10 @@ class JourFrameBackend {
         }
         this._resetSaveButtonColor(false); 
         this.checkAndApplyCroppedStyle();
+    }
+
+    _resetSaveButtonColor(markUnsaved = true) {
+        // This function is now empty as the save button has been removed.
     }
     
     onDragOverInCanvas(event) {
@@ -466,7 +469,7 @@ class JourFrameBackend {
     
                             this.imagesData.splice(adjustedTargetIndex, 0, itemDataToMove);
                             this.rebuildAndReposition();
-                            this._resetSaveButtonColor(true);
+                            this.debouncedSave();
                         } else { 
                             sourceJourFrame.removeImageAtIndex(originalDataIndexInSource); 
                             this.insertImageAt(itemDataToMove, targetVisualIndex);
@@ -666,9 +669,9 @@ class JourFrameBackend {
             this.canvasWrapper.insertBefore(itemElement, childrenWithoutPlaceholder[index]);
         }
     
-        this._resetSaveButtonColor(true);
         this.checkAndApplyCroppedStyle();
         if (this.organizer) this.organizer.updateGridUsage();
+        this.debouncedSave();
         return true;
     }
     
@@ -678,7 +681,7 @@ class JourFrameBackend {
         
         this.imagesData.splice(index, 1); 
         this.rebuildAndReposition(); 
-        this._resetSaveButtonColor(true);
+        this.debouncedSave(); 
         this.checkAndApplyCroppedStyle(); 
         return true;
     }
@@ -705,9 +708,7 @@ class JourFrameBackend {
         return removed;
     }
 
-    _resetSaveButtonColor(markUnsaved = true) {
-        this.saveBtn.style.backgroundColor = markUnsaved ? 'gold' : this.originalSaveBtnBg;
-    }
+    
 
     async save() {
         if (!this.id || !app.currentGalleryId) {
@@ -737,8 +738,7 @@ class JourFrameBackend {
                 const errorData = await response.text();
                 throw new Error(`Failed to save Jour ${this.letter}: ${response.statusText} - ${errorData}`);
             }
-            await response.json(); 
-            this._resetSaveButtonColor(false);
+            await response.json();
             
             if (this.organizer && this.organizer.calendarPage && this.imagesData.length > 0) {
                  const galleryName = this.organizer.getCurrentGalleryName(); 
@@ -2511,7 +2511,7 @@ class PublicationOrganizer {
 
         this.jourFramesContainer = document.getElementById('jourFramesContainer');
         this.addJourFrameBtn = document.getElementById('addJourFrameBtn');
-        this.saveAllJourFramesBtn = document.getElementById('saveAllJourFramesBtn');
+        
         
         this.galleriesTabContent = document.getElementById('galleries');
         this.galleriesListElement = document.getElementById('galleriesList');
@@ -2589,7 +2589,7 @@ class PublicationOrganizer {
         this.sortOptionsSelect.addEventListener('change', () => this.sortGridItemsAndReflow());
         this.clearGalleryImagesBtn.addEventListener('click', () => this.clearAllGalleryImages()); 
         this.addJourFrameBtn.addEventListener('click', () => this.addJourFrame());
-        this.saveAllJourFramesBtn.addEventListener('click', () => this.saveAllJourFrames());
+        
 
         this.createNewGalleryBtn.addEventListener('click', () => {
             this.newGalleryForm.style.display = this.newGalleryForm.style.display === 'none' ? 'flex' : 'none';
@@ -3737,39 +3737,7 @@ class PublicationOrganizer {
         return true;
     }
 
-    async saveAllJourFrames() {
-        if (!this.currentGalleryId) { alert("Aucune galerie active."); return; }
-        if (!this.jourFrames.length) { alert("Aucun Jour actif à enregistrer."); return; }
-
-        let savedCount = 0;
-        const progressContainer = this.currentGalleryUploadProgressContainer; 
-        const progressTextEl = this.currentGalleryUploadProgressText;
-        const progressBarInnerEl = this.currentGalleryUploadProgressBarInner;
-
-        progressContainer.style.display = 'block';
-        progressTextEl.textContent = `Sauvegarde 0/${this.jourFrames.length} jours...`;
-        progressBarInnerEl.style.width = '0%';
-        progressBarInnerEl.textContent = '0%';
-        progressBarInnerEl.style.backgroundColor = '#007bff'; 
-
-        for (let i = 0; i < this.jourFrames.length; i++) {
-            const jf = this.jourFrames[i];
-            if (await jf.save()) { 
-                savedCount++;
-            }
-            const percent = Math.round(((i + 1) / this.jourFrames.length) * 100);
-            progressBarInnerEl.style.width = `${percent}%`;
-            progressBarInnerEl.textContent = `${percent}%`;
-            progressTextEl.textContent = `Sauvegarde ${i + 1}/${this.jourFrames.length} jours...`;
-        }
-        
-        progressTextEl.textContent = `${savedCount} Jour(s) enregistrés.`;
-        progressBarInnerEl.style.backgroundColor = '#28a745'; 
-        setTimeout(() => {
-            progressContainer.style.display = 'none';
-            this.updateStatsLabel(); 
-        }, 2000);
-    }
+    
     
     openImageCropper(imagesDataForCropper, callingJourFrame) {
         this.cropper.open(imagesDataForCropper, callingJourFrame);
