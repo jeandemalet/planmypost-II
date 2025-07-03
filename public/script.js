@@ -809,7 +809,7 @@ class JourFrameBackend {
         if (changesAppliedThisTime) {
             this.imagesData = newImagesDataArray; 
             this.rebuildAndReposition(); 
-            this._resetSaveButtonColor(true); 
+            this.debouncedSave();
             this.checkAndApplyCroppedStyle(); 
         }
     }

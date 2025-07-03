@@ -41,13 +41,13 @@ exports.getScheduleForGallery = async (req, res) => {
     }
 };
 
-// Mettre à jour TOUT le calendrier pour l'utilisateur
+// Mettre à jour TOUT le calendrier pour l'utilisateur de manière plus sécurisée
 exports.updateSchedule = async (req, res) => {
     const { galleryId } = req.params; // galleryId de contexte pour trouver l'utilisateur
     const scheduleData = req.body;
 
     if (typeof scheduleData !== 'object' || scheduleData === null) {
-         return res.status(400).send('Invalid schedule data format.');
+        return res.status(400).send('Invalid schedule data format.');
     }
 
     try {
@@ -57,45 +57,79 @@ exports.updateSchedule = async (req, res) => {
         }
         const userId = contextGallery.owner;
 
+        // 1. Récupérer les galeries et l'ancien calendrier de l'utilisateur
         const userGalleries = await Gallery.find({ owner: userId }).select('_id');
-        const userGalleryIds = userGalleries.map(g => g._id);
+        const userGalleryIds = userGalleries.map(g => g._id.toString());
+        const userGalleryIdsSet = new Set(userGalleryIds);
 
-        const newEntries = [];
+        const oldScheduleEntries = await Schedule.find({ galleryId: { $in: userGalleryIds } });
+        const oldScheduleSet = new Set(
+            oldScheduleEntries.map(e => `${e.date}_${e.jourLetter}_${e.galleryId.toString()}`)
+        );
+
+        // 2. Traiter les nouvelles données du calendrier
+        const newScheduleSet = new Set();
+        const newEntriesToInsert = [];
         const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
         const letterRegex = /^[A-Z]$/;
 
         for (const date in scheduleData) {
-            if (dateRegex.test(date)) {
-                const joursOnDate = scheduleData[date];
-                for (const jourLetter in joursOnDate) {
-                    if (letterRegex.test(jourLetter)) {
-                         const entryData = joursOnDate[jourLetter];
-                         // Important: on vérifie que le galleryId de l'entrée est bien à l'utilisateur
-                         if (entryData && entryData.galleryId && userGalleryIds.some(id => id.toString() === entryData.galleryId)) {
-                             newEntries.push({
-                                 galleryId: entryData.galleryId,
-                                 date: date,
-                                 jourLetter: jourLetter
-                             });
-                         }
+            if (!dateRegex.test(date)) continue;
+
+            const joursOnDate = scheduleData[date];
+            for (const jourLetter in joursOnDate) {
+                if (!letterRegex.test(jourLetter)) continue;
+
+                const entryData = joursOnDate[jourLetter];
+                // Vérifier que le galleryId de l'entrée est valide et appartient bien à l'utilisateur
+                if (entryData && entryData.galleryId && userGalleryIdsSet.has(entryData.galleryId)) {
+                    const uniqueKey = `${date}_${jourLetter}_${entryData.galleryId}`;
+                    if (!newScheduleSet.has(uniqueKey)) {
+                        newScheduleSet.add(uniqueKey);
+                        newEntriesToInsert.push({
+                            galleryId: entryData.galleryId,
+                            date: date,
+                            jourLetter: jourLetter
+                        });
                     }
                 }
             }
         }
 
-        // Transaction : supprimer toutes les anciennes entrées de l'utilisateur et insérer les nouvelles
-        await Schedule.deleteMany({ galleryId: { $in: userGalleryIds } });
+        // 3. Déterminer les entrées à ajouter et à supprimer
+        const entriesToAdd = [];
+        const newScheduleKeysForDb = new Set();
+        for (const entry of newEntriesToInsert) {
+            const key = `${entry.date}_${entry.jourLetter}_${entry.galleryId}`;
+            newScheduleKeysForDb.add(key);
+            if (!oldScheduleSet.has(key)) {
+                entriesToAdd.push(entry);
+            }
+        }
 
-        if (newEntries.length > 0) {
-            await Schedule.insertMany(newEntries, { ordered: false }).catch(err => {
-                // ignorer les erreurs de duplicatas si plusieurs personnes modifient en même temps, mais logguer
-                if (err.code !== 11000) {
-                    throw err; // relancer les autres erreurs
+        const entriesToDelete = oldScheduleEntries.filter(entry => {
+            const key = `${entry.date}_${entry.jourLetter}_${entry.galleryId.toString()}`;
+            return !newScheduleKeysForDb.has(key);
+        });
+
+        // 4. Exécuter les opérations sur la base de données
+        if (entriesToDelete.length > 0) {
+            const deleteQuery = {
+                _id: { $in: entriesToDelete.map(e => e._id) }
+            };
+            await Schedule.deleteMany(deleteQuery);
+        }
+
+        if (entriesToAdd.length > 0) {
+            // Utiliser insertMany pour l'efficacité, avec gestion d'erreur
+            await Schedule.insertMany(entriesToAdd, { ordered: false }).catch(err => {
+                if (err.code !== 11000) { // Ignorer les erreurs de clé dupliquée (sécurité)
+                    throw err;
                 }
                 console.warn('Ignored duplicate key error during schedule update, likely a race condition.');
             });
         }
-        
+
         res.status(200).send('User schedule updated successfully.');
 
     } catch (error) {
