@@ -15,14 +15,12 @@
     <div class="app-container">
         <header class="app-header">
             <div id="logoPlaceholder">
-                <a href="/welcome.html">
-                    <img src="assets/logo.png" alt="Organisateur de Publications Logo" id="appLogo">
-                </a>
+                <img src="/assets/logo.png" alt="Organisateur de Publications Logo" id="appLogo">
             </div>
             <nav id="userActionsPlaceholder">
                 <div class="profile-container">
                     <button class="icon-button" id="profileButton" aria-label="Profil">
-                        <img src="assets/profile.png" alt="Profil" class="profile-action-icon" id="profilePictureImg">
+                        <img src="/assets/profile.png" alt="Profil" class="profile-action-icon">
                     </button>
                     <div id="profileDropdown" class="dropdown-menu">
                         <div id="userInfo">Connecté en tant que...</div>
@@ -30,7 +28,7 @@
                     </div>
                 </div>
                 <button class="icon-button" aria-label="Paramètres">
-                    <img src="assets/settings.png" alt="Paramètres" class="profile-action-icon">
+                    <img src="/assets/settings.png" alt="Paramètres" class="profile-action-icon">
                 </button>
             </nav>
         </header>
@@ -48,7 +46,7 @@
                 <div id="galleriesListContainer">
                     <div class="gallery-management-controls">
                         <button id="createNewGalleryBtn" class="add-btn-green">
-                            <img src="assets/add-button.png" alt="" class="btn-icon"> Nouvelle Galerie
+                            <img src="/assets/add-button.png" alt="" class="btn-icon"> Nouvelle Galerie
                         </button>
                         <form id="newGalleryForm" style="display:none;">
                             <input type="text" id="newGalleryNameInput" placeholder="Nom de la nouvelle galerie">
@@ -80,7 +78,7 @@
         <div id="currentGallery" class="tab-content">
             <div class="controls-bar">
                 <button id="addNewImagesBtn" class="add-btn-green">
-                    <img src="assets/add-button.png" alt="" class="btn-icon"> Ajouter
+                    <img src="/assets/add-button.png" alt="" class="btn-icon"> Ajouter
                 </button>
                 <input type="file" id="imageSelector" multiple accept="image/*" style="display: none;">
                 
@@ -115,7 +113,7 @@
             <div class="main-editor-layout">
                 <div id="imageGridContainer">
                     <button id="addPhotosPlaceholderBtn" class="add-photos-placeholder">
-                        <img src="assets/add-button.png" alt="" class="btn-icon"> Ajouter des photos
+                        <img src="/assets/add-button.png" alt="" class="btn-icon"> Ajouter des photos
                     </button>
                     <div id="imageGrid"></div>
                 </div>
@@ -126,9 +124,7 @@
                         <button id="addJourFrameBtn">
                              <img src="assets/add-button.png" alt="" class="btn-icon"> Ajouter Jour
                         </button>
-                        <!-- ===== MODIFICATION ICI : BOUTON SUPPRIMÉ ===== -->
-                        <!-- <button id="saveAllJourFramesBtn">💾 Tout Enregistrer</button> -->
-                        <!-- ============================================ -->
+                        <button id="saveAllJourFramesBtn">💾 Tout Enregistrer</button>
                     </div>
                 </div>
             </div>
@@ -152,9 +148,7 @@
                             <label for="descriptionHashtags">Hashtags (séparés par des espaces ou des virgules):</label>
                             <textarea id="descriptionHashtags" rows="3" placeholder="#exemple #hashtag ..."></textarea>
                         </div>
-                        <!-- ===== MODIFICATION ICI : BOUTON MASQUÉ ===== -->
-                        <button id="saveDescriptionBtn" class="primary-action" style="display: none;">💾 Enregistrer cette Description</button>
-                        <!-- ============================================ -->
+                        <button id="saveDescriptionBtn" class="primary-action">💾 Enregistrer cette Description</button>
                         <div class="description-filter-controls">
                             <p><em>Fonctionnalités de traitement groupé à venir.</em></p>
                         </div>
@@ -191,21 +185,6 @@
                             <label for="autoScheduleEveryXDays">tous les</label>
                             <input type="number" id="autoScheduleEveryXDays" value="1" min="1">
                             <label>jour(s)</label>
-                        </div>
-                    </div>
-                    <div class="sidebar-section" style="margin-top: 20px; padding-top: 20px; border-top: 1px solid #eee;">
-                        <h4>Fréquence des publications</h4>
-                        <div class="setting-group" style="display: flex; align-items: center; margin-top: 10px;">
-                            <select id="frequencyCount" style="padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-                                <option value="1">1</option>
-                                <option value="2">2</option>
-                                <option value="3">3</option>
-                                <option value="4">4</option>
-                                <option value="5">5</option>
-                            </select>
-                            <label for="frequencyCount" style="margin: 0 10px;">publication(s) tous les</label>
-                            <input type="number" id="frequencyDays" value="1" min="1" style="width: 60px; padding: 8px; border: 1px solid #ccc; border-radius: 4px;">
-                            <label for="frequencyDays" style="margin-left: 10px;">jour(s)</label>
                         </div>
                     </div>
                     <button id="runAutoScheduleBtn" class="primary-action">Lancer la Planification</button>

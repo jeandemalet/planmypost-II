@@ -101,7 +101,5 @@ router.get('/galleries/:galleryId/jours/:jourId/export', authMiddleware, jourCon
 // --- Routes Calendrier ---
 router.get('/galleries/:galleryId/schedule', authMiddleware, scheduleController.getScheduleForGallery);
 router.put('/galleries/:galleryId/schedule', authMiddleware, scheduleController.updateSchedule);
-// Route pour ajouter ou mettre à jour un jour spécifique dans le calendrier
-router.post('/galleries/:galleryId/jours/:jourId/schedule', authMiddleware, scheduleController.addOrUpdateJourInSchedule);
 
 module.exports = router;

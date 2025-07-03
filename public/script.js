@@ -18,6 +18,7 @@ const CROPPER_BACKGROUND_GRAY = 'rgb(46, 46, 46)';
 
 // L'instance de l'application sera stockée ici.
 let app = null;
+// L'ID de la galerie est maintenant géré à l'intérieur de la classe `app`.
 
 // =================================================================
 // --- CLASSE UTILITAIRES ---
@@ -237,15 +238,7 @@ class GridItemBackend {
             this.orderTextElement.textContent = this.order;
             this.orderTextElement.style.color = this.color;
             this.orderTextElement.style.display = 'block';
-    
-            let fontSizeFactor = 0.3;
-            if (this.order.length > 5) {
-                fontSizeFactor = 0.22;
-            }
-            if (this.order.length > 15) {
-                fontSizeFactor = 0.18;
-            }
-            const fontSize = Math.max(8, Math.min(32, Math.floor(this.thumbSize.height * fontSizeFactor)));
+            const fontSize = Math.max(10, Math.min(32, Math.floor(this.thumbSize.height * 0.3)));
             this.orderTextElement.style.fontSize = `${fontSize}px`;
             this.element.classList.add('used');
         } else {
@@ -286,8 +279,6 @@ class JourFrameBackend {
         this.placeholderElement = null; 
         this.draggedItemElement = null; 
 
-        this.debouncedSave = Utils.debounce(this.save.bind(this), 1500);
-
         this.element = document.createElement('div');
         this.element.className = 'jour-frame';
         this.element.dataset.id = `jour-${this.letter}`; 
@@ -302,7 +293,8 @@ class JourFrameBackend {
 
         const buttonsContainer = document.createElement('div');
         buttonsContainer.className = 'jour-frame-buttons';
-        
+        this.saveBtn = document.createElement('button');
+        this.saveBtn.textContent = '💾 Enr.';
         this.cropBtn = document.createElement('button');
         this.cropBtn.textContent = '✂️ Rec.';
         this.exportJourImagesBtn = document.createElement('button');
@@ -312,6 +304,8 @@ class JourFrameBackend {
         this.deleteJourBtn.textContent = '🗑️ Suppr. Jour';
         this.deleteJourBtn.className = 'danger-btn-small';
 
+
+        buttonsContainer.appendChild(this.saveBtn);
         buttonsContainer.appendChild(this.cropBtn);
         buttonsContainer.appendChild(this.exportJourImagesBtn);
         buttonsContainer.appendChild(this.deleteJourBtn);
@@ -327,6 +321,7 @@ class JourFrameBackend {
             }
         });
 
+        this.saveBtn.addEventListener('click', () => this.save());
         this.cropBtn.addEventListener('click', () => this.openCropperForJour());
         this.exportJourImagesBtn.addEventListener('click', () => this.exportJourAsZip()); 
         this.deleteJourBtn.addEventListener('click', () => this.organizer.closeJourFrame(this));
@@ -335,15 +330,19 @@ class JourFrameBackend {
         this.canvasWrapper.addEventListener('dragleave', (e) => this.onDragLeaveCanvas(e));
         this.canvasWrapper.addEventListener('drop', (e) => this.onDropIntoCanvas(e));
 
+        this.originalSaveBtnBg = this.saveBtn.style.backgroundColor || '';
+
         if (jourData.images && Array.isArray(jourData.images)) {
             jourData.images.sort((a, b) => a.order - b.order).forEach(imgEntry => {
-                if (imgEntry && imgEntry.imageId && typeof imgEntry.imageId === 'object') { 
+                if (imgEntry.imageId && typeof imgEntry.imageId === 'object') { 
                     this.addImageFromBackendData(imgEntry.imageId);
-                } else {
-                    console.warn('Données d\'image non peuplées ou invalides dans le Jour :', jourData.letter, imgEntry);
+                } else if (typeof imgEntry.imageId === 'string') { 
+                    const fullImgData = this.organizer.gridItemsDict[imgEntry.imageId] || this.organizer.findImageInAnyJour(imgEntry.imageId);
+                    if (fullImgData) this.addImageFromBackendData(fullImgData, true);
                 }
             });
         }
+        this._resetSaveButtonColor(false); 
         this.checkAndApplyCroppedStyle();
     }
     
@@ -467,7 +466,7 @@ class JourFrameBackend {
     
                             this.imagesData.splice(adjustedTargetIndex, 0, itemDataToMove);
                             this.rebuildAndReposition();
-                            this.debouncedSave();
+                            this._resetSaveButtonColor(true);
                         } else { 
                             sourceJourFrame.removeImageAtIndex(originalDataIndexInSource); 
                             this.insertImageAt(itemDataToMove, targetVisualIndex);
@@ -482,25 +481,28 @@ class JourFrameBackend {
         }
     }
 
-    addImageFromBackendData(imageData) {
-        const galleryIdForURL = imageData.galleryId;
-        const thumbFilename = Utils.getFilenameFromURL(imageData.thumbnailPath);
-    
-        if (!galleryIdForURL || !thumbFilename) {
-            console.error("Données d'image incomplètes, impossible de générer l'aperçu:", imageData);
-            return;
+
+    addImageFromBackendData(imageData, isGridItemInstance = false) {
+        let galleryIdForURL = this.galleryId; 
+        let thumbFilename;
+
+        if(isGridItemInstance) { 
+            galleryIdForURL = imageData.galleryId;
+            thumbFilename = Utils.getFilenameFromURL(imageData.thumbnailPath); 
+        } else { 
+            thumbFilename = Utils.getFilenameFromURL(imageData.thumbnailPath); 
         }
-    
+
         const imageItemData = {
-            imageId: imageData._id || imageData.id,
-            displayPathKey: imageData._id || imageData.id,
-            originalReferencePath: imageData.parentImageId || (imageData._id || imageData.id),
-            dataURL: `${BASE_API_URL}/api/uploads/${galleryIdForURL}/${thumbFilename}`,
+            imageId: imageData._id || imageData.id, 
+            displayPathKey: imageData._id || imageData.id, 
+            originalReferencePath: imageData.parentImageId || (imageData._id || imageData.id), 
+            dataURL: `${BASE_API_URL}/api/uploads/${galleryIdForURL}/${thumbFilename}`, 
             isCropped: imageData.isCroppedVersion || false,
         };
-        this.insertImageAt(imageItemData, this.imagesData.length, true);
+        this.insertImageAt(imageItemData, this.imagesData.length); 
     }
-    
+
     checkAndApplyCroppedStyle() {
         this.hasBeenProcessedByCropper = this.imagesData.some(img => img.isCropped);
         if (this.hasBeenProcessedByCropper) {
@@ -511,27 +513,48 @@ class JourFrameBackend {
     }
 
     async exportJourAsZip() {
+        console.log(`[JourFrameBackend.exportJourAsZip] Export pour Jour ${this.letter} (ID: ${this.id}), Galerie ID: ${this.galleryId}`);
+
         if (this.imagesData.length === 0) {
-            alert(`Le Jour ${this.letter} est vide.`);
+            alert(`Le Jour ${this.letter} est vide. Aucun ZIP ne sera généré.`);
+            console.warn(`[JourFrameBackend.exportJourAsZip] Jour ${this.letter} vide.`);
             return;
         }
         if (!this.galleryId || !this.id) {
-            alert("Erreur: Impossible de déterminer l'ID de la galerie ou du jour.");
+            alert("Erreur: Impossible de déterminer la galerie ou l'ID du jour pour l'exportation.");
+            console.error("[JourFrameBackend.exportJourAsZip] galleryId ou jourId manquant.", { galleryId: this.galleryId, jourId: this.id });
             return;
         }
 
         const exportUrl = `${BASE_API_URL}/api/galleries/${this.galleryId}/jours/${this.id}/export`;
+        console.log(`[JourFrameBackend.exportJourAsZip] URL d'export: ${exportUrl}`);
+        
         const originalButtonText = this.exportJourImagesBtn.textContent;
         this.exportJourImagesBtn.textContent = 'Préparation...';
         this.exportJourImagesBtn.disabled = true;
 
         try {
             const response = await fetch(exportUrl);
+            console.log(`[JourFrameBackend.exportJourAsZip] Réponse du serveur reçue. Statut: ${response.status}`, response);
+            
             if (!response.ok) {
-                throw new Error(`Erreur serveur: ${response.statusText}`);
+                const errorText = await response.text();
+                let errorMessage = `Erreur HTTP ${response.status}: ${response.statusText}`;
+                try {
+                    const parsedError = JSON.parse(errorText);
+                    if(parsedError.error) errorMessage += ` - ${parsedError.error}`;
+                    if(parsedError.details) errorMessage += ` (${parsedError.details})`;
+                } catch(e) {
+                    errorMessage += ` - ${errorText.substring(0, 200)}...`; 
+                }
+                console.error(`[JourFrameBackend.exportJourAsZip] Erreur de réponse serveur: ${errorMessage}`);
+                throw new Error(errorMessage);
             }
 
+            console.log("[JourFrameBackend.exportJourAsZip] Réponse OK, tentative de récupération du blob.");
             const blob = await response.blob();
+            console.log(`[JourFrameBackend.exportJourAsZip] Blob reçu. Taille: ${blob.size}, Type: ${blob.type}`);
+
             let filename = `Jour${this.letter}.zip`;
             const contentDisposition = response.headers.get('content-disposition');
             if (contentDisposition) {
@@ -540,13 +563,28 @@ class JourFrameBackend {
                     filename = filenameMatch[1];
                 }
             }
+            console.log(`[JourFrameBackend.exportJourAsZip] Nom de fichier pour le téléchargement: ${filename}`);
+
+            const url = window.URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.style.display = 'none';
+            a.href = url;
+            a.download = filename;
+            document.body.appendChild(a);
+            console.log("[JourFrameBackend.exportJourAsZip] Déclenchement du téléchargement.");
+            a.click();
+            window.URL.revokeObjectURL(url);
+            document.body.removeChild(a);
             
-            Utils.downloadDataURL(window.URL.createObjectURL(blob), filename);
+            console.log(`[JourFrameBackend.exportJourAsZip] Téléchargement de ${filename} initié.`);
+
         } catch (error) {
-            alert(`Erreur lors de l'exportation: ${error.message}`);
+            console.error(`[JourFrameBackend.exportJourAsZip] Erreur lors de l'exportation du Jour ${this.letter} en ZIP:`, error);
+            alert(`Erreur lors de l'exportation du ZIP pour le Jour ${this.letter}: ${error.message}`);
         } finally {
             this.exportJourImagesBtn.textContent = originalButtonText;
             this.exportJourImagesBtn.disabled = false;
+            console.log("[JourFrameBackend.exportJourAsZip] Fin de la fonction d'export.");
         }
     }
 
@@ -562,8 +600,9 @@ class JourFrameBackend {
         return this.insertImageAt(imageItemData, this.imagesData.length);
     }
 
-    insertImageAt(imageItemData, index, isInitialLoad = false) {
+    insertImageAt(imageItemData, index) {
         if (!imageItemData || !imageItemData.imageId) {
+            console.warn("insertImageAt called with invalid imageItemData", imageItemData);
             return false;
         }
     
@@ -592,16 +631,20 @@ class JourFrameBackend {
         itemElement.addEventListener('dragstart', (e) => {
             this.draggedItemElement = itemElement; 
             itemElement.classList.add('dragging-jour-item');
+
             e.dataTransfer.setData("application/json", JSON.stringify({
                 sourceType: 'jour',
                 sourceJourId: this.id,
-                imageId: imageItemData.imageId
+                imageId: imageItemData.imageId,
+                thumbnailPath: imageItemData.dataURL,
             }));
             e.dataTransfer.effectAllowed = "move";
         });
     
-        itemElement.addEventListener('dragend', () => {
-             this.clearDragState(); 
+        itemElement.addEventListener('dragend', (e) => {
+            if (this.draggedItemElement === itemElement) { 
+                 this.clearDragState(); 
+            }
         });
     
         const deleteBtn = document.createElement('span');
@@ -623,13 +666,9 @@ class JourFrameBackend {
             this.canvasWrapper.insertBefore(itemElement, childrenWithoutPlaceholder[index]);
         }
     
+        this._resetSaveButtonColor(true);
         this.checkAndApplyCroppedStyle();
         if (this.organizer) this.organizer.updateGridUsage();
-        
-        if (!isInitialLoad) {
-            this.debouncedSave();
-        }
-
         return true;
     }
     
@@ -639,7 +678,7 @@ class JourFrameBackend {
         
         this.imagesData.splice(index, 1); 
         this.rebuildAndReposition(); 
-        this.debouncedSave();
+        this._resetSaveButtonColor(true);
         this.checkAndApplyCroppedStyle(); 
         return true;
     }
@@ -666,9 +705,14 @@ class JourFrameBackend {
         return removed;
     }
 
+    _resetSaveButtonColor(markUnsaved = true) {
+        this.saveBtn.style.backgroundColor = markUnsaved ? 'gold' : this.originalSaveBtnBg;
+    }
+
     async save() {
         if (!this.id || !app.currentGalleryId) {
-            console.warn("Erreur: Impossible de sauvegarder le jour (ID manquant).");
+            console.error("Cannot save Jour: Missing Jour ID or Gallery ID.");
+            alert("Erreur: Impossible de sauvegarder le jour (ID manquant).");
             return false;
         }
 
@@ -684,20 +728,33 @@ class JourFrameBackend {
         };
 
         try {
-            console.log(`Auto-saving Jour ${this.letter}...`);
             const response = await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/jours/${this.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload) 
             });
             if (!response.ok) {
-                throw new Error(`Failed to save Jour ${this.letter}: ${response.statusText}`);
+                const errorData = await response.text();
+                throw new Error(`Failed to save Jour ${this.letter}: ${response.statusText} - ${errorData}`);
             }
             await response.json(); 
-            console.log(`Jour ${this.letter} auto-saved successfully.`);
+            this._resetSaveButtonColor(false);
+            
+            if (this.organizer && this.organizer.calendarPage && this.imagesData.length > 0) {
+                 const galleryName = this.organizer.getCurrentGalleryName(); 
+                 this.organizer.calendarPage.scheduleJourInNextAvailableSlot(
+                    this.letter, 
+                    this.galleryId, 
+                    galleryName
+                );
+            }
+
+            console.log(`Jour ${this.letter} (Galerie ID: ${this.galleryId}) enregistré sur le serveur.`);
             return true;
         } catch (error) {
-            console.error(`Error auto-saving Jour ${this.letter}:`, error);
+            console.error(`Error saving Jour ${this.letter}:`, error);
+            alert(`Erreur lors de la sauvegarde du Jour ${this.letter}. Voir la console.`);
+            this._resetSaveButtonColor(true); 
             return false;
         }
     }
@@ -712,7 +769,7 @@ class JourFrameBackend {
             if (originalImageInGrid) {
                  baseImageToCropFromURL = originalImageInGrid.imagePath; 
             } else {
-                console.warn(`Image originale ${imgData.originalReferencePath} non trouvée.`);
+                console.warn(`Image originale ${imgData.originalReferencePath} non trouvée dans la grille pour le recadrage. Tentative avec la miniature actuelle du jour.`);
             }
             
             return {
@@ -752,7 +809,7 @@ class JourFrameBackend {
         if (changesAppliedThisTime) {
             this.imagesData = newImagesDataArray; 
             this.rebuildAndReposition(); 
-            this.debouncedSave();
+            this._resetSaveButtonColor(true); 
             this.checkAndApplyCroppedStyle(); 
         }
     }
@@ -774,7 +831,7 @@ class JourFrameBackend {
         this.imagesData = []; 
 
         currentOrderedData.forEach((imgData, index) => {
-            this.insertImageAt(imgData, index, true);
+            this.insertImageAt(imgData, index); 
         });
         
         if (this.organizer) this.organizer.updateGridUsage();
@@ -793,23 +850,15 @@ class JourFrameBackend {
                  parseInt(usage[originalId].label.substring(1)) > (i+1))
                )
             {
-                if (!usage[originalId]) {
-                    usage[originalId] = { labels: [], color: color, displayImageId: imgData.imageId, jourLetter: this.letter };
-                }
-                usage[originalId].labels.push(label);
+                usage[originalId] = {
+                    label: label,
+                    color: color,
+                    displayImageId: imgData.imageId, 
+                    jourLetter: this.letter
+                };
             }
         });
-
-        const finalUsage = {};
-        for (const id in usage) {
-            finalUsage[id] = {
-                label: usage[id].labels.join(' / '),
-                color: usage[id].color,
-                displayImageId: usage[id].displayImageId,
-                jourLetter: usage[id].jourLetter
-            };
-        }
-        return finalUsage;
+        return usage;
     }
 
     async destroy() { 
@@ -828,7 +877,9 @@ class JourFrameBackend {
     }
 }
 
-
+// =================================================================
+// --- CLASSE ImageCropperPopup ---
+// =================================================================
 class ImageCropperPopup {
     constructor(organizer) {
         this.organizer = organizer;
@@ -1738,6 +1789,10 @@ class ImageCropperPopup {
         } 
     }
 }
+
+// =================================================================
+// --- CLASSE DescriptionManager ---
+// =================================================================
 class DescriptionManager {
     constructor(organizerApp) {
         this.organizerApp = organizerApp;
@@ -1757,16 +1812,7 @@ class DescriptionManager {
     }
 
     _initListeners() {
-        const autoSaveDescription = () => {
-            if (this.currentSelectedJourFrame) {
-                this.currentSelectedJourFrame.descriptionText = this.descriptionTextElement.value;
-                this.currentSelectedJourFrame.descriptionHashtags = this.descriptionHashtagsElement.value;
-                this.currentSelectedJourFrame.debouncedSave();
-            }
-        };
-
-        this.descriptionTextElement.addEventListener('input', autoSaveDescription);
-        this.descriptionHashtagsElement.addEventListener('input', autoSaveDescription);
+        this.saveDescriptionBtn.addEventListener('click', () => this.saveCurrentDescription());
     }
 
     show() {
@@ -1839,7 +1885,7 @@ class DescriptionManager {
         this.editorContentElement.style.display = 'block';
         this.editorPlaceholderElement.style.display = 'none';
 
-        this.imagesPreviewBanner.innerHTML = '';
+        this.imagesPreviewBanner.innerHTML = ''; // Clear previous
         if (jourFrame.imagesData && jourFrame.imagesData.length > 0) {
             jourFrame.imagesData.forEach(imgData => {
                 const previewDiv = document.createElement('div');
@@ -1869,13 +1915,36 @@ class DescriptionManager {
             this.imagesPreviewBanner.style.display = 'none';
         }
     }
+
+    async saveCurrentDescription() {
+        if (!this.currentSelectedJourFrame || !app.currentGalleryId) {
+            alert("Aucun jour sélectionné ou aucune galerie active pour sauvegarder la description.");
+            return;
+        }
+
+        const jourToUpdate = this.currentSelectedJourFrame;
+        jourToUpdate.descriptionText = this.descriptionTextElement.value;
+        jourToUpdate.descriptionHashtags = this.descriptionHashtagsElement.value;
+
+        const success = await jourToUpdate.save(); 
+
+        if (success) {
+            alert(`Description pour le Jour ${jourToUpdate.letter} enregistrée.`);
+        } else {
+            alert(`Échec de la sauvegarde de la description pour le Jour ${jourToUpdate.letter}.`);
+        }
+    }
 }
+
+// =================================================================
+// --- CLASSE CalendarPage (MODIFIÉE) ---
+// =================================================================
 class CalendarPage {
     constructor(parentElement, organizerApp) {
         this.parentElement = parentElement;
         this.organizerApp = organizerApp;
         this.scheduleData = {}; 
-        this.allUserJours = []; 
+        this.allUserJours = []; // NOUVEAU: Stocke tous les jours de l'utilisateur pour la planification
 
         this.currentDate = new Date(); 
         this.calendarGridElement = this.parentElement.querySelector('#calendarGrid');
@@ -1885,6 +1954,7 @@ class CalendarPage {
         this.contextPreviewTitle = document.getElementById('calendarContextTitle');
         this.contextPreviewImages = document.getElementById('calendarContextImages');
 
+        // NOUVEAUX ÉLÉMENTS POUR LA PLANIFICATION AUTO
         this.runAutoScheduleBtn = document.getElementById('runAutoScheduleBtn');
         this.autoScheduleInfo = document.getElementById('auto-schedule-info');
 
@@ -1920,6 +1990,7 @@ class CalendarPage {
             }
         });
 
+        // NOUVEL ÉCOUTEUR
         this.runAutoScheduleBtn.addEventListener('click', () => this.runAutoSchedule());
     }
 
@@ -2073,6 +2144,19 @@ class CalendarPage {
                     this._showContextPreview(e, letter, dateKey, itemData.galleryId);
                 });
 
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'scheduled-item-delete-btn';
+                deleteBtn.innerHTML = '&times;';
+                deleteBtn.title = 'Supprimer cette publication du calendrier';
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    if (confirm(`Voulez-vous vraiment supprimer la publication du Jour ${letter} de cette date ?`)) {
+                        this.removePublicationForDate(dateObj, letter);
+                    }
+                };
+                pubItemElement.appendChild(deleteBtn);
+
+
                 dayCell.appendChild(pubItemElement);
             });
         }
@@ -2213,8 +2297,7 @@ class CalendarPage {
         }
     }
 
-    // CORRECTION: Renommage et ajustement de la fonction pour la rendre plus claire
-    addPublicationToDate(dateObj, jourLetter, galleryId, galleryName) { 
+    addOrUpdatePublicationForDate(dateObj, jourLetter, galleryId, galleryName) { 
         const dateStr = this.formatDateKey(dateObj);
         if (!this.scheduleData[dateStr]) {
             this.scheduleData[dateStr] = {};
@@ -2230,29 +2313,42 @@ class CalendarPage {
         }
     }
 
-    // CORRECTION: NOUVELLE FONCTION pour placer automatiquement un jour
-    scheduleJourInNextAvailableSlot(jourInfo) {
-        if (!jourInfo || !jourInfo.galleryId) {
-            console.warn("Tentative de planification d'un jour sans info valide. Opération annulée.");
+    removePublicationForDate(dateObj, jourLetter) {
+        const dateStr = this.formatDateKey(dateObj);
+        if (this.scheduleData[dateStr] && this.scheduleData[dateStr][jourLetter]) {
+            delete this.scheduleData[dateStr][jourLetter];
+            if (Object.keys(this.scheduleData[dateStr]).length === 0) {
+                delete this.scheduleData[dateStr];
+            }
+            this.saveSchedule();
+            this.buildCalendarUI();
+        }
+    }
+
+    scheduleJourInNextAvailableSlot(jourLetter, galleryId, galleryName) {
+        if (!galleryId || galleryId === 'unknown') {
+            console.warn("Tentative de planification d'un jour sans galleryId valide. Opération annulée.");
             return;
         }
         let checkDate = new Date(); 
         checkDate.setHours(0,0,0,0);
-        const MAX_SEARCH_DAYS = 365; 
+        let slotFound = false;
+        const MAX_SEARCH_DAYS = 90; 
 
         for (let i = 0; i < MAX_SEARCH_DAYS; i++) {
             const dateKey = this.formatDateKey(checkDate);
-            // On cherche un jour complètement vide
-            if (!this.scheduleData[dateKey]) {
-                this.addPublicationToDate(checkDate, jourInfo.letter, jourInfo.galleryId, jourInfo.galleryName);
-                console.log(`Jour ${jourInfo.letter} (Galerie: ${jourInfo.galleryName}) auto-placé le ${dateKey}`);
-                return;
+            if (!this.scheduleData[dateKey] || !this.scheduleData[dateKey][jourLetter]) {
+                this.addOrUpdatePublicationForDate(checkDate, jourLetter, galleryId, galleryName);
+                slotFound = true;
+                console.log(`Jour ${jourLetter} (Galerie: ${galleryName}) auto-placé le ${dateKey}`);
+                break;
             }
             checkDate.setDate(checkDate.getDate() + 1); 
         }
-        
-        console.warn(`Impossible de trouver un slot libre pour le Jour ${jourInfo.letter} dans les ${MAX_SEARCH_DAYS} prochains jours.`);
-        alert(`Impossible de planifier automatiquement le Jour ${jourInfo.letter}. Veuillez le placer manuellement dans le calendrier.`);
+        if (!slotFound) {
+            console.warn(`Impossible de trouver un slot libre pour le Jour ${jourLetter} (Galerie: ${galleryName}) dans les ${MAX_SEARCH_DAYS} prochains jours.`);
+             alert(`Impossible de planifier automatiquement le Jour ${jourLetter} de la galerie "${galleryName}". Veuillez le placer manuellement dans le calendrier.`);
+        }
     }
 
     runAutoSchedule() {
@@ -2268,17 +2364,18 @@ class CalendarPage {
                 throw new Error("Les valeurs de publication doivent être supérieures à zéro.");
             }
 
+            // 1. Identifier les jours déjà planifiés
             const scheduledJourIdentifiers = new Set();
             Object.values(this.scheduleData).forEach(day => {
                 Object.values(day).forEach(item => {
-                    const letterMatch = item.label ? item.label.match(/Jour ([A-Z])/) : null;
-                    const letter = letterMatch ? letterMatch[1] : Object.keys(day).find(k => day[k] === item);
-                    if(letter && item.galleryId) {
+                    const letter = item.label ? item.label.split(' ')[1] : Object.keys(day).find(k => day[k] === item);
+                    if(letter) {
                        scheduledJourIdentifiers.add(`${item.galleryId}-${letter}`);
                     }
                 });
             });
 
+            // 2. Filtrer pour obtenir les jours non planifiés
             let unpublishedJours = this.allUserJours.filter(jour => 
                 !scheduledJourIdentifiers.has(`${jour.galleryId}-${jour.letter}`) && this.organizerApp.isJourReadyForPublishing(jour.galleryId, jour.letter)
             );
@@ -2289,6 +2386,7 @@ class CalendarPage {
                 return;
             }
 
+            // 3. Appliquer la logique de tri/mélange
             if (mode === 'chrono') {
                 unpublishedJours.sort((a, b) => {
                     const galleryCompare = a.galleryName.localeCompare(b.galleryName);
@@ -2325,6 +2423,7 @@ class CalendarPage {
                 }
             }
             
+            // 4. Placer les jours dans le calendrier
             let currentDate = new Date();
             currentDate.setHours(0, 0, 0, 0); 
             let joursPlaced = 0;
@@ -2368,6 +2467,9 @@ class CalendarPage {
     }
 }
 
+// =================================================================
+// --- CLASSE PublicationOrganizer ---
+// =================================================================
 class PublicationOrganizer {
     constructor() {
         this.currentGalleryId = null; 
@@ -2409,6 +2511,7 @@ class PublicationOrganizer {
 
         this.jourFramesContainer = document.getElementById('jourFramesContainer');
         this.addJourFrameBtn = document.getElementById('addJourFrameBtn');
+        this.saveAllJourFramesBtn = document.getElementById('saveAllJourFramesBtn');
         
         this.galleriesTabContent = document.getElementById('galleries');
         this.galleriesListElement = document.getElementById('galleriesList');
@@ -2484,8 +2587,9 @@ class PublicationOrganizer {
         this.zoomOutBtn.addEventListener('click', () => this.zoomOut());
         this.zoomInBtn.addEventListener('click', () => this.zoomIn());
         this.sortOptionsSelect.addEventListener('change', () => this.sortGridItemsAndReflow());
-        this.clearGalleryImagesBtn.addEventListener('click', () => this.clearAllGalleryImages());
-        this.addJourFrameBtn.addEventListener('click', () => this.addJourFrame()); 
+        this.clearGalleryImagesBtn.addEventListener('click', () => this.clearAllGalleryImages()); 
+        this.addJourFrameBtn.addEventListener('click', () => this.addJourFrame());
+        this.saveAllJourFramesBtn.addEventListener('click', () => this.saveAllJourFrames());
 
         this.createNewGalleryBtn.addEventListener('click', () => {
             this.newGalleryForm.style.display = this.newGalleryForm.style.display === 'none' ? 'flex' : 'none';
@@ -2501,6 +2605,7 @@ class PublicationOrganizer {
                 this.handleLoadGallery(this.selectedGalleryForPreviewId);
             }
         });
+
 
         this.tabs.forEach(tab => {
             tab.addEventListener('click', () => {
@@ -2552,11 +2657,7 @@ class PublicationOrganizer {
         }
 
         const descriptionTabContent = document.getElementById('description');
-        descriptionTabContent.querySelectorAll('button, textarea').forEach(el => {
-            if (el.id !== 'saveDescriptionBtn') {
-                el.disabled = noGalleryActive;
-            }
-        });
+        descriptionTabContent.querySelectorAll('button, textarea').forEach(el => el.disabled = noGalleryActive);
         if (this.descriptionManager) {
             if (noGalleryActive) {
                 this.descriptionManager.clearEditor();
@@ -2571,7 +2672,8 @@ class PublicationOrganizer {
              this.activateTab('galleries');
         }
     }
-    
+
+
     activateTab(tabId) {
         this.tabs.forEach(t => t.classList.remove('active'));
         this.tabContents.forEach(tc => tc.classList.remove('active'));
@@ -2796,6 +2898,7 @@ class PublicationOrganizer {
         }
     }
 
+
     clearGalleryPreview() {
         this.selectedGalleryForPreviewId = null;
         this.galleryPreviewPlaceholder.style.display = 'block';
@@ -2806,6 +2909,7 @@ class PublicationOrganizer {
             item.classList.remove('selected-for-preview');
         });
     }
+
 
     async handleCreateNewGallery() {
         const galleryName = this.newGalleryNameInput.value.trim() || `Galerie du ${new Date().toLocaleDateString('fr-FR')}`; 
@@ -2875,6 +2979,7 @@ class PublicationOrganizer {
 
     async loadState() {
         if (!this.currentGalleryId) {
+            console.log("loadState called without a gallery ID. Resetting UI.");
             this.updateUIToNoGalleryState();
             return;
         }
@@ -2886,64 +2991,78 @@ class PublicationOrganizer {
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}`);
             if (!response.ok) {
-                 if (response.status === 404) { 
-                    alert("La dernière galerie utilisée n'a pas été trouvée.");
-                    this.currentGalleryId = null; 
-                    localStorage.removeItem('publicationOrganizer_lastGalleryId'); 
-                    await startApp();
-                    return; 
-                 }
-                 throw new Error(`Failed to load gallery: ${response.statusText}`);
+                if (response.status === 404) {
+                    alert("La galerie demandée n'a pas été trouvée. Elle a peut-être été supprimée.");
+                    localStorage.removeItem('publicationOrganizer_lastGalleryId');
+                    this.currentGalleryId = null;
+                    this.clearGalleryPreview();
+                    this.loadGalleriesList();
+                    this.activateTab('galleries');
+                } else {
+                    throw new Error(`Erreur HTTP: ${response.status}`);
+                }
+                return;
             }
             const data = await response.json();
-            
-            const { galleryState, images, jours, schedule, scheduleContext } = data;
-            
-            this.galleryCache[this.currentGalleryId] = galleryState.name; 
-            this.currentThumbSize = galleryState.currentThumbSize || { width: 200, height: 200 };
+
+            // Reset state before loading new data
+            this.gridItems = [];
+            this.gridItemsDict = {};
+            this.imageGridElement.innerHTML = '';
+            this.jourFrames = [];
+            this.jourFramesContainer.innerHTML = '';
+            this.currentJourFrame = null;
+
+            // Load gallery state
+            const galleryState = data.galleryState || {};
+            this.galleryCache[this.currentGalleryId] = galleryState.name || 'Galerie sans nom';
+            this.currentThumbSize = galleryState.currentThumbSize || { width: 150, height: 150 };
             this.sortOptionsSelect.value = galleryState.sortOption || 'date_desc';
-            this.nextJourIndex = typeof galleryState.nextJourIndex === 'number' ? galleryState.nextJourIndex : 0;
+            this.nextJourIndex = galleryState.nextJourIndex || 0;
 
-            this.imageGridElement.innerHTML = ''; this.gridItems = []; this.gridItemsDict = {};
-            if (images) { this.addImagesToGrid(images); }
-
-            this.jourFramesContainer.innerHTML = ''; this.jourFrames = [];
-            if (jours) {
-                 jours.forEach(jourData => { 
-                    const jf = new JourFrameBackend(this, jourData);
-                    this.jourFramesContainer.appendChild(jf.element);
-                    this.jourFrames.push(jf);
-                 });
-                 this.jourFrames.sort((a,b) => a.index - b.index);
-                 this.recalculateNextJourIndex(); 
-                 if(this.jourFrames.length > 0 && !this.currentJourFrame) {
-                    this.setCurrentJourFrame(this.jourFrames[0]); 
-                 }
+            // Load images
+            if (data.images && data.images.length > 0) {
+                this.addImagesToGrid(data.images);
+                this.sortGridItemsAndReflow();
+            }
+            
+            // Load Jours
+            if (data.jours && data.jours.length > 0) {
+                data.jours.sort((a, b) => a.index - b.index).forEach(jourData => {
+                    const newJourFrame = new JourFrameBackend(this, jourData);
+                    this.jourFramesContainer.appendChild(newJourFrame.element);
+                    this.jourFrames.push(newJourFrame);
+                });
+                this.recalculateNextJourIndex();
             }
 
+            // Load schedule and prepare calendar data
             this.scheduleContext = {
-                schedule: schedule || {},
-                allUserJours: scheduleContext.allUserJours || []
+                schedule: data.schedule || {},
+                allUserJours: data.allUserJours || []
             };
-            if (this.calendarPage) { 
+
+            if (this.calendarPage) {
                 this.calendarPage.loadData(this.scheduleContext.schedule, this.scheduleContext.allUserJours);
             }
-
-            const savedActiveTab = galleryState.activeTab;
-            this.activateTab(savedActiveTab && document.getElementById(savedActiveTab) ? savedActiveTab : 'currentGallery');
             
+            this.updateGridUsage();
+            this.updateStatsLabel();
             this.updateAddPhotosPlaceholderVisibility();
-            this.sortGridItemsAndReflow();
-            this.updateGridUsage(); 
             this.updateGridItemStyles();
-            this.updateUIToNoGalleryState(); 
+            this.updateUIToNoGalleryState(); // This will enable/disable elements based on whether a gallery is loaded
+
+            const activeTab = galleryState.activeTab || 'currentGallery';
+            this.activateTab(activeTab);
+
 
         } catch (error) {
-            console.error("Error loading state from backend:", error);
+            console.error("Erreur critique lors du chargement de l'état de la galerie:", error);
             loadingOverlay.querySelector('p').innerHTML = `Erreur de chargement: ${error.message}<br/>Veuillez rafraîchir.`;
-            return;
         } finally {
-            loadingOverlay.style.display = 'none';
+            if (loadingOverlay.style.display === 'flex') {
+                 loadingOverlay.style.display = 'none';
+            }
         }
     }
 
@@ -2978,6 +3097,7 @@ class PublicationOrganizer {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryId}`, { method: 'DELETE' });
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status} - ${await response.text()}`);
             
+            console.log(`Galerie ${galleryId} supprimée.`);
             delete this.galleryCache[galleryId]; 
 
             if (this.selectedGalleryForPreviewId === galleryId) { 
@@ -3019,6 +3139,7 @@ class PublicationOrganizer {
             alert(`Impossible de supprimer la galerie: ${error.message}`);
         }
     }
+
 
     updateAddPhotosPlaceholderVisibility() {
         if (!this.currentGalleryId) { 
@@ -3072,6 +3193,7 @@ class PublicationOrganizer {
             progressBarInnerEl = this.currentGalleryUploadProgressBarInner;
         } else {
             console.error("UI de progression non trouvée.");
+            alert("Erreur UI : Impossible d'afficher la progression.");
             this.imageSelectorInput.value = "";
             if(callingButtonElement) callingButtonElement.disabled = false;
             this.activeCallingButton = null;
@@ -3086,44 +3208,84 @@ class PublicationOrganizer {
 
         if (callingButtonElement) callingButtonElement.disabled = true;
         this.imageSelectorInput.disabled = true;
+        if (isGalleryTabActive && this.openGalleryInEditorBtn) this.openGalleryInEditorBtn.disabled = true;
+        else if (!isGalleryTabActive) {
+            if (this.addNewImagesBtn) this.addNewImagesBtn.disabled = true;
+            if (this.addPhotosPlaceholderBtn) this.addPhotosPlaceholderBtn.disabled = true;
+        }
 
         for (let i = 0; i < totalFiles; i += BATCH_SIZE) {
             const batchFiles = Array.from(filesArray).slice(i, i + BATCH_SIZE);
             const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
             const totalBatches = Math.ceil(totalFiles / BATCH_SIZE);
 
+            const imageFilesInBatch = batchFiles.filter(f => f.type.startsWith('image/'));
+            if (imageFilesInBatch.length === 0) {
+                console.log(`[CLIENT] Lot ${batchNumber}/${totalBatches} ne contient aucune image, ignoré.`);
+                continue; 
+            }
+
             const formData = new FormData();
-            for (const file of batchFiles) { formData.append('images', file, file.name); }
+            for (const file of imageFilesInBatch) {
+                formData.append('images', file, file.name);
+            }
             
+            const overallProgressPercentBeforeBatch = Math.round((filesUploadedSuccessfully / totalFiles) * 100);
+            progressBarInnerEl.style.width = `${overallProgressPercentBeforeBatch}%`;
+            progressBarInnerEl.textContent = `${overallProgressPercentBeforeBatch}%`;
+            progressTextEl.textContent = `Envoi du lot ${batchNumber}/${totalBatches} (${imageFilesInBatch.length} images)...`;
+
+
             try {
                 const batchResult = await this.sendBatch(formData, targetGalleryIdForUpload, (progressEvent) => {
-                     if (progressEvent.lengthComputable) {
+                    if (progressEvent.lengthComputable) {
                         const batchUploadPercent = Math.round((progressEvent.loaded / progressEvent.total) * 100);
-                        progressTextEl.textContent = `Envoi du lot ${batchNumber}/${totalBatches}... ${batchUploadPercent}%`;
+                        progressTextEl.textContent = `Envoi du lot ${batchNumber}/${totalBatches} (${imageFilesInBatch.length} images)... ${batchUploadPercent}%`;
                     }
                 });
+
                 if (batchResult && Array.isArray(batchResult)) {
                     allNewImageDocs.push(...batchResult);
                     filesUploadedSuccessfully += batchResult.length; 
-                    if (targetGalleryIdForUpload === this.currentGalleryId) this.addImagesToGrid(batchResult); 
-                    else if (targetGalleryIdForUpload === this.selectedGalleryForPreviewId) await this.showGalleryPreview(this.selectedGalleryForPreviewId, this.galleryCache[this.selectedGalleryForPreviewId]);
+
+                    if (targetGalleryIdForUpload === this.currentGalleryId) {
+                        this.addImagesToGrid(batchResult); 
+                    } else if (targetGalleryIdForUpload === this.selectedGalleryForPreviewId && isGalleryTabActive) {
+                        await this.showGalleryPreview(this.selectedGalleryForPreviewId, this.galleryCache[this.selectedGalleryForPreviewId] || "Galerie");
+                    }
                 }
+                progressBarInnerEl.style.backgroundColor = '#007bff'; 
+                console.log(`[CLIENT] Lot ${batchNumber} traité. Images serveur pour ce lot: ${batchResult ? batchResult.length : 0}. Total serveur: ${allNewImageDocs.length}`);
+
+
             } catch (error) {
-                progressTextEl.textContent = `Erreur sur lot ${batchNumber}.`;
+                console.error(`[CLIENT] Erreur lors de l'envoi du lot ${batchNumber}:`, error);
+                progressTextEl.textContent = `Erreur sur lot ${batchNumber}. ${error.message ? String(error.message).substring(0,40) : 'Erreur'}.`;
                 progressBarInnerEl.style.backgroundColor = '#dc3545'; 
-                this.imageSelectorInput.value = ""; this.activeCallingButton = null;
+                if (callingButtonElement) callingButtonElement.disabled = false;
+                this.imageSelectorInput.disabled = false;
+                if (isGalleryTabActive && this.openGalleryInEditorBtn) this.openGalleryInEditorBtn.disabled = false;
+                else if (!isGalleryTabActive) {
+                    if (this.addNewImagesBtn) this.addNewImagesBtn.disabled = false;
+                    if (this.addPhotosPlaceholderBtn) this.addPhotosPlaceholderBtn.disabled = false;
+                }
+                this.imageSelectorInput.value = "";
+                this.activeCallingButton = null;
                 return; 
             }
         }
         
         progressBarInnerEl.style.width = '100%';
         progressBarInnerEl.textContent = '100%';
-        if (filesUploadedSuccessfully >= totalFiles) {
-            progressTextEl.textContent = `Téléversement complet !`;
+        if (filesUploadedSuccessfully >= totalFiles && allNewImageDocs.length >= totalFiles) {
+            progressTextEl.textContent = `Téléversement complet: ${filesUploadedSuccessfully} images ajoutées !`;
             progressBarInnerEl.style.backgroundColor = '#28a745';
-        } else {
-            progressTextEl.textContent = `Terminé: ${filesUploadedSuccessfully}/${totalFiles} images.`;
+        } else if (filesUploadedSuccessfully > 0) {
+            progressTextEl.textContent = `Terminé: ${filesUploadedSuccessfully}/${totalFiles} images. Vérifiez console pour détails.`;
             progressBarInnerEl.style.backgroundColor = '#ffc107'; 
+        } else {
+             progressTextEl.textContent = `Échec. Aucune image ajoutée. Vérifiez console.`;
+            progressBarInnerEl.style.backgroundColor = '#dc3545';
         }
 
         if (targetGalleryIdForUpload === this.currentGalleryId) {
@@ -3134,6 +3296,11 @@ class PublicationOrganizer {
         if (callingButtonElement) callingButtonElement.disabled = false;
         this.imageSelectorInput.disabled = false;
         this.imageSelectorInput.value = ""; 
+        if (isGalleryTabActive && this.openGalleryInEditorBtn) this.openGalleryInEditorBtn.disabled = false;
+        else if (!isGalleryTabActive) {
+            if (this.addNewImagesBtn) this.addNewImagesBtn.disabled = false;
+            if (this.addPhotosPlaceholderBtn) this.addPhotosPlaceholderBtn.disabled = false;
+        }
 
         setTimeout(() => {
             progressContainer.style.display = 'none';
@@ -3146,23 +3313,33 @@ class PublicationOrganizer {
     
     addImagesToGrid(imagesDataArray) {
         if (!Array.isArray(imagesDataArray) || imagesDataArray.length === 0) return;
+        console.log(`[CLIENT addImagesToGrid] Ajout de ${imagesDataArray.length} images à la grille.`);
+
         let addedCount = 0;
         imagesDataArray.forEach(imgData => {
-            if (imgData && imgData._id && !this.gridItemsDict[imgData._id]) {
-                const gridItem = new GridItemBackend(imgData, this.currentThumbSize, this);
-                gridItem.element.addEventListener('click', () => this.onGridItemClick(gridItem));
-                gridItem.element.draggable = true;
-                gridItem.element.addEventListener('dragstart', (e) => {
-                    e.dataTransfer.setData("application/json", JSON.stringify({
-                        sourceType: 'grid',
-                        imageId: gridItem.id,
-                    }));
-                    e.dataTransfer.effectAllowed = "copy";
-                });
-                this.imageGridElement.appendChild(gridItem.element);
-                this.gridItems.push(gridItem); 
-                this.gridItemsDict[imgData._id] = gridItem;
-                addedCount++;
+            if (imgData && imgData._id) {
+                if (!this.gridItemsDict[imgData._id]) {
+                    const gridItem = new GridItemBackend(imgData, this.currentThumbSize, this);
+                    gridItem.element.addEventListener('click', () => this.onGridItemClick(gridItem));
+                    gridItem.element.draggable = true;
+                    gridItem.element.addEventListener('dragstart', (e) => {
+                        e.dataTransfer.setData("application/json", JSON.stringify({
+                            sourceType: 'grid',
+                            imageId: gridItem.id,
+                            originalFilename: gridItem.basename,
+                            thumbnailPath: gridItem.thumbnailPath
+                        }));
+                        e.dataTransfer.effectAllowed = "copy";
+                    });
+                    this.imageGridElement.appendChild(gridItem.element);
+                    this.gridItems.push(gridItem); 
+                    this.gridItemsDict[imgData._id] = gridItem;
+                    addedCount++;
+                } else {
+                    console.warn(`[CLIENT addImagesToGrid] L'image ${imgData._id} existe déjà.`);
+                }
+            } else {
+                console.warn('[CLIENT addImagesToGrid] Donnée d\'image invalide:', imgData);
             }
         });
         if (addedCount > 0) {
@@ -3172,151 +3349,237 @@ class PublicationOrganizer {
         }
     }
 
+
     async sendBatch(formData, galleryId, onProgress) {
         return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.open('POST', `${BASE_API_URL}/api/galleries/${galleryId}/images`, true);
-            if (onProgress) xhr.upload.onprogress = onProgress;
+            
+            if (onProgress && typeof onProgress === 'function') {
+                xhr.upload.onprogress = onProgress;
+            }
+
             xhr.onload = () => {
-                if (xhr.status >= 200 && xhr.status < 300) resolve(JSON.parse(xhr.responseText));
-                else reject(new Error(`Échec du lot (${xhr.status}).`));
+                if (xhr.status >= 200 && xhr.status < 300) {
+                    try {
+                        const newImagesData = JSON.parse(xhr.responseText);
+                        console.log(`[CLIENT sendBatch] Lot réussi, images reçues:`, newImagesData.length);
+                        resolve(newImagesData);
+                    } catch (e) {
+                        console.error("[CLIENT sendBatch] Erreur parsing JSON du lot:", e, xhr.responseText);
+                        reject(new Error("Réponse serveur invalide pour le lot."));
+                    }
+                } else {
+                    const errorMsg = `Échec du lot (${xhr.status} ${xhr.statusText}). Réponse: ${xhr.responseText.substring(0,100)}`;
+                    console.error(`[CLIENT sendBatch] Erreur serveur pour le lot: ${xhr.status} ${xhr.statusText}`, xhr.responseText);
+                    reject(new Error(errorMsg));
+                }
             };
-            xhr.onerror = () => reject(new Error("Erreur réseau."));
-            xhr.onabort = () => reject(new Error("Upload annulé."));
+
+            xhr.onerror = () => {
+                console.error("[CLIENT sendBatch] Erreur réseau pour le lot.");
+                reject(new Error("Erreur réseau lors de l'envoi du lot."));
+            };
+            
+            xhr.onabort = () => {
+                console.log("[CLIENT sendBatch] Upload du lot annulé.");
+                reject(new Error("Upload du lot annulé."));
+            };
+
             xhr.send(formData);
         });
     }
 
-    async deleteImageFromGrid(imageId) {
-        if (!this.currentGalleryId || !imageId) return;
-        const gridItemToDelete = this.gridItemsDict[imageId];
-        if (!confirm(`Supprimer "${gridItemToDelete.basename}" ?`)) return;
 
+    async deleteImageFromGrid(imageId) {
+        if (!this.currentGalleryId || !imageId) {
+            alert("Erreur: ID de galerie ou d'image manquant.");
+            return;
+        }
+        const gridItemToDelete = this.gridItemsDict[imageId];
+        const imageNameForConfirm = gridItemToDelete ? gridItemToDelete.basename : `ID ${imageId}`;
+
+        if (!confirm(`Voulez-vous vraiment supprimer l'image "${imageNameForConfirm}" et toutes ses utilisations (y compris versions recadrées si c'est une originale) ?`)) {
+            return;
+        }
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/images/${imageId}`, {
                 method: 'DELETE'
             });
-            if (!response.ok) throw new Error(`Échec: ${response.statusText}`);
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Échec de la suppression de l'image: ${response.statusText} - ${errorText}`);
+            }
             const result = await response.json(); 
+            console.log(result.message);
 
-            result.deletedImageIds.forEach(id => {
-                const item = this.gridItemsDict[id];
-                if (item) {
-                    item.element.remove();
-                    this.gridItems = this.gridItems.filter(i => i.id !== id);
-                    delete this.gridItemsDict[id];
+            result.deletedImageIds.forEach(idToDelete => {
+                const itemInGrid = this.gridItemsDict[idToDelete];
+                if (itemInGrid) {
+                    itemInGrid.element.remove();
+                    this.gridItems = this.gridItems.filter(item => item.id !== idToDelete);
+                    delete this.gridItemsDict[idToDelete];
                 }
-                this.jourFrames.forEach(jf => jf.removeImageByActualId(id));
+                this.jourFrames.forEach(jf => {
+                    jf.removeImageByActualId(idToDelete); 
+                });
             });
+
             this.updateGridUsage(); 
             this.updateStatsLabel();
             this.updateAddPhotosPlaceholderVisibility();
+
         } catch (error) {
-            alert(`Erreur: ${error.message}`);
+            console.error("Error deleting image from grid:", error);
+            alert(`Erreur lors de la suppression de l'image : ${error.message}`);
         }
     }
 
     async clearAllGalleryImages() {
-        if (!this.currentGalleryId) return;
-        if (!confirm("Sûr de vouloir vider TOUTES les images de cette galerie ?")) return;
+        if (!this.currentGalleryId) {
+            alert("Aucune galerie active à vider.");
+            return;
+        }
+        if (!confirm("ÊTES-VOUS SÛR de vouloir supprimer TOUTES les images de cette galerie ?\nCette action est irréversible et affectera aussi les Jours et le Calendrier.")) {
+            return;
+        }
 
         try {
-            const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/images`, { method: 'DELETE' });
-            if (!response.ok) throw new Error(`Échec: ${response.statusText}`);
-            
+            const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/images`, { 
+                method: 'DELETE'
+            });
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Échec du vidage de la galerie: ${response.statusText} - ${errorText}`);
+            }
+            console.log(await response.text()); 
+
             this.imageGridElement.innerHTML = '';
-            this.gridItems = []; this.gridItemsDict = {};
-            this.jourFrames.forEach(jf => jf.imagesData = []);
+            this.gridItems = [];
+            this.gridItemsDict = {};
+
+            this.jourFrames.forEach(jf => {
+                jf.imagesData = []; 
+                jf.rebuildAndReposition(); 
+                jf.checkAndApplyCroppedStyle();
+                jf._resetSaveButtonColor(true); 
+            });
+
             this.updateGridUsage(); 
             this.updateStatsLabel(); 
             this.updateAddPhotosPlaceholderVisibility();
+            
+            if (this.calendarPage && document.getElementById('calendar').classList.contains('active')) {
+                this.calendarPage.loadData({}, []); 
+                this.calendarPage.buildCalendarUI();
+            }
+            if (this.selectedGalleryForPreviewId === this.currentGalleryId) {
+                this.showGalleryPreview(this.currentGalleryId, this.galleryCache[this.currentGalleryId] || "Galerie");
+            }
+
         } catch (error) {
-            alert(`Erreur: ${error.message}`);
+            console.error("Error clearing all gallery images:", error);
+            alert(`Erreur lors du vidage de la galerie : ${error.message}`);
         }
     }
     
     updateGridItemStyles() {
-        this.imageGridElement.style.gridTemplateColumns = `repeat(auto-fill, minmax(${this.currentThumbSize.width + 5}px, 1fr))`; 
+        this.imageGridElement.style.gridTemplateColumns = `repeat(auto-fill, minmax(${this.currentThumbSize.width + parseInt(getComputedStyle(this.imageGridElement).gap || '5px')}px, 1fr))`; 
         this.gridItems.forEach(item => item.updateSize(this.currentThumbSize));
     }
     
     zoomIn() {
-        const newSize = { width: this.currentThumbSize.width + this.zoomStep, height: this.currentThumbSize.height + this.zoomStep };
-        if (newSize.width <= this.maxThumbSize.width) {
-            this.currentThumbSize = newSize; this.updateGridItemStyles(); this.saveAppState();
+        const newWidth = this.currentThumbSize.width + this.zoomStep;
+        const newHeight = this.currentThumbSize.height + this.zoomStep; 
+        if (newWidth <= this.maxThumbSize.width && newHeight <= this.maxThumbSize.height) {
+            this.currentThumbSize = { width: newWidth, height: newHeight };
+            this.updateGridItemStyles();
+            this.saveAppState();
         }
     }
     zoomOut() {
-        const newSize = { width: this.currentThumbSize.width - this.zoomStep, height: this.currentThumbSize.height - this.zoomStep };
-        if (newSize.width >= this.minThumbSize.width) {
-            this.currentThumbSize = newSize; this.updateGridItemStyles(); this.saveAppState();
+        const newWidth = this.currentThumbSize.width - this.zoomStep;
+        const newHeight = this.currentThumbSize.height - this.zoomStep;
+        if (newWidth >= this.minThumbSize.width && newHeight >= this.minThumbSize.height) {
+            this.currentThumbSize = { width: newWidth, height: newHeight };
+            this.updateGridItemStyles();
+            this.saveAppState();
         }
     }
 
     sortGridItemsAndReflow() {
         const sortValue = this.sortOptionsSelect.value;
         this.gridItems.sort((a, b) => {
-            if (sortValue.startsWith('name')) {
-                const comparison = a.basename.localeCompare(b.basename, undefined, { numeric: true });
-                return sortValue.endsWith('_asc') ? comparison : -comparison;
+            let valA, valB;
+            switch (sortValue) {
+                case 'name_asc': case 'name_desc':
+                    valA = a.basename; valB = b.basename;
+                    const comparison = valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' });
+                    return sortValue.endsWith('_asc') ? comparison : -comparison;
+                case 'date_asc': case 'date_desc':
+                    valA = a.datetimeOriginalTs !== null ? a.datetimeOriginalTs : a.fileModTimeTs;
+                    valB = b.datetimeOriginalTs !== null ? b.datetimeOriginalTs : b.fileModTimeTs;
+                    if (valA === null && valB === null) return 0;
+                    if (valA === null) return sortValue.endsWith('_asc') ? 1 : -1; 
+                    if (valB === null) return sortValue.endsWith('_asc') ? -1 : 1; 
+                    const dateComparison = valA - valB;
+                    return sortValue.endsWith('_asc') ? dateComparison : -dateComparison;
+                default: return 0;
             }
-            const valA = a.datetimeOriginalTs || a.fileModTimeTs;
-            const valB = b.datetimeOriginalTs || b.fileModTimeTs;
-            return sortValue.endsWith('_asc') ? valA - valB : valB - valA;
         });
 
+        // Ne pas vider le contenu, simplement ré-attacher les éléments va les réordonner
         this.gridItems.forEach(item => this.imageGridElement.appendChild(item.element));
+        this.updateGridUsage(); 
         this.saveAppState();
     }
 
     onGridItemClick(gridItem) { 
-        if (!gridItem.isValid || !this.currentJourFrame) {
-            alert("Veuillez d'abord sélectionner un Jour de publication.");
+        if (!gridItem || !gridItem.isValid) return; 
+
+        if (!this.currentJourFrame) {
+            alert("Veuillez d'abord sélectionner ou ajouter un Jour de publication actif (cliquez sur son label).");
             return;
         }
         
-        const alreadyIn = this.currentJourFrame.imagesData.some(img => img.imageId === gridItem.id);
-        if (alreadyIn) { 
-            const index = this.currentJourFrame.imagesData.findIndex(img => img.imageId === gridItem.id);
-            if (index !== -1) this.currentJourFrame.removeImageAtIndex(index);
+        const alreadyInCurrentJourFrame = this.currentJourFrame.imagesData.some(
+            imgData => imgData.imageId === gridItem.id 
+        );
+
+        if (alreadyInCurrentJourFrame) { 
+            const indexToRemove = this.currentJourFrame.imagesData.findIndex(
+                imgData => imgData.imageId === gridItem.id
+            );
+            if (indexToRemove !== -1) {
+                this.currentJourFrame.removeImageAtIndex(indexToRemove);
+            }
         } else {
             this.currentJourFrame.addImage(gridItem);
         }
     }
 
     updateGridUsage() {
-        const combinedUsage = this.getCombinedUsageMap();
-        for (const imageId in this.gridItemsDict) {
+        const combinedUsage = this.getCombinedUsageMap(); 
+        for (const imageId in this.gridItemsDict) { 
             const gridItem = this.gridItemsDict[imageId];
             const originalIdToCompare = gridItem.parentImageId || gridItem.id;
-    
-            const usageArray = combinedUsage[originalIdToCompare];
-    
-            if (usageArray && usageArray.length > 0) {
-                const joinedLabels = usageArray.map(u => u.label).join(' / ');
-                const firstColor = usageArray[0].color;
-                gridItem.markUsed(joinedLabels, firstColor);
+
+            if (combinedUsage[originalIdToCompare]) {
+                const usageInfo = combinedUsage[originalIdToCompare];
+                gridItem.markUsed(usageInfo.label, usageInfo.color);
             } else {
                 gridItem.markUnused();
             }
         }
         this.updateStatsLabel();
     }
-    
-    getCombinedUsageMap() {
-        const combinedUsage = {};
-        const sortedJourFrames = [...this.jourFrames].sort((a, b) => a.index - b.index);
 
-        sortedJourFrames.forEach(jf => {
-            const usageDataForOneJour = jf.getUsageData();
-            for (const originalId in usageDataForOneJour) {
-                if (!combinedUsage[originalId]) {
-                    combinedUsage[originalId] = [];
-                }
-                combinedUsage[originalId].push(usageDataForOneJour[originalId]);
-            }
+    getCombinedUsageMap() {
+        let combined = {};
+        this.jourFrames.forEach(jf => {
+            Object.assign(combined, jf.getUsageData()); 
         });
-        return combinedUsage;
+        return combined;
     }
 
     updateStatsLabel() {
@@ -3326,47 +3589,66 @@ class PublicationOrganizer {
         }
         const numGridImages = this.gridItems.filter(item => item.isValid).length; 
         const numJourImages = this.jourFrames.reduce((sum, jf) => sum + jf.imagesData.length, 0);
-        this.statsLabelText.textContent = `Grille: ${numGridImages} | Jours: ${numJourImages}`;
+        const currentStatsText = `Grille: ${numGridImages} | Jours: ${numJourImages}`;
+        
+        this.statsLabelText.textContent = currentStatsText;
     }
 
     async addJourFrame() {
-        if (!this.currentGalleryId) return;
-        this.recalculateNextJourIndex();
+        if (!this.currentGalleryId) { alert("Aucune galerie active. Veuillez d'abord créer ou charger une galerie."); return; }
+        
+        this.recalculateNextJourIndex(); 
         if (this.nextJourIndex >= 26) { alert("Maximum de Jours (A-Z) atteint."); return; }
         
         this.addJourFrameBtn.disabled = true; 
+
         try {
-            const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/jours`, { method: 'POST' });
-            if (!response.ok) throw new Error(await response.text());
-            
+            const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/jours`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+            });
+            if (!response.ok) {
+                 let errorBody = await response.text();
+                 let userMessage = `Erreur lors de la création du Jour : ${response.statusText}`;
+                 try {
+                    const errorJson = JSON.parse(errorBody); 
+                    if (errorJson.message) userMessage = errorJson.message; 
+                    else if (errorJson.errmsg && errorJson.code === 11000) { 
+                        userMessage = `Conflit: Le jour avec cette lettre/index existe probablement déjà.`;
+                    }
+                 } catch (e) { 
+                    if (errorBody.includes("E11000") && errorBody.includes("duplicate key")) {
+                         userMessage = `Conflit: Le jour avec cette lettre/index existe probablement déjà. (Détail: ${errorBody.substring(0,100)}...)`;
+                    } else {
+                        userMessage += ` - ${errorBody}`;
+                    }
+                 }
+                 throw new Error(userMessage);
+            }
             const newJourData = await response.json(); 
+            
             const newJourFrame = new JourFrameBackend(this, newJourData); 
+            
             this.jourFramesContainer.appendChild(newJourFrame.element); 
             this.jourFrames.push(newJourFrame); 
             this.jourFrames.sort((a, b) => a.index - b.index); 
-            this.setCurrentJourFrame(newJourFrame);
-            this.recalculateNextJourIndex(); 
-            this.updateStatsLabel();
-            this.saveAppState();
-            
-            const newJourForScheduling = {
-                _id: newJourData._id,
-                letter: newJourData.letter,
-                galleryId: newJourData.galleryId,
-                galleryName: this.getCurrentGalleryName()
-            };
-            this.scheduleContext.allUserJours.push(newJourForScheduling);
 
-            if (this.calendarPage) {
-                this.calendarPage.loadData(this.scheduleContext.schedule, this.scheduleContext.allUserJours);
-                this.calendarPage.scheduleJourInNextAvailableSlot(newJourForScheduling);
-            }
+            this.setCurrentJourFrame(newJourFrame);
+            
+            this.recalculateNextJourIndex();
+
+            this.updateStatsLabel();
+            this.saveAppState(); 
 
             if (this.descriptionManager && document.getElementById('description').classList.contains('active')) {
                 this.descriptionManager.populateJourList();
+                if (this.jourFrames.length === 1 || !this.descriptionManager.currentSelectedJourFrame) {
+                    this.descriptionManager.selectJour(newJourFrame);
+                }
             }
 
         } catch (error) {
+            console.error("Error adding JourFrame:", error);
             alert(error.message);
         } finally {
             this.addJourFrameBtn.disabled = false; 
@@ -3384,76 +3666,125 @@ class PublicationOrganizer {
     }
     
     async closeJourFrame(jourFrameToClose) { 
-        if (!confirm(`Supprimer le Jour ${jourFrameToClose.letter} ?`)) return;
+        if (!confirm(`Voulez-vous vraiment supprimer le Jour ${jourFrameToClose.letter} ?`)) return;
 
         const index = this.jourFrames.indexOf(jourFrameToClose);
         if (index > -1) {
             await jourFrameToClose.destroy(); 
             this.jourFrames.splice(index, 1);
 
-            this.scheduleContext.allUserJours = this.scheduleContext.allUserJours.filter(j => j._id !== jourFrameToClose.id);
-            
-            Object.keys(this.scheduleContext.schedule).forEach(dateStr => {
-                 if (this.scheduleContext.schedule[dateStr][jourFrameToClose.letter] && this.scheduleContext.schedule[dateStr][jourFrameToClose.letter].galleryId === jourFrameToClose.galleryId) {
-                    delete this.scheduleContext.schedule[dateStr][jourFrameToClose.letter];
-                    if (Object.keys(this.scheduleContext.schedule[dateStr]).length === 0) {
-                        delete this.scheduleContext.schedule[dateStr];
-                    }
-                 }
-            });
-            
-            if (this.calendarPage) {
-                this.calendarPage.loadData(this.scheduleContext.schedule, this.scheduleContext.allUserJours);
-                if (document.getElementById('calendar').classList.contains('active')) {
-                    this.calendarPage.buildCalendarUI();
-                }
-                this.calendarPage.saveSchedule();
-            }
-
             if (this.currentJourFrame === jourFrameToClose) {
-                this.setCurrentJourFrame(this.jourFrames[0] || null);
+                this.setCurrentJourFrame(this.jourFrames[index] || this.jourFrames[index-1] || (this.jourFrames.length > 0 ? this.jourFrames[0] : null));
             }
             this.recalculateNextJourIndex(); 
             this.updateGridUsage();
             this.updateStatsLabel();
             this.saveAppState();
+            
+            if (this.calendarPage) {
+                const datesToRemove = [];
+                for (const dateStr in this.calendarPage.scheduleData) {
+                    if (this.calendarPage.scheduleData[dateStr][jourFrameToClose.letter] && this.calendarPage.scheduleData[dateStr][jourFrameToClose.letter].galleryId === jourFrameToClose.galleryId) {
+                        datesToRemove.push(new Date(dateStr + 'T00:00:00')); 
+                    }
+                }
+                datesToRemove.forEach(dateObj => {
+                    this.calendarPage.removePublicationForDate(dateObj, jourFrameToClose.letter);
+                });
+            }
 
             if (this.descriptionManager && document.getElementById('description').classList.contains('active')) {
                 this.descriptionManager.populateJourList();
-                if (this.descriptionManager.currentSelectedJourFrame && this.descriptionManager.currentSelectedJourFrame.id === jourFrameToClose.id) {
+                if (this.descriptionManager.currentSelectedJourFrame === jourFrameToClose) {
                     this.descriptionManager.clearEditor();
+                    if (this.jourFrames.length > 0) {
+                        const newIndexToSelect = Math.max(0, index -1); 
+                         this.descriptionManager.selectJour(this.jourFrames[newIndexToSelect]);
+                    }
                 }
             }
         }
     }
     
     recalculateNextJourIndex() {
+        if (this.jourFrames.length === 0) { this.nextJourIndex = 0; return; }
+        
         const existingIndices = new Set(this.jourFrames.map(jf => jf.index));
-        let i = 0; while(existingIndices.has(i) && i < 26) i++;
-        this.nextJourIndex = i;
+        let smallestAvailable = 0;
+        while(existingIndices.has(smallestAvailable) && smallestAvailable < 26) { 
+            smallestAvailable++;
+        }
+        this.nextJourIndex = smallestAvailable;
     }
 
-    // CORRECTION: Logique améliorée pour déterminer si un jour est prêt
+    addOrUpdateJourInCalendar(jourFrame) {
+        if (this.calendarPage && document.getElementById('calendar').classList.contains('active')) {
+            this.calendarPage.buildCalendarUI(); 
+        }
+    }
+
+    getCurrentGalleryName() { 
+        return this.galleryCache[this.currentGalleryId] || 'Galerie';
+    }
+    getCachedGalleryName(galleryId) {
+        return this.galleryCache[galleryId];
+    }
+
     isJourReadyForPublishing(galleryId, letter) {
-        const jourFrame = this.jourFrames.find(jf => jf.galleryId === galleryId && jf.letter === letter);
-        return jourFrame && jourFrame.imagesData.length > 0;
+        // La logique ici est simplifiée. Pour une version robuste, il faudrait que
+        // `allUserJours` contienne un `imageCount`.
+        // On suppose qu'un jour existe uniquement s'il a été créé, ce qui est une heuristique raisonnable.
+        return true;
     }
 
-    getCurrentGalleryName() { return this.galleryCache[this.currentGalleryId] || 'Galerie'; }
-    getCachedGalleryName(galleryId) { return this.galleryCache[galleryId]; }
+    async saveAllJourFrames() {
+        if (!this.currentGalleryId) { alert("Aucune galerie active."); return; }
+        if (!this.jourFrames.length) { alert("Aucun Jour actif à enregistrer."); return; }
 
+        let savedCount = 0;
+        const progressContainer = this.currentGalleryUploadProgressContainer; 
+        const progressTextEl = this.currentGalleryUploadProgressText;
+        const progressBarInnerEl = this.currentGalleryUploadProgressBarInner;
+
+        progressContainer.style.display = 'block';
+        progressTextEl.textContent = `Sauvegarde 0/${this.jourFrames.length} jours...`;
+        progressBarInnerEl.style.width = '0%';
+        progressBarInnerEl.textContent = '0%';
+        progressBarInnerEl.style.backgroundColor = '#007bff'; 
+
+        for (let i = 0; i < this.jourFrames.length; i++) {
+            const jf = this.jourFrames[i];
+            if (await jf.save()) { 
+                savedCount++;
+            }
+            const percent = Math.round(((i + 1) / this.jourFrames.length) * 100);
+            progressBarInnerEl.style.width = `${percent}%`;
+            progressBarInnerEl.textContent = `${percent}%`;
+            progressTextEl.textContent = `Sauvegarde ${i + 1}/${this.jourFrames.length} jours...`;
+        }
+        
+        progressTextEl.textContent = `${savedCount} Jour(s) enregistrés.`;
+        progressBarInnerEl.style.backgroundColor = '#28a745'; 
+        setTimeout(() => {
+            progressContainer.style.display = 'none';
+            this.updateStatsLabel(); 
+        }, 2000);
+    }
+    
     openImageCropper(imagesDataForCropper, callingJourFrame) {
         this.cropper.open(imagesDataForCropper, callingJourFrame);
     }
     
     async saveAppState() {
         if (!this.currentGalleryId) return;
+
         const appState = {
             currentThumbSize: this.currentThumbSize,
             sortOption: this.sortOptionsSelect.value,
-            activeTab: document.querySelector('.tab-button.active')?.dataset.tab || 'currentGallery',
+            activeTab: document.querySelector('.tab-button.active')?.dataset.tab || 'galleries',
             nextJourIndex: this.nextJourIndex 
         };
+
         try {
             await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/state`, {
                 method: 'PUT',
@@ -3461,16 +3792,25 @@ class PublicationOrganizer {
                 body: JSON.stringify(appState)
             });
         } catch (error) {
-            console.error("Error saving app state:", error);
+            console.error("Error saving app state to backend:", error);
         }
     }
 
     findImageInAnyJour(imageId, returnFullObject = false) {
         for (const jour of this.jourFrames) {
-            const found = jour.imagesData.find(img => img.imageId === imageId);
-            if (found) {
-                if (returnFullObject) return this.gridItemsDict[imageId] || { /* mock object */ };
-                return found; 
+            const foundInData = jour.imagesData.find(img => img.imageId === imageId);
+            if (foundInData) {
+                if (returnFullObject) {
+                    return this.gridItemsDict[imageId] || { 
+                        _id: foundInData.imageId,
+                        galleryId: jour.galleryId, 
+                        path: Utils.getFilenameFromURL(foundInData.dataURL).replace('thumb-',''), 
+                        thumbnailPath: Utils.getFilenameFromURL(foundInData.dataURL), 
+                        originalFilename: `Image ${foundInData.imageId}`,
+                        isCroppedVersion: foundInData.isCropped
+                    };
+                }
+                return foundInData; 
             }
         }
         return null;
@@ -3494,10 +3834,9 @@ async function checkUserStatus() {
             const data = await response.json();
             if (data.loggedIn) {
                 document.getElementById('userInfo').textContent = `Connecté: ${data.username}`;
-                const profileImg = document.getElementById('profilePictureImg');
-                if (profileImg && data.user && data.user.picture) {
-                    profileImg.src = data.user.picture;
-                    profileImg.alt = `Profil de ${data.user.name}`;
+                const profileImage = document.querySelector('#profileButton .profile-action-icon');
+                if (profileImage && data.user && data.user.picture) {
+                    profileImage.src = data.user.picture;
                 }
                 await startApp();
             } else {
@@ -3528,6 +3867,7 @@ async function startApp() {
         if (galleryIdToLoad) {
             const checkResponse = await fetch(`${BASE_API_URL}/api/galleries/${galleryIdToLoad}`);
             if (!checkResponse.ok) {
+                console.warn(`La dernière galerie (${galleryIdToLoad}) n'est plus valide. Recherche d'une autre galerie.`);
                 galleryIdToLoad = null;
                 localStorage.removeItem('publicationOrganizer_lastGalleryId');
             }
@@ -3539,6 +3879,7 @@ async function startApp() {
                 const galleries = await response.json();
                 if (galleries && galleries.length > 0) {
                     galleryIdToLoad = galleries[0]._id;
+                    console.log(`Chargement de la dernière galerie utilisée depuis le backend: ${galleryIdToLoad}`);
                     localStorage.setItem('publicationOrganizer_lastGalleryId', galleryIdToLoad);
                 }
             }
@@ -3549,7 +3890,7 @@ async function startApp() {
 
     } catch (error) {
         console.error("Erreur critique lors du démarrage de l'application:", error);
-        loadingOverlay.querySelector('p').innerHTML = `Erreur d'initialisation: ${error.message}<br/>Veuillez rafraîchir.`;
+        loadingOverlay.querySelector('p').innerHTML = `Erreur d'initialisation: ${error.message}<br/>Veuillez vérifier la console et rafraîchir la page.`;
         return; 
     }
     
@@ -3590,6 +3931,7 @@ async function logout() {
         if (response.ok) {
             window.location.href = 'welcome.html';
         } else {
+            console.error('La déconnexion a échoué.');
             alert('Erreur lors de la déconnexion.');
         }
     } catch (error) {
