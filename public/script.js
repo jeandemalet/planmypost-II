@@ -1,5 +1,6 @@
+
 // ===============================
-//  Fichier: public/script.js (Version complète, corrigée et restructurée)
+//  Fichier: public/script.js (Version complète et corrigée)
 // ===============================
 
 // --- Constantes Globales et État ---
@@ -708,8 +709,6 @@ class JourFrameBackend {
         return removed;
     }
 
-    
-
     async save() {
         if (!this.id || !app.currentGalleryId) {
             console.error("Cannot save Jour: Missing Jour ID or Gallery ID.");
@@ -718,10 +717,10 @@ class JourFrameBackend {
         }
 
         const imagesToSave = this.imagesData.map((imgData, idx) => ({
-            imageId: imgData.imageId, 
+            imageId: imgData.imageId,
             order: idx
         }));
-        
+
         const payload = {
             images: imagesToSave,
             descriptionText: this.descriptionText,
@@ -732,29 +731,49 @@ class JourFrameBackend {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/jours/${this.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(payload) 
+                body: JSON.stringify(payload)
             });
+
             if (!response.ok) {
                 const errorData = await response.text();
                 throw new Error(`Failed to save Jour ${this.letter}: ${response.statusText} - ${errorData}`);
             }
             await response.json();
-            
-            if (this.organizer && this.organizer.calendarPage && this.imagesData.length > 0) {
-                 const galleryName = this.organizer.getCurrentGalleryName(); 
-                 this.organizer.calendarPage.scheduleJourInNextAvailableSlot(
-                    this.letter, 
-                    this.galleryId, 
-                    galleryName
-                );
+
+            // --- NOUVELLE LOGIQUE ROBUSTE POUR LE CALENDRIER ---
+            if (this.organizer && this.organizer.calendarPage) {
+                const isAlreadyScheduled = this.organizer.calendarPage.isJourScheduled(this.galleryId, this.letter);
+
+                // Cas 1 : Le jour a des images mais n'est PAS encore dans le calendrier.
+                if (!isAlreadyScheduled && this.imagesData.length > 0) {
+                    const galleryName = this.organizer.getCurrentGalleryName();
+                    this.organizer.calendarPage.scheduleJourInNextAvailableSlot(
+                        this.letter,
+                        this.galleryId,
+                        galleryName
+                    );
+                } 
+                // Cas 2 : Le jour EST DÉJÀ dans le calendrier. Il faut forcer sa mise à jour visuelle.
+                else if (isAlreadyScheduled) {
+                    // Si le calendrier est l'onglet ACTIF, on le redessine immédiatement
+                    // pour que l'utilisateur voie la mise à jour de la miniature en temps réel.
+                    if (document.getElementById('calendar').classList.contains('active')) {
+                        this.organizer.calendarPage.buildCalendarUI();
+                    }
+                    // Si le calendrier n'est pas actif, pas besoin de le redessiner maintenant.
+                    // La logique dans `activateTab` s'en chargera lorsque l'utilisateur cliquera dessus,
+                    // garantissant qu'il verra toujours la version la plus à jour.
+                }
             }
+            // --- FIN DE LA LOGIQUE MISE À JOUR ---
 
             console.log(`Jour ${this.letter} (Galerie ID: ${this.galleryId}) enregistré sur le serveur.`);
             return true;
+
         } catch (error) {
             console.error(`Error saving Jour ${this.letter}:`, error);
             alert(`Erreur lors de la sauvegarde du Jour ${this.letter}. Voir la console.`);
-            this._resetSaveButtonColor(true); 
+            this._resetSaveButtonColor(true);
             return false;
         }
     }
@@ -2268,6 +2287,16 @@ class CalendarPage {
 
     _hideContextPreview() {
         this.contextPreviewModal.style.display = 'none';
+    }
+
+    isJourScheduled(galleryId, jourLetter) {
+        for (const dateKey in this.scheduleData) {
+            const dayEvents = this.scheduleData[dateKey];
+            if (dayEvents[jourLetter] && dayEvents[jourLetter].galleryId === galleryId) {
+                return true; // Le jour est trouvé dans le calendrier
+            }
+        }
+        return false; // Le jour n'a été trouvé nulle part
     }
 
 
