@@ -12,7 +12,6 @@ const JOUR_COLORS = [
 ];
 const CALENDAR_THUMB_SIZE = { width: 30, height: 30 };
 const CALENDAR_HOVER_THUMB_SIZE = { width: 100, height: 100 };
-const MAX_HOVER_PREVIEWS = 3;
 const PREVIEW_WIDTH = 100;
 const PREVIEW_HEIGHT = 100;
 const CROPPER_BACKGROUND_GRAY = 'rgb(46, 46, 46)';
@@ -2259,7 +2258,7 @@ class CalendarPage {
         if (galleryIdForJour === this.organizerApp.currentGalleryId) {
             const jourFrame = this.organizerApp.jourFrames.find(jf => jf.letter === jourLetter);
             if (jourFrame) {
-                imagesToPreviewURLs = jourFrame.imagesData.slice(0, MAX_HOVER_PREVIEWS).map(imgData => imgData.dataURL);
+                imagesToPreviewURLs = jourFrame.imagesData.map(imgData => imgData.dataURL);
             }
         } else {
             this.contextPreviewImages.innerHTML = '<p>Aperçu non disponible pour les galeries non chargées.</p>';
