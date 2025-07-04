@@ -166,15 +166,15 @@
                     <div class="auto-schedule-options">
                         <div class="option-group">
                             <input type="radio" id="autoScheduleChrono" name="autoScheduleMode" value="chrono" checked>
-                            <label for="autoScheduleChrono">Chronologique</label>
+                            <label for="autoScheduleChrono" title="Place les jours les uns après les autres, dans l'ordre (Jour A, Jour B, Jour C...).">Chronologique</label>
                         </div>
                         <div class="option-group">
                             <input type="radio" id="autoScheduleInterlaced" name="autoScheduleMode" value="interlaced">
-                            <label for="autoScheduleInterlaced">Chronologique Interlacé</label>
+                            <label for="autoScheduleInterlaced" title="Place les jours en alternant les galeries, tout en respectant l'ordre chronologique de chaque galerie.">Chronologique Interlacé</label>
                         </div>
                         <div class="option-group">
                             <input type="radio" id="autoScheduleRandom" name="autoScheduleMode" value="random">
-                            <label for="autoScheduleRandom">Aléatoire</label>
+                            <label for="autoScheduleRandom" title="Place les jours de manière aléatoire sur les dates disponibles.">Aléatoire</label>
                         </div>
                     </div>
                     <div class="auto-schedule-settings">
@@ -197,6 +197,7 @@
                     <div id="unscheduledJoursList">
                         <!-- Les jours non planifiés apparaîtront ici -->
                     </div>
+                    <button id="reorganizeAllBtn" class="secondary-action">Tout Réorganiser</button>
                 </div>
                 <!-- FIN DU NOUVEAU BLOC -->
             </div>

@@ -1854,6 +1854,24 @@ class CalendarPage {
         this.unscheduledJoursListElement.addEventListener('dragleave', (e) => this._onDragLeaveUnscheduledList(e));
         this.unscheduledJoursListElement.addEventListener('drop', (e) => this._onDropOnUnscheduledList(e));
         // --- FIN DES AJOUTS POUR LE DRAG & DROP VERS LA LISTE ---
+
+        const reorganizeAllBtn = document.getElementById('reorganizeAllBtn');
+        if (reorganizeAllBtn) {
+            reorganizeAllBtn.addEventListener('click', () => this.reorganizeAll());
+        }
+    }
+
+    reorganizeAll() {
+        if (!confirm("Êtes-vous sûr de vouloir retirer tous les jours du calendrier et les replacer dans la liste 'Jours à Planifier' ?")) {
+            return;
+        }
+
+        // Vider les données de planification
+        this.scheduleData = {};
+
+        // Sauvegarder le calendrier vide et rafraîchir l'interface
+        this.saveSchedule();
+        this.buildCalendarUI();
     }
 
     // --- DÉBUT DES NOUVELLES FONCTIONS ---
