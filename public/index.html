@@ -161,7 +161,7 @@
         <!-- STRUCTURE MODIFIÉE POUR L'ONGLET CALENDRIER -->
         <div id="calendar" class="tab-content">
             <div id="calendar-sidebar">
-                <div class="sidebar-section">
+                <div class="sidebar-section auto-schedule-box">
                     <h4>Planification Automatique</h4>
                     <div class="auto-schedule-options">
                         <div class="option-group">
@@ -181,9 +181,9 @@
                         <div class="setting-group">
                             <label for="autoSchedulePerDay">Publier</label>
                             <input type="number" id="autoSchedulePerDay" value="1" min="1">
-                            <label for="autoScheduleEveryXDays">tous les</label>
+                            <span>tous les</span>
                             <input type="number" id="autoScheduleEveryXDays" value="1" min="1">
-                            <label>jour(s)</label>
+                            <span>jour(s)</span>
                         </div>
                     </div>
                     <button id="runAutoScheduleBtn" class="primary-action">Lancer la Planification</button>
