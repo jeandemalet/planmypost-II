@@ -570,6 +570,7 @@ button.small-cancel-btn:hover {
     align-items: center;
     justify-content: center;
     padding: 0;
+    z-index: 20; /* Elevé pour être au-dessus des overlays */
 }
 .grid-item:hover .grid-item-delete-btn {
     opacity: 1;
@@ -1394,4 +1395,86 @@ button.small-cancel-btn:hover {
 
 .show {
     display: block;
+}
+
+
+/* ============================================== */
+/* --- NOUVEAUX STYLES POUR L'AFFICHAGE MULTI-JOURS --- */
+/* ============================================== */
+
+.multi-day-overlay {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+    display: none; /* Caché par défaut */
+    z-index: 10;
+}
+
+/* Création de la croix blanche avec des pseudo-éléments */
+.multi-day-overlay::before,
+.multi-day-overlay::after {
+    content: '';
+    position: absolute;
+    background-color: white;
+    box-shadow: 0 0 4px rgba(0, 0, 0, 0.5); /* Ombre pour la lisibilité */
+}
+
+/* Ligne horizontale de la croix */
+.multi-day-overlay::before {
+    top: 50%;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    transform: translateY(-50%);
+}
+
+/* Ligne verticale de la croix */
+.multi-day-overlay::after {
+    left: 50%;
+    top: 0;
+    height: 100%;
+    width: 2px;
+    transform: translateX(-50%);
+}
+
+.quadrant-text {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+    text-shadow: 0 0 3px black, 0 0 5px black;
+    padding: 2px;
+    box-sizing: border-box;
+    overflow: hidden;
+    white-space: nowrap;
+}
+
+/* Positionnement des 4 quadrants */
+.quadrant-text-1 { /* Haut-gauche */
+    top: 0;
+    left: 0;
+    width: 50%;
+    height: 50%;
+}
+.quadrant-text-2 { /* Haut-droite */
+    top: 0;
+    right: 0;
+    width: 50%;
+    height: 50%;
+}
+.quadrant-text-3 { /* Bas-gauche */
+    bottom: 0;
+    left: 0;
+    width: 50%;
+    height: 50%;
+}
+.quadrant-text-4 { /* Bas-droite */
+    bottom: 0;
+    right: 0;
+    width: 50%;
+    height: 50%;
 }

@@ -69,9 +69,9 @@ server.listen(PORT, () => {
     fse.emptyDir(TEMP_UPLOAD_DIR).catch(err => console.error('Failed to clear temp upload dir:', err));
 });
 
-const FIFTEEN_MINUTES_IN_MS = 15 * 60 * 1000;
-server.setTimeout(FIFTEEN_MINUTES_IN_MS, () => {
-    console.error('SERVER TIMEOUT: Une requête a pris trop de temps et a été interrompue par le serveur.');
+const FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
+server.setTimeout(FIVE_MINUTES_IN_MS, () => {
+    console.error('SERVER TIMEOUT: A request took too long and was timed out by the server.');
 });
-console.log(`Timeout du serveur HTTP réglé à ${FIFTEEN_MINUTES_IN_MS / 1000 / 60} minutes.`);
+console.log(`HTTP server timeout is set to ${FIVE_MINUTES_IN_MS / 1000 / 60} minutes.`);
 

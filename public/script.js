@@ -1,3 +1,4 @@
+
 // --- Constantes Globales et État ---
 const BASE_API_URL = '';
 const JOUR_COLORS = [
@@ -137,8 +138,14 @@ class GridItemBackend {
         this.element = document.createElement('div');
         this.element.className = 'grid-item';
         this.imgElement = document.createElement('img');
-        this.orderTextElement = document.createElement('span');
-        this.orderTextElement.className = 'order-text';
+        
+        // --- MODIFIÉ : Remplacement de orderTextElement par des overlays plus complexes ---
+        this.singleDayOverlay = document.createElement('span');
+        this.singleDayOverlay.className = 'order-text';
+
+        this.multiDayOverlay = document.createElement('div');
+        this.multiDayOverlay.className = 'multi-day-overlay';
+        // --- FIN MODIFICATION ---
         
         this.deleteButton = document.createElement('button');
         this.deleteButton.className = 'grid-item-delete-btn';
@@ -165,12 +172,10 @@ class GridItemBackend {
         };
 
         this.element.appendChild(this.imgElement);
-        this.element.appendChild(this.orderTextElement);
+        this.element.appendChild(this.singleDayOverlay);
+        this.element.appendChild(this.multiDayOverlay); // Ajout du nouvel overlay
         this.element.appendChild(this.deleteButton);
 
-        this.isUsed = false;
-        this.order = null;
-        this.color = "red";
         this.isValid = true; 
 
         this.updateElementStyle();
@@ -188,7 +193,7 @@ class GridItemBackend {
         errorDiv.style.backgroundColor = 'lightgrey';
         errorDiv.style.fontSize = `${Math.max(8, this.thumbSize.height / 7)}px`;
         errorDiv.textContent = text;
-        this.element.insertBefore(errorDiv, this.orderTextElement); 
+        this.element.insertBefore(errorDiv, this.singleDayOverlay); 
     }
 
     updateElementStyle() {
@@ -223,36 +228,50 @@ class GridItemBackend {
         }
 
         this.thumbSize = { ...newThumbSize };
-        this.updateElementStyle(); 
-        this._updateOrderTextAppearance();
+        this.updateElementStyle();
     }
 
-    _updateOrderTextAppearance() {
-        if (this.isUsed && this.order !== null) {
-            this.orderTextElement.textContent = this.order;
-            this.orderTextElement.style.color = this.color;
-            this.orderTextElement.style.display = 'block';
-            const fontSize = Math.max(10, Math.min(32, Math.floor(this.thumbSize.height * 0.3)));
-            this.orderTextElement.style.fontSize = `${fontSize}px`;
-            this.element.classList.add('used');
-        } else {
-            this.orderTextElement.textContent = '';
-            this.orderTextElement.style.display = 'none';
-            this.element.classList.remove('used');
-        }
-    }
-
+    // --- MODIFIÉ : Logique d'affichage mise à jour ---
     markUsed(order, color = "red") {
-        this.isUsed = true;
-        this.order = order;
-        this.color = color;
-        this._updateOrderTextAppearance();
+        this.multiDayOverlay.style.display = 'none';
+        this.multiDayOverlay.innerHTML = '';
+        
+        this.singleDayOverlay.textContent = order;
+        this.singleDayOverlay.style.color = color;
+        this.singleDayOverlay.style.display = 'block';
+        const fontSize = Math.max(10, Math.min(32, Math.floor(this.thumbSize.height * 0.3)));
+        this.singleDayOverlay.style.fontSize = `${fontSize}px`;
+        
+        this.element.classList.add('used');
     }
 
+    // --- NOUVEAU : Fonction pour l'affichage multi-jours ---
+    markUsedInMultipleDays(usageArray) {
+        this.singleDayOverlay.style.display = 'none';
+        this.multiDayOverlay.innerHTML = ''; // Vider les anciens quadrants
+
+        usageArray.slice(0, 4).forEach((usage, index) => {
+            const quadrantText = document.createElement('div');
+            quadrantText.className = `quadrant-text quadrant-text-${index + 1}`;
+            quadrantText.textContent = usage.label;
+            quadrantText.style.color = usage.color;
+            const fontSize = Math.max(8, Math.min(20, Math.floor(this.thumbSize.height * 0.15)));
+            quadrantText.style.fontSize = `${fontSize}px`;
+
+            this.multiDayOverlay.appendChild(quadrantText);
+        });
+
+        this.multiDayOverlay.style.display = 'block';
+        this.element.classList.add('used');
+    }
+
+    // --- MODIFIÉ : Assure que les deux overlays sont masqués ---
     markUnused() {
-        this.isUsed = false;
-        this.order = null;
-        this._updateOrderTextAppearance();
+        this.singleDayOverlay.style.display = 'none';
+        this.multiDayOverlay.style.display = 'none';
+        this.multiDayOverlay.innerHTML = '';
+
+        this.element.classList.remove('used');
     }
 }
 
@@ -705,22 +724,21 @@ class JourFrameBackend {
         };
     }
     
-    getUsageData() {
-        const usage = {};
+    getUsageDataForMultiple() {
+        const usage = new Map();
         const color = JOUR_COLORS[this.index % JOUR_COLORS.length];
         this.imagesData.forEach((imgData, i) => {
             const label = `${this.letter}${i + 1}`;
             const originalId = imgData.originalReferencePath; 
 
-            if (!usage[originalId] || (this.organizer.jourFrames.find(jf => jf.letter === usage[originalId].jourLetter)?.index || 0) > this.index)
-            {
-                usage[originalId] = {
-                    label: label,
-                    color: color,
-                    displayImageId: imgData.imageId, 
-                    jourLetter: this.letter
-                };
+            if (!usage.has(originalId)) {
+                usage.set(originalId, []);
             }
+            usage.get(originalId).push({
+                label: label,
+                color: color,
+                jourLetter: this.letter
+            });
         });
         return usage;
     }
@@ -2908,7 +2926,7 @@ class PublicationOrganizer {
             // Load schedule and prepare calendar data
             this.scheduleContext = {
                 schedule: data.schedule || {},
-                allUserJours: data.allUserJours || []
+                allUserJours: data.scheduleContext.allUserJours || []
             };
 
             if (this.calendarPage) {
@@ -3290,7 +3308,7 @@ class PublicationOrganizer {
                     delete this.gridItemsDict[idToDelete];
                 }
                 this.jourFrames.forEach(jf => {
-                    jf.removeImageByActualId(idToDelete); 
+                    jf.removeImageById(idToDelete); 
                 });
             });
 
@@ -3426,15 +3444,24 @@ class PublicationOrganizer {
         }
     }
 
+    // --- MODIFIÉ : Logique de mise à jour de la grille ---
     updateGridUsage() {
-        const combinedUsage = this.getCombinedUsageMap(); 
+        const combinedUsage = this.getCombinedUsageMapForMultiDay(); 
+        
         for (const imageId in this.gridItemsDict) { 
             const gridItem = this.gridItemsDict[imageId];
             const originalIdToCompare = gridItem.parentImageId || gridItem.id;
 
-            if (combinedUsage[originalIdToCompare]) {
-                const usageInfo = combinedUsage[originalIdToCompare];
-                gridItem.markUsed(usageInfo.label, usageInfo.color);
+            const usageArray = combinedUsage.get(originalIdToCompare);
+
+            if (usageArray && usageArray.length > 0) {
+                if (usageArray.length === 1) {
+                    gridItem.markUsed(usageArray[0].label, usageArray[0].color);
+                } else if (usageArray.length > 1 && usageArray.length <= 4) {
+                    gridItem.markUsedInMultipleDays(usageArray);
+                } else { // Plus de 4, on affiche juste la première pour éviter la surcharge
+                    gridItem.markUsed(usageArray[0].label, usageArray[0].color);
+                }
             } else {
                 gridItem.markUnused();
             }
@@ -3442,13 +3469,28 @@ class PublicationOrganizer {
         this.updateStatsLabel();
     }
 
-    getCombinedUsageMap() {
-        let combined = {};
+    // --- NOUVEAU : Récupère TOUTES les utilisations de chaque image ---
+    getCombinedUsageMapForMultiDay() {
+        const combined = new Map();
         this.jourFrames.forEach(jf => {
-            Object.assign(combined, jf.getUsageData()); 
+            const jfUsage = jf.getUsageDataForMultiple();
+            for (const [imageId, usageInfos] of jfUsage.entries()) {
+                if (!combined.has(imageId)) {
+                    combined.set(imageId, []);
+                }
+                const existing = combined.get(imageId);
+                existing.push(...usageInfos);
+            }
         });
+
+        // Trier les utilisations par ordre de Jour (A, B, C...)
+        for (const usages of combined.values()) {
+            usages.sort((a, b) => a.jourLetter.localeCompare(b.jourLetter));
+        }
+
         return combined;
     }
+
 
     updateStatsLabel() {
         if (!this.currentGalleryId) {
