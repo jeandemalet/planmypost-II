@@ -1816,11 +1816,6 @@ class CalendarPage {
         this.contextPreviewTitle = document.getElementById('calendarContextTitle');
         this.contextPreviewImages = document.getElementById('calendarContextImages');
 
-        // ### DÉBUT MODIFICATION 1 : Ajout des références au menu contextuel ###
-        this.calendarContextMenu = document.getElementById('calendarItemContextMenu');
-        this.downloadJourContextBtn = document.getElementById('contextMenuDownloadJour');
-        // ### FIN MODIFICATION 1 ###
-
         this.runAutoScheduleBtn = document.getElementById('runAutoScheduleBtn');
         this.autoScheduleInfo = document.getElementById('auto-schedule-info');
 
@@ -1848,40 +1843,22 @@ class CalendarPage {
             }, 100);
         });
 
-        // ### DÉBUT MODIFICATION 2 : Ajout des listeners pour gérer le menu contextuel ###
-        // Clic global pour cacher les menus
+        // Clic global pour cacher les popups restantes
         document.addEventListener('click', (e) => {
             if (this.contextPreviewModal.style.display === 'block' && 
                 !this.contextPreviewModal.contains(e.target) &&
                 !e.target.closest('.scheduled-item')) { 
                     this._hideContextPreview();
             }
-            if (this.calendarContextMenu.style.display === 'block') {
-                this.hideCalendarContextMenu();
-            }
         });
         // Cacher aussi avec la touche Echap
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                if (this.calendarContextMenu.style.display === 'block') {
-                    this.hideCalendarContextMenu();
-                }
                 if (this.contextPreviewModal.style.display === 'block') {
                     this._hideContextPreview();
                 }
             }
         });
-
-        // Listener pour le bouton dans le menu contextuel
-        this.downloadJourContextBtn.addEventListener('click', (e) => {
-            e.stopPropagation(); // Pour ne pas déclencher le 'document.click'
-            const { galleryId, jourId, jourLetter } = this.downloadJourContextBtn.dataset;
-            if (galleryId && jourId && jourLetter) {
-                this.exportJourById(galleryId, jourId, jourLetter);
-            }
-            this.hideCalendarContextMenu();
-        });
-        // ### FIN MODIFICATION 2 ###
 
         this.runAutoScheduleBtn.addEventListener('click', () => this.runAutoSchedule());
         
@@ -2107,18 +2084,23 @@ class CalendarPage {
                     galleryId: itemData.galleryId,
                     data: itemData
                 }, pubItemElement));
-                pubItemElement.addEventListener('click', async (e) => { 
-                    e.stopPropagation();
-                    this._showCalendarContextMenu(e, letter, itemData.galleryId);
-                });
                 
-                // ### DÉBUT MODIFICATION 3 : Remplacer le listener contextmenu ###
-                pubItemElement.addEventListener('contextmenu', (e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    this._showCalendarContextMenu(e, letter, itemData.galleryId);
-                });
-                // ### FIN MODIFICATION 3 ###
+                // AJOUTER la création du bouton de téléchargement
+                const downloadBtn = document.createElement('button');
+                downloadBtn.className = 'scheduled-item-download-btn';
+                downloadBtn.innerHTML = '💾'; // Icône simple pour télécharger
+                downloadBtn.title = 'Télécharger le ZIP du Jour';
+                
+                // Trouver les données complètes du jour pour obtenir son ID pour l'URL d'export
+                const jourDataForExport = this.allUserJours.find(j => j.galleryId === itemData.galleryId && j.letter === letter);
+                if (jourDataForExport) {
+                    downloadBtn.addEventListener('click', (e) => {
+                        e.stopPropagation(); // Empêche d'autres clics de se déclencher
+                        this.exportJourById(itemData.galleryId, jourDataForExport._id, letter);
+                    });
+                    pubItemElement.appendChild(downloadBtn);
+                }
+
 
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'scheduled-item-delete-btn';
@@ -2343,52 +2325,6 @@ class CalendarPage {
         this.contextPreviewModal.style.display = 'none';
     }
 
-    // ### DÉBUT MODIFICATION 4 : Ajouter les nouvelles méthodes pour le menu contextuel ###
-    _showCalendarContextMenu(event, jourLetter, galleryId) {
-        // Cacher les autres popups au cas où
-        this._hideContextPreview();
-        this.hideCalendarContextMenu();
-
-        const jourData = this.allUserJours.find(j => j.galleryId === galleryId && j.letter === jourLetter);
-        if (!jourData) {
-            console.error(`Impossible de trouver les données pour le Jour ${jourLetter} de la galerie ${galleryId}`);
-            return;
-        }
-
-        this.downloadJourContextBtn.dataset.jourId = jourData._id;
-        this.downloadJourContextBtn.dataset.galleryId = galleryId;
-        this.downloadJourContextBtn.dataset.jourLetter = jourLetter;
-
-        const menu = this.calendarContextMenu;
-        menu.style.display = 'block';
-        const menuRect = menu.getBoundingClientRect();
-        
-        let x = event.clientX;
-        let y = event.clientY;
-
-        if (x + menuRect.width > window.innerWidth) {
-            x = window.innerWidth - menuRect.width - 5;
-        }
-        if (y + menuRect.height > window.innerHeight) {
-            y = window.innerHeight - menuRect.height - 5;
-        }
-
-        menu.style.left = `${x}px`;
-        menu.style.top = `${y}px`;
-    }
-
-    hideCalendarContextMenu() {
-        if (this.calendarContextMenu) {
-            this.calendarContextMenu.style.display = 'none';
-            // Nettoyer les données pour éviter les actions accidentelles
-            if (this.downloadJourContextBtn) {
-                this.downloadJourContextBtn.removeAttribute('data-jour-id');
-                this.downloadJourContextBtn.removeAttribute('data-gallery-id');
-                this.downloadJourContextBtn.removeAttribute('data-jour-letter');
-            }
-        }
-    }
-
     async exportJourById(galleryId, jourId, jourLetter) {
         if (!galleryId || !jourId) {
             alert("Erreur: Impossible de déterminer la galerie ou l'ID du jour pour l'exportation.");
@@ -2424,7 +2360,6 @@ class CalendarPage {
             alert(`Erreur d'exportation: ${error.message}`);
         }
     }
-    // ### FIN MODIFICATION 4 ###
 
     isJourScheduled(galleryId, jourLetter) {
         for (const dateKey in this.scheduleData) {
