@@ -1,3 +1,4 @@
+
 // --- Constantes Globales et État ---
 const BASE_API_URL = '';
 const JOUR_COLORS = [
@@ -614,15 +615,11 @@ class JourFrameBackend {
             }
             await response.json();
 
-            // Logique de mise à jour du calendrier
-            if (this.organizer && this.organizer.calendarPage) {
-                const isAlreadyScheduled = this.organizer.calendarPage.isJourScheduled(this.galleryId, this.letter);
-                if (!isAlreadyScheduled && this.imagesData.length > 0) {
-                    const galleryName = this.organizer.getCurrentGalleryName();
-                    this.organizer.calendarPage.scheduleJourInNextAvailableSlot(this.letter, this.galleryId, galleryName);
-                } else if (isAlreadyScheduled && document.getElementById('calendar').classList.contains('active')) {
-                    this.organizer.calendarPage.buildCalendarUI();
-                }
+            // *** LOGIQUE MODIFIÉE POUR LA MISE À JOUR DU CALENDRIER ***
+            // Si l'onglet calendrier est actif, on le rafraîchit.
+            // Cela mettra à jour à la fois la grille ET la liste des jours non planifiés.
+            if (this.organizer && this.organizer.calendarPage && document.getElementById('calendar').classList.contains('active')) {
+                this.organizer.calendarPage.buildCalendarUI();
             }
             return true;
 
@@ -2103,7 +2100,6 @@ class CalendarPage {
         this.calendarGridElement.appendChild(dayCell);
     }
     
-    // --- NOUVELLE FONCTION ---
     buildUnscheduledJoursList() {
         if (!this.unscheduledJoursListElement) return;
 
@@ -2139,12 +2135,24 @@ class CalendarPage {
             letterSpan.textContent = jour.letter;
             const colorIndex = jour.letter.charCodeAt(0) - 'A'.charCodeAt(0);
             letterSpan.style.backgroundColor = JOUR_COLORS[colorIndex % JOUR_COLORS.length];
+            
+            // *** NOUVELLE LOGIQUE POUR AJOUTER LA MINIATURE ***
+            const thumbDiv = document.createElement('div');
+            thumbDiv.className = 'unscheduled-jour-item-thumb';
+            // Chercher le JourFrame correspondant pour obtenir l'image
+            const jourFrame = this.organizerApp.jourFrames.find(jf => jf.galleryId === jour.galleryId && jf.letter === jour.letter);
+            if (jourFrame && jourFrame.imagesData.length > 0) {
+                thumbDiv.style.backgroundImage = `url(${jourFrame.imagesData[0].dataURL})`;
+            } else {
+                thumbDiv.textContent = '...'; // Placeholder si pas d'image
+            }
 
             const gallerySpan = document.createElement('span');
             gallerySpan.className = 'unscheduled-jour-item-gallery';
             gallerySpan.textContent = jour.galleryName;
 
             contentDiv.appendChild(letterSpan);
+            contentDiv.appendChild(thumbDiv); // Ajout de la miniature
             contentDiv.appendChild(gallerySpan);
             itemElement.appendChild(contentDiv);
 
@@ -3687,6 +3695,21 @@ class PublicationOrganizer {
             this.recalculateNextJourIndex();
             this.updateStatsLabel();
             this.saveAppState(); 
+
+            // *** LOGIQUE MODIFIÉE POUR METTRE À JOUR LA LISTE DES JOURS NON PLANIFIÉS ***
+            // Ajoute le nouveau jour aux données locales du calendrier pour qu'il apparaisse dans la liste
+            if (this.calendarPage) {
+                const newJourContext = {
+                    _id: newJourData._id,
+                    letter: newJourData.letter,
+                    galleryId: newJourData.galleryId.toString(),
+                    galleryName: this.getCurrentGalleryName()
+                };
+                this.scheduleContext.allUserJours.push(newJourContext);
+                if (document.getElementById('calendar').classList.contains('active')) {
+                    this.calendarPage.buildCalendarUI();
+                }
+            }
 
             if (this.descriptionManager && document.getElementById('description').classList.contains('active')) {
                 this.descriptionManager.populateJourList();

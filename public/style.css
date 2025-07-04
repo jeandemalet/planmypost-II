@@ -845,6 +845,7 @@ button.small-cancel-btn:hover {
     display: flex;
     align-items: center;
     gap: 8px;
+    width: 100%;
 }
 
 .unscheduled-jour-item-letter {
@@ -866,7 +867,24 @@ button.small-cancel-btn:hover {
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    flex-grow: 1;
 }
+
+.unscheduled-jour-item-thumb {
+    width: 22px;
+    height: 22px;
+    background-size: cover;
+    background-position: center;
+    border: 1px solid rgba(0,0,0,0.1);
+    font-size: 0.7em;
+    line-height: 20px;
+    text-align: center;
+    color: #555;
+    background-color: #e0e0e0;
+    flex-shrink: 0;
+    border-radius: 3px;
+}
+
 /* --- FIN NOUVEAUX STYLES POUR LE BLOC DE JOURS À PLANIFIER --- */
 
 
