@@ -257,7 +257,7 @@ class GridItemBackend {
 }
 
 // =================================================================
-// --- CLASSE JourFrameBackend (LOGIQUE DRAG & DROP CORRIGÉE) ---
+// --- CLASSE JourFrameBackend (LOGIQUE DRAG & DROP FINALE ET STABLE) ---
 // =================================================================
 class JourFrameBackend {
     constructor(organizer, jourData) {
@@ -267,13 +267,13 @@ class JourFrameBackend {
         this.index = jourData.index;
         this.letter = jourData.letter;
         this.maxImages = 20;
-        this.imagesData = []; 
+        this.imagesData = [];
         this.descriptionText = jourData.descriptionText || '';
         this.descriptionHashtags = jourData.descriptionHashtags || '';
-        
+
         this.element = document.createElement('div');
         this.element.className = 'jour-frame';
-        this.element.dataset.id = `jour-${this.letter}`; 
+        this.element.dataset.id = `jour-${this.letter}`;
         this.element.dataset.jourDbId = this.id;
 
         this.labelElement = document.createElement('button');
@@ -285,16 +285,15 @@ class JourFrameBackend {
 
         const buttonsContainer = document.createElement('div');
         buttonsContainer.className = 'jour-frame-buttons';
-        
+
         this.cropBtn = document.createElement('button');
         this.cropBtn.textContent = '✂️ Rec.';
         this.exportJourImagesBtn = document.createElement('button');
         this.exportJourImagesBtn.textContent = 'Exporter Images';
-        
+
         this.deleteJourBtn = document.createElement('button');
         this.deleteJourBtn.textContent = '🗑️ Suppr. Jour';
         this.deleteJourBtn.className = 'danger-btn-small';
-
 
         buttonsContainer.appendChild(this.cropBtn);
         buttonsContainer.appendChild(this.exportJourImagesBtn);
@@ -312,24 +311,23 @@ class JourFrameBackend {
         });
 
         this.cropBtn.addEventListener('click', () => this.openCropperForJour());
-        this.exportJourImagesBtn.addEventListener('click', () => this.exportJourAsZip()); 
+        this.exportJourImagesBtn.addEventListener('click', () => this.exportJourAsZip());
         this.deleteJourBtn.addEventListener('click', () => this.organizer.closeJourFrame(this));
 
         this.debouncedSave = Utils.debounce(() => this.save(), 1500);
 
-        // --- NOUVELLE GESTION DU GLISSER-DEPOSER ---
         this.placeholderElement = document.createElement('div');
         this.placeholderElement.className = 'jour-image-placeholder';
-        
+
         this.canvasWrapper.addEventListener('dragover', (e) => this.onDragOver(e));
         this.canvasWrapper.addEventListener('dragleave', (e) => this.onDragLeave(e));
         this.canvasWrapper.addEventListener('drop', (e) => this.onDrop(e));
 
         if (jourData.images && Array.isArray(jourData.images)) {
             jourData.images.sort((a, b) => a.order - b.order).forEach(imgEntry => {
-                if (imgEntry.imageId && typeof imgEntry.imageId === 'object') { 
+                if (imgEntry.imageId && typeof imgEntry.imageId === 'object') {
                     this.addImageFromBackendData(imgEntry.imageId);
-                } else if (typeof imgEntry.imageId === 'string') { 
+                } else if (typeof imgEntry.imageId === 'string') {
                     const fullImgData = this.organizer.gridItemsDict[imgEntry.imageId] || this.organizer.findImageInAnyJour(imgEntry.imageId);
                     if (fullImgData) this.addImageFromBackendData(fullImgData, true);
                 }
@@ -337,17 +335,14 @@ class JourFrameBackend {
         }
         this.checkAndApplyCroppedStyle();
     }
-    
-    // --- NOUVELLE LOGIQUE DRAG & DROP ---
 
     onDragOver(e) {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         this.canvasWrapper.classList.add('drag-over');
 
-        const draggingElement = document.querySelector('.dragging-jour-item');
-        const afterElement = this.getDragAfterElement(e.clientX);
-        
+        const afterElement = this.getDragAfterElement(e.clientX, e.clientY);
+
         if (afterElement == null) {
             this.canvasWrapper.appendChild(this.placeholderElement);
         } else {
@@ -355,22 +350,28 @@ class JourFrameBackend {
         }
     }
 
+    /**
+     * LOGIQUE STABILISÉE : Trouve le premier élément dont la moitié gauche est après le curseur.
+     * C'est la méthode la plus directe et la moins sujette au scintillement.
+     */
     getDragAfterElement(x) {
         const draggableElements = [...this.canvasWrapper.querySelectorAll('.jour-image-item:not(.dragging-jour-item)')];
-
-        return draggableElements.reduce((closest, child) => {
+    
+        for (const child of draggableElements) {
             const box = child.getBoundingClientRect();
-            const offset = x - box.left - box.width / 2;
-            if (offset < 0 && offset > closest.offset) {
-                return { offset: offset, element: child };
-            } else {
-                return closest;
+            // Si le curseur est à gauche du point central de l'élément, c'est notre cible.
+            if (x < box.left + box.width / 2) {
+                return child;
             }
-        }, { offset: Number.NEGATIVE_INFINITY }).element;
+        }
+    
+        // Si on a parcouru tous les éléments, cela signifie que le curseur est après le centre de tous les éléments.
+        // On doit donc insérer à la toute fin.
+        return null;
     }
 
+
     onDragLeave(e) {
-        // Simple check to avoid flickering when moving over child elements
         if (!this.canvasWrapper.contains(e.relatedTarget)) {
             this.canvasWrapper.classList.remove('drag-over');
             if (this.placeholderElement.parentNode) {
@@ -378,7 +379,7 @@ class JourFrameBackend {
             }
         }
     }
-
+    
     onDrop(e) {
         e.preventDefault();
         this.canvasWrapper.classList.remove('drag-over');
@@ -391,8 +392,9 @@ class JourFrameBackend {
 
         try {
             const data = JSON.parse(jsonData);
+            // Recalcule la position finale au moment du drop pour une précision maximale.
+            const afterElement = this.getDragAfterElement(e.clientX, e.clientY);
 
-            // Cas 1: Déposer une nouvelle image depuis la grille principale
             if (data.sourceType === 'grid') {
                 const gridItem = this.organizer.gridItemsDict[data.imageId];
                 if (gridItem) {
@@ -402,28 +404,20 @@ class JourFrameBackend {
                         dataURL: gridItem.thumbnailPath,
                         isCropped: gridItem.isCroppedVersion
                     };
-                    // Insérer l'élément et sa donnée
                     const newElement = this.createJourItemElement(newItemData);
-                    const afterElement = this.getDragAfterElement(e.clientX);
                     this.canvasWrapper.insertBefore(newElement, afterElement);
                     this.syncDataArrayFromDOM();
                 }
-            }
-            // Cas 2: Réorganiser un élément (depuis ce Jour ou un autre)
-            else if (data.sourceType === 'jour') {
+            } else if (data.sourceType === 'jour') {
                 const sourceJourFrame = this.organizer.jourFrames.find(jf => jf.id === data.sourceJourId);
                 const draggedElement = document.querySelector('.dragging-jour-item');
                 
                 if (draggedElement && sourceJourFrame) {
-                    // Insérer l'élément visuellement à la bonne place
-                    const afterElement = this.getDragAfterElement(e.clientX);
                     this.canvasWrapper.insertBefore(draggedElement, afterElement);
-
-                    // Si l'élément vient d'un autre jour, synchroniser l'autre jour
+                    
                     if (sourceJourFrame !== this) {
                         sourceJourFrame.syncDataArrayFromDOM();
                     }
-                    // Synchroniser ce jour
                     this.syncDataArrayFromDOM();
                 }
             }
@@ -434,16 +428,28 @@ class JourFrameBackend {
             if (dragging) dragging.classList.remove('dragging-jour-item');
         }
     }
-
+    
     syncDataArrayFromDOM() {
         const newImagesData = [];
         const imageElements = this.canvasWrapper.querySelectorAll('.jour-image-item');
-        const allImageDataById = new Map();
 
-        // Créer une map de toutes les données d'image possibles pour une recherche rapide
+        const allImageDataById = new Map();
+        // Construire une map de toutes les données d'image possibles pour une recherche rapide
         this.organizer.jourFrames.forEach(jf => {
             jf.imagesData.forEach(data => allImageDataById.set(data.imageId, data));
         });
+        // Pour les images qui viennent d'être ajoutées depuis la grille principale et qui n'ont pas encore de 'jourData'
+        this.organizer.gridItems.forEach(gridItem => {
+            if (!allImageDataById.has(gridItem.id)) {
+                 allImageDataById.set(gridItem.id, {
+                    imageId: gridItem.id,
+                    originalReferencePath: gridItem.parentImageId || gridItem.id,
+                    dataURL: gridItem.thumbnailPath,
+                    isCropped: gridItem.isCroppedVersion
+                });
+            }
+        });
+
 
         imageElements.forEach(element => {
             const imageId = element.dataset.imageId;
@@ -459,8 +465,6 @@ class JourFrameBackend {
         this.debouncedSave();
         this.checkAndApplyCroppedStyle();
     }
-
-    // --- FIN NOUVELLE LOGIQUE DRAG & DROP ---
 
     addImageFromBackendData(imageData, isGridItemInstance = false) {
         let galleryIdForURL = this.galleryId;
@@ -480,7 +484,6 @@ class JourFrameBackend {
             isCropped: imageData.isCroppedVersion || false,
         };
 
-        // Ajoute l'élément au DOM et met à jour l'array de données
         this.imagesData.push(imageItemData);
         const newElement = this.createJourItemElement(imageItemData);
         this.canvasWrapper.appendChild(newElement);
@@ -509,7 +512,7 @@ class JourFrameBackend {
     
         const deleteBtn = document.createElement('span');
         deleteBtn.className = 'delete-btn';
-        deleteBtn.innerHTML = '&times;';
+        deleteBtn.innerHTML = '×';
         deleteBtn.onclick = (e) => {
             e.stopPropagation();
             this.removeImageById(imageItemData.imageId);
@@ -525,7 +528,7 @@ class JourFrameBackend {
         }
         this.syncDataArrayFromDOM();
     }
-
+    
     checkAndApplyCroppedStyle() {
         this.hasBeenProcessedByCropper = this.imagesData.some(img => img.isCropped);
         if (this.hasBeenProcessedByCropper) {
@@ -736,17 +739,6 @@ class JourFrameBackend {
         this.imagesData = []; 
     }
 }
-// Le reste des classes (ImageCropperPopup, DescriptionManager, CalendarPage, PublicationOrganizer)
-// et les fonctions d'initialisation (DOMContentLoaded, checkUserStatus, etc.)
-// restent les mêmes que dans votre fichier original. J'ai omis de les copier ici pour la clarté,
-// mais vous devez conserver le reste de votre fichier `script.js` et ne remplacer
-// que la classe `JourFrameBackend` par celle-ci. Si vous préférez, je peux fournir le fichier entier.
-
-// ... [Collez le reste de votre script.js ici, à partir de la classe ImageCropperPopup]
-
-// =================================================================
-// --- CLASSE ImageCropperPopup ---
-// =================================================================
 class ImageCropperPopup {
     constructor(organizer) {
         this.organizer = organizer;
