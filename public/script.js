@@ -139,13 +139,11 @@ class GridItemBackend {
         this.element.className = 'grid-item';
         this.imgElement = document.createElement('img');
         
-        // --- MODIFIÉ : Remplacement de orderTextElement par des overlays plus complexes ---
         this.singleDayOverlay = document.createElement('span');
         this.singleDayOverlay.className = 'order-text';
 
         this.multiDayOverlay = document.createElement('div');
         this.multiDayOverlay.className = 'multi-day-overlay';
-        // --- FIN MODIFICATION ---
         
         this.deleteButton = document.createElement('button');
         this.deleteButton.className = 'grid-item-delete-btn';
@@ -173,7 +171,7 @@ class GridItemBackend {
 
         this.element.appendChild(this.imgElement);
         this.element.appendChild(this.singleDayOverlay);
-        this.element.appendChild(this.multiDayOverlay); // Ajout du nouvel overlay
+        this.element.appendChild(this.multiDayOverlay);
         this.element.appendChild(this.deleteButton);
 
         this.isValid = true; 
@@ -231,7 +229,6 @@ class GridItemBackend {
         this.updateElementStyle();
     }
 
-    // --- MODIFIÉ : Logique d'affichage mise à jour ---
     markUsed(order, color = "red") {
         this.multiDayOverlay.style.display = 'none';
         this.multiDayOverlay.innerHTML = '';
@@ -245,10 +242,9 @@ class GridItemBackend {
         this.element.classList.add('used');
     }
 
-    // --- NOUVEAU : Fonction pour l'affichage multi-jours ---
     markUsedInMultipleDays(usageArray) {
         this.singleDayOverlay.style.display = 'none';
-        this.multiDayOverlay.innerHTML = ''; // Vider les anciens quadrants
+        this.multiDayOverlay.innerHTML = ''; 
 
         usageArray.slice(0, 4).forEach((usage, index) => {
             const quadrantText = document.createElement('div');
@@ -265,7 +261,6 @@ class GridItemBackend {
         this.element.classList.add('used');
     }
 
-    // --- MODIFIÉ : Assure que les deux overlays sont masqués ---
     markUnused() {
         this.singleDayOverlay.style.display = 'none';
         this.multiDayOverlay.style.display = 'none';
@@ -369,23 +364,16 @@ class JourFrameBackend {
         }
     }
 
-    /**
-     * LOGIQUE STABILISÉE : Trouve le premier élément dont la moitié gauche est après le curseur.
-     * C'est la méthode la plus directe et la moins sujette au scintillement.
-     */
     getDragAfterElement(x) {
         const draggableElements = [...this.canvasWrapper.querySelectorAll('.jour-image-item:not(.dragging-jour-item)')];
     
         for (const child of draggableElements) {
             const box = child.getBoundingClientRect();
-            // Si le curseur est à gauche du point central de l'élément, c'est notre cible.
             if (x < box.left + box.width / 2) {
                 return child;
             }
         }
     
-        // Si on a parcouru tous les éléments, cela signifie que le curseur est après le centre de tous les éléments.
-        // On doit donc insérer à la toute fin.
         return null;
     }
 
@@ -411,7 +399,6 @@ class JourFrameBackend {
 
         try {
             const data = JSON.parse(jsonData);
-            // Recalcule la position finale au moment du drop pour une précision maximale.
             const afterElement = this.getDragAfterElement(e.clientX, e.clientY);
 
             if (data.sourceType === 'grid') {
@@ -453,11 +440,9 @@ class JourFrameBackend {
         const imageElements = this.canvasWrapper.querySelectorAll('.jour-image-item');
 
         const allImageDataById = new Map();
-        // Construire une map de toutes les données d'image possibles pour une recherche rapide
         this.organizer.jourFrames.forEach(jf => {
             jf.imagesData.forEach(data => allImageDataById.set(data.imageId, data));
         });
-        // Pour les images qui viennent d'être ajoutées depuis la grille principale et qui n'ont pas encore de 'jourData'
         this.organizer.gridItems.forEach(gridItem => {
             if (!allImageDataById.has(gridItem.id)) {
                  allImageDataById.set(gridItem.id, {
@@ -1821,7 +1806,7 @@ class CalendarPage {
         this.parentElement = parentElement;
         this.organizerApp = organizerApp;
         this.scheduleData = {}; 
-        this.allUserJours = []; // NOUVEAU: Stocke tous les jours de l'utilisateur pour la planification
+        this.allUserJours = []; 
 
         this.currentDate = new Date(); 
         this.calendarGridElement = this.parentElement.querySelector('#calendarGrid');
@@ -1831,7 +1816,6 @@ class CalendarPage {
         this.contextPreviewTitle = document.getElementById('calendarContextTitle');
         this.contextPreviewImages = document.getElementById('calendarContextImages');
 
-        // NOUVEAUX ÉLÉMENTS POUR LA PLANIFICATION AUTO
         this.runAutoScheduleBtn = document.getElementById('runAutoScheduleBtn');
         this.autoScheduleInfo = document.getElementById('auto-schedule-info');
 
@@ -1867,7 +1851,6 @@ class CalendarPage {
             }
         });
 
-        // NOUVEL ÉCOUTEUR
         this.runAutoScheduleBtn.addEventListener('click', () => this.runAutoSchedule());
     }
 
@@ -2151,10 +2134,10 @@ class CalendarPage {
         for (const dateKey in this.scheduleData) {
             const dayEvents = this.scheduleData[dateKey];
             if (dayEvents[jourLetter] && dayEvents[jourLetter].galleryId === galleryId) {
-                return true; // Le jour est trouvé dans le calendrier
+                return true; 
             }
         }
-        return false; // Le jour n'a été trouvé nulle part
+        return false;
     }
 
 
@@ -2251,7 +2234,6 @@ class CalendarPage {
                 throw new Error("Les valeurs de publication doivent être supérieures à zéro.");
             }
 
-            // 1. Identifier les jours déjà planifiés
             const scheduledJourIdentifiers = new Set();
             Object.values(this.scheduleData).forEach(day => {
                 Object.values(day).forEach(item => {
@@ -2262,7 +2244,6 @@ class CalendarPage {
                 });
             });
 
-            // 2. Filtrer pour obtenir les jours non planifiés
             let unpublishedJours = this.allUserJours.filter(jour => 
                 !scheduledJourIdentifiers.has(`${jour.galleryId}-${jour.letter}`) && this.organizerApp.isJourReadyForPublishing(jour.galleryId, jour.letter)
             );
@@ -2273,7 +2254,6 @@ class CalendarPage {
                 return;
             }
 
-            // 3. Appliquer la logique de tri/mélange
             if (mode === 'chrono') {
                 unpublishedJours.sort((a, b) => {
                     const galleryCompare = a.galleryName.localeCompare(b.galleryName);
@@ -2310,7 +2290,6 @@ class CalendarPage {
                 }
             }
             
-            // 4. Placer les jours dans le calendrier
             let currentDate = new Date();
             currentDate.setHours(0, 0, 0, 0); 
             let joursPlaced = 0;
@@ -2937,7 +2916,7 @@ class PublicationOrganizer {
             this.updateStatsLabel();
             this.updateAddPhotosPlaceholderVisibility();
             this.updateGridItemStyles();
-            this.updateUIToNoGalleryState(); // This will enable/disable elements based on whether a gallery is loaded
+            this.updateUIToNoGalleryState(); 
 
             const activeTab = galleryState.activeTab || 'currentGallery';
             this.activateTab(activeTab);
@@ -3418,6 +3397,7 @@ class PublicationOrganizer {
         this.saveAppState();
     }
 
+    // --- MODIFIÉ : Ajout de la vérification du nombre max de jours ---
     onGridItemClick(gridItem) { 
         if (!gridItem || !gridItem.isValid) return; 
 
@@ -3433,6 +3413,18 @@ class PublicationOrganizer {
         if (alreadyInCurrentJourFrame) { 
             this.currentJourFrame.removeImageById(gridItem.id);
         } else {
+            // --- DÉBUT DE LA NOUVELLE LOGIQUE DE VÉRIFICATION ---
+            const combinedUsage = this.getCombinedUsageMapForMultiDay();
+            const originalId = gridItem.parentImageId || gridItem.id;
+            const usageArray = combinedUsage.get(originalId) || [];
+            const uniqueJourLetters = new Set(usageArray.map(u => u.jourLetter));
+
+            if (uniqueJourLetters.size >= 4) {
+                alert("Une image ne peut pas être sélectionnée dans plus de 4 jours différents.");
+                return; // Annule l'ajout
+            }
+            // --- FIN DE LA NOUVELLE LOGIQUE DE VÉRIFICATION ---
+
             const newElement = this.currentJourFrame.createJourItemElement({
                 imageId: gridItem.id,
                 originalReferencePath: gridItem.parentImageId || gridItem.id,
@@ -3444,7 +3436,6 @@ class PublicationOrganizer {
         }
     }
 
-    // --- MODIFIÉ : Logique de mise à jour de la grille ---
     updateGridUsage() {
         const combinedUsage = this.getCombinedUsageMapForMultiDay(); 
         
@@ -3457,10 +3448,8 @@ class PublicationOrganizer {
             if (usageArray && usageArray.length > 0) {
                 if (usageArray.length === 1) {
                     gridItem.markUsed(usageArray[0].label, usageArray[0].color);
-                } else if (usageArray.length > 1 && usageArray.length <= 4) {
+                } else {
                     gridItem.markUsedInMultipleDays(usageArray);
-                } else { // Plus de 4, on affiche juste la première pour éviter la surcharge
-                    gridItem.markUsed(usageArray[0].label, usageArray[0].color);
                 }
             } else {
                 gridItem.markUnused();
@@ -3469,7 +3458,6 @@ class PublicationOrganizer {
         this.updateStatsLabel();
     }
 
-    // --- NOUVEAU : Récupère TOUTES les utilisations de chaque image ---
     getCombinedUsageMapForMultiDay() {
         const combined = new Map();
         this.jourFrames.forEach(jf => {
@@ -3483,7 +3471,6 @@ class PublicationOrganizer {
             }
         });
 
-        // Trier les utilisations par ordre de Jour (A, B, C...)
         for (const usages of combined.values()) {
             usages.sort((a, b) => a.jourLetter.localeCompare(b.jourLetter));
         }
