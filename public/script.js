@@ -2074,9 +2074,7 @@ class CalendarPage {
                 deleteBtn.title = 'Supprimer cette publication du calendrier';
                 deleteBtn.onclick = (e) => {
                     e.stopPropagation();
-                    if (confirm(`Voulez-vous vraiment supprimer la publication du Jour ${letter} de cette date ?`)) {
-                        this.removePublicationForDate(dateObj, letter);
-                    }
+                    this.removePublicationForDate(dateObj, letter);
                 };
                 pubItemElement.appendChild(deleteBtn);
 
