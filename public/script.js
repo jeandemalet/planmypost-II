@@ -1811,6 +1811,7 @@ class CalendarPage {
         this.currentDate = new Date(); 
         this.calendarGridElement = this.parentElement.querySelector('#calendarGrid');
         this.monthYearLabelElement = this.parentElement.querySelector('#monthYearLabel');
+        this.unscheduledJoursListElement = this.parentElement.querySelector('#unscheduledJoursList');
         
         this.contextPreviewModal = document.getElementById('calendarContextPreviewModal');
         this.contextPreviewTitle = document.getElementById('calendarContextTitle');
@@ -1818,7 +1819,6 @@ class CalendarPage {
 
         this.runAutoScheduleBtn = document.getElementById('runAutoScheduleBtn');
         this.autoScheduleInfo = document.getElementById('auto-schedule-info');
-
 
         this.dragData = {}; 
 
@@ -1877,9 +1877,11 @@ class CalendarPage {
         if (!app.currentGalleryId && this.organizerApp) { 
             this.calendarGridElement.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 20px;">Chargez ou créez une galerie pour voir le calendrier.</p>';
             this.monthYearLabelElement.textContent = "Calendrier";
+            this.buildUnscheduledJoursList(); // Also clear/update the side list
             return;
         }
 
+        this.buildUnscheduledJoursList();
 
         const year = this.currentDate.getFullYear();
         const month = this.currentDate.getMonth(); 
@@ -1988,7 +1990,13 @@ class CalendarPage {
                 pubItemElement.dataset.galleryId = itemData.galleryId; 
 
 
-                pubItemElement.addEventListener('dragstart', (e) => this._onDragStart(e, dateKey, letter, itemData.galleryId, pubItemElement));
+                pubItemElement.addEventListener('dragstart', (e) => this._onDragStart(e, {
+                    type: 'calendar',
+                    date: dateKey,
+                    letter: letter,
+                    galleryId: itemData.galleryId,
+                    data: itemData
+                }, pubItemElement));
                 pubItemElement.addEventListener('click', async (e) => { 
                     e.stopPropagation();
                     if (itemData.galleryId && itemData.galleryId !== 'unknown') { 
@@ -2035,6 +2043,60 @@ class CalendarPage {
 
         this.calendarGridElement.appendChild(dayCell);
     }
+    
+    // --- NOUVELLE FONCTION ---
+    buildUnscheduledJoursList() {
+        if (!this.unscheduledJoursListElement) return;
+
+        this.unscheduledJoursListElement.innerHTML = '';
+
+        const scheduledSet = new Set();
+        for (const date in this.scheduleData) {
+            for (const letter in this.scheduleData[date]) {
+                const item = this.scheduleData[date][letter];
+                scheduledSet.add(`${item.galleryId}-${letter}`);
+            }
+        }
+
+        const unscheduled = this.allUserJours.filter(jour => {
+            return !scheduledSet.has(`${jour.galleryId}-${jour.letter}`);
+        });
+
+        if (unscheduled.length === 0) {
+            this.unscheduledJoursListElement.innerHTML = '<p class="sidebar-info">Tous les jours sont planifiés !</p>';
+            return;
+        }
+
+        unscheduled.forEach(jour => {
+            const itemElement = document.createElement('div');
+            itemElement.className = 'unscheduled-jour-item';
+            itemElement.draggable = true;
+
+            const contentDiv = document.createElement('div');
+            contentDiv.className = 'unscheduled-jour-item-content';
+
+            const letterSpan = document.createElement('span');
+            letterSpan.className = 'unscheduled-jour-item-letter';
+            letterSpan.textContent = jour.letter;
+            const colorIndex = jour.letter.charCodeAt(0) - 'A'.charCodeAt(0);
+            letterSpan.style.backgroundColor = JOUR_COLORS[colorIndex % JOUR_COLORS.length];
+
+            const gallerySpan = document.createElement('span');
+            gallerySpan.className = 'unscheduled-jour-item-gallery';
+            gallerySpan.textContent = jour.galleryName;
+
+            contentDiv.appendChild(letterSpan);
+            contentDiv.appendChild(gallerySpan);
+            itemElement.appendChild(contentDiv);
+
+            itemElement.addEventListener('dragstart', e => this._onDragStart(e, {
+                type: 'unscheduled',
+                ...jour
+            }, itemElement));
+
+            this.unscheduledJoursListElement.appendChild(itemElement);
+        });
+    }
 
     async loadCalendarThumb(thumbElement, jourLetter, galleryIdForJour) {
         if (galleryIdForJour === this.organizerApp.currentGalleryId) {
@@ -2049,47 +2111,81 @@ class CalendarPage {
         }
     }
     
-    _onDragStart(event, dateStr, letter, galleryId, itemElement) { 
-        this.dragData = {
-            sourceDateStr: dateStr,
-            sourceLetter: letter,
-            sourceGalleryId: galleryId, 
-            sourceData: this.scheduleData[dateStr][letter] 
-        };
-        event.dataTransfer.setData("text/plain", `${dateStr}_${letter}_${galleryId}`); 
+    _onDragStart(event, dragPayload, itemElement) { 
+        this.dragData = dragPayload;
+        event.dataTransfer.setData("application/json", JSON.stringify(dragPayload)); 
         event.dataTransfer.effectAllowed = "move";
-        setTimeout(() => itemElement.classList.add('dragging-schedule-item'), 0); 
+
+        setTimeout(() => {
+            if (dragPayload.type === 'calendar') {
+                itemElement.classList.add('dragging-schedule-item');
+            } else {
+                itemElement.classList.add('dragging-from-list');
+            }
+        }, 0); 
+    
+        // Nettoyage à la fin du drag
+        const onDragEnd = () => {
+            if (dragPayload.type === 'calendar') {
+                itemElement.classList.remove('dragging-schedule-item');
+            } else {
+                itemElement.classList.remove('dragging-from-list');
+            }
+            document.removeEventListener('dragend', onDragEnd);
+        };
+        document.addEventListener('dragend', onDragEnd, { once: true });
     }
 
     _onDrop(event, targetDateKey) {
         event.preventDefault();
-        const draggedItem = document.querySelector('.dragging-schedule-item');
-        if (draggedItem) draggedItem.classList.remove('dragging-schedule-item');
-
-        if (!this.dragData.sourceDateStr) return; 
-
-        const { sourceDateStr, sourceLetter, sourceGalleryId, sourceData } = this.dragData; 
-
-        if (sourceDateStr === targetDateKey) { 
-            this.dragData = {};
-            this.buildCalendarUI(); 
-            return;
-        }
-
-        delete this.scheduleData[sourceDateStr][sourceLetter];
-        if (Object.keys(this.scheduleData[sourceDateStr]).length === 0) {
-            delete this.scheduleData[sourceDateStr];
-        }
-
-        if (!this.scheduleData[targetDateKey]) {
-            this.scheduleData[targetDateKey] = {};
-        }
-        this.scheduleData[targetDateKey][sourceLetter] = { ...sourceData, galleryId: sourceGalleryId }; 
-
-        this.saveSchedule(); 
-        this.buildCalendarUI(); 
         
-        this.dragData = {};
+        // Nettoyage de la classe sur l'élément en cours de drag
+        const draggingElement = document.querySelector('.dragging-schedule-item, .dragging-from-list');
+        if (draggingElement) {
+            draggingElement.classList.remove('dragging-schedule-item', 'dragging-from-list');
+        }
+
+        try {
+            const droppedData = JSON.parse(event.dataTransfer.getData("application/json"));
+            
+            if (droppedData.type === 'unscheduled') {
+                // Ajout d'un nouveau jour depuis la liste
+                this.addOrUpdatePublicationForDate(
+                    new Date(targetDateKey + 'T00:00:00'),
+                    droppedData.letter,
+                    droppedData.galleryId,
+                    droppedData.galleryName
+                );
+            } else if (droppedData.type === 'calendar') {
+                // Déplacement d'un jour déjà sur le calendrier
+                const { date: sourceDateStr, letter: sourceLetter, data: sourceData } = droppedData;
+    
+                if (sourceDateStr === targetDateKey) { 
+                    this.buildCalendarUI(); 
+                    return;
+                }
+    
+                // Supprimer de l'ancienne position
+                delete this.scheduleData[sourceDateStr][sourceLetter];
+                if (Object.keys(this.scheduleData[sourceDateStr]).length === 0) {
+                    delete this.scheduleData[sourceDateStr];
+                }
+    
+                // Ajouter à la nouvelle position
+                if (!this.scheduleData[targetDateKey]) {
+                    this.scheduleData[targetDateKey] = {};
+                }
+                this.scheduleData[targetDateKey][sourceLetter] = sourceData;
+    
+                this.saveSchedule(); 
+                this.buildCalendarUI();
+            }
+
+        } catch (e) {
+            console.error("Erreur lors du drop sur le calendrier:", e);
+        } finally {
+            this.dragData = {};
+        }
     }
 
     async _showContextPreview(event, jourLetter, dateStr, galleryIdForJour) { 
@@ -2171,6 +2267,10 @@ class CalendarPage {
         const dateStr = this.formatDateKey(dateObj);
         if (!this.scheduleData[dateStr]) {
             this.scheduleData[dateStr] = {};
+        }
+        // Pour éviter de placer un jour deux fois sur la même date
+        if (this.scheduleData[dateStr][jourLetter] && this.scheduleData[dateStr][jourLetter].galleryId === galleryId) {
+            return;
         }
         this.scheduleData[dateStr][jourLetter] = {
             label: `Jour ${jourLetter}`, 

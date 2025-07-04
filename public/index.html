@@ -158,8 +158,7 @@
             </div>
         </div>
 
-
-        <!-- NOUVELLE STRUCTURE POUR L'ONGLET CALENDRIER -->
+        <!-- STRUCTURE MODIFIÉE POUR L'ONGLET CALENDRIER -->
         <div id="calendar" class="tab-content">
             <div id="calendar-sidebar">
                 <div class="sidebar-section">
@@ -190,6 +189,16 @@
                     <button id="runAutoScheduleBtn" class="primary-action">Lancer la Planification</button>
                     <p id="auto-schedule-info" class="sidebar-info"></p>
                 </div>
+
+                <!-- DÉBUT DU NOUVEAU BLOC -->
+                <div id="unscheduledJoursContainer" class="sidebar-section">
+                    <h4>Jours à Planifier</h4>
+                    <p class="sidebar-info">Glissez-déposez un jour sur le calendrier.</p>
+                    <div id="unscheduledJoursList">
+                        <!-- Les jours non planifiés apparaîtront ici -->
+                    </div>
+                </div>
+                <!-- FIN DU NOUVEAU BLOC -->
             </div>
             <div id="calendar-main-content">
                 <div class="scheduler-header">
@@ -203,7 +212,7 @@
                 <div id="calendarContextImages"></div>
             </div>
         </div>
-        <!-- FIN DE LA NOUVELLE STRUCTURE -->
+        <!-- FIN DE LA STRUCTURE MODIFIÉE -->
 
     </div>
 
