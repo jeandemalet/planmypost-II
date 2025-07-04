@@ -1,4 +1,3 @@
-
 // --- Constantes Globales et État ---
 const BASE_API_URL = '';
 const JOUR_COLORS = [
@@ -1852,7 +1851,67 @@ class CalendarPage {
         });
 
         this.runAutoScheduleBtn.addEventListener('click', () => this.runAutoSchedule());
+        
+        // --- DÉBUT DES AJOUTS POUR LE DRAG & DROP VERS LA LISTE ---
+        this.unscheduledJoursListElement.addEventListener('dragover', (e) => this._onDragOverUnscheduledList(e));
+        this.unscheduledJoursListElement.addEventListener('dragleave', (e) => this._onDragLeaveUnscheduledList(e));
+        this.unscheduledJoursListElement.addEventListener('drop', (e) => this._onDropOnUnscheduledList(e));
+        // --- FIN DES AJOUTS POUR LE DRAG & DROP VERS LA LISTE ---
     }
+
+    // --- DÉBUT DES NOUVELLES FONCTIONS ---
+    _onDragOverUnscheduledList(event) {
+        event.preventDefault();
+        try {
+            const droppedData = JSON.parse(event.dataTransfer.getData("application/json"));
+            // Accepter le drop uniquement si l'élément vient du calendrier
+            if (droppedData && droppedData.type === 'calendar') {
+                event.dataTransfer.dropEffect = 'move';
+                this.unscheduledJoursListElement.classList.add('drag-over-list');
+            } else {
+                event.dataTransfer.dropEffect = 'none';
+            }
+        } catch(e) {
+            event.dataTransfer.dropEffect = 'none';
+        }
+    }
+
+    _onDragLeaveUnscheduledList(event) {
+        this.unscheduledJoursListElement.classList.remove('drag-over-list');
+    }
+
+    _onDropOnUnscheduledList(event) {
+        event.preventDefault();
+        this.unscheduledJoursListElement.classList.remove('drag-over-list');
+
+        try {
+            const droppedData = JSON.parse(event.dataTransfer.getData("application/json"));
+
+            // Ne rien faire si l'élément ne vient pas du calendrier
+            if (droppedData.type !== 'calendar') {
+                return;
+            }
+
+            const { date: sourceDateStr, letter: sourceLetter } = droppedData;
+
+            // Retirer l'élément des données du calendrier
+            if (this.scheduleData[sourceDateStr] && this.scheduleData[sourceDateStr][sourceLetter]) {
+                delete this.scheduleData[sourceDateStr][sourceLetter];
+                // Si la date est maintenant vide, on la supprime
+                if (Object.keys(this.scheduleData[sourceDateStr]).length === 0) {
+                    delete this.scheduleData[sourceDateStr];
+                }
+
+                // Sauvegarder et rafraîchir l'interface
+                this.saveSchedule();
+                this.buildCalendarUI(); // Rafraîchit le calendrier ET la liste des jours non planifiés
+            }
+
+        } catch (err) {
+            console.error("Erreur lors du drop sur la liste des jours non planifiés :", err);
+        }
+    }
+    // --- FIN DES NOUVELLES FONCTIONS ---
 
     goToToday() {
         this.currentDate = new Date();
