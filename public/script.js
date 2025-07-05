@@ -1021,7 +1021,7 @@ class ImageCropperPopup {
                 } else { 
                     let defaultRatio = this.aspectRatioSelect.value; 
                     
-                    if (this.saveMode === 'crop' && defaultRatio === 'free') { 
+                    if (this.saveMode === 'crop') { 
                         const imgWidth = this.currentImageObject.naturalWidth || this.currentImageObject.width;
                         const imgHeight = this.currentImageObject.naturalHeight || this.currentImageObject.height;
                         if (imgHeight > imgWidth * 1.1) defaultRatio = '3:4'; 
