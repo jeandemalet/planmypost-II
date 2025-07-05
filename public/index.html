@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -190,16 +191,18 @@
                     <p id="auto-schedule-info" class="sidebar-info"></p>
                 </div>
 
-                <!-- DÉBUT DU NOUVEAU BLOC -->
                 <div id="unscheduledJoursContainer" class="sidebar-section">
                     <h4>Jours à Planifier</h4>
                     <p class="sidebar-info">Glissez-déposez un jour sur le calendrier.</p>
                     <div id="unscheduledJoursList">
                         <!-- Les jours non planifiés apparaîtront ici -->
                     </div>
-                    <button id="reorganizeAllBtn" class="secondary-action">Tout Réorganiser</button>
+                    <!-- *** MODIFIÉ: Ajout des nouveaux boutons *** -->
+                    <button id="reorganizeAllBtn" class="secondary-action" style="margin-top: 10px;">Tout Réorganiser</button>
+                    <button id="downloadAllScheduledBtn" class="primary-action" style="margin-top: 5px;">Tout Télécharger</button>
+                    <!-- *** FIN DES MODIFICATIONS *** -->
                 </div>
-                <!-- FIN DU NOUVEAU BLOC -->
+
             </div>
             <div id="calendar-main-content">
                 <div class="scheduler-header">

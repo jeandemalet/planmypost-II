@@ -1,3 +1,4 @@
+
 // =================================================================
 // --- Contenu complet du fichier : public/script.js (Corrigé) ---
 // =================================================================
@@ -1887,7 +1888,6 @@ class CalendarPage {
         this.buildCalendarUI();
     }
 
-    // --- DÉBUT DES NOUVELLES FONCTIONS ---
     _onDragOverUnscheduledList(event) {
         event.preventDefault();
         try {
@@ -1939,7 +1939,6 @@ class CalendarPage {
             console.error("Erreur lors du drop sur la liste des jours non planifiés :", err);
         }
     }
-    // --- FIN DES NOUVELLES FONCTIONS ---
 
     goToToday() {
         this.currentDate = new Date();
@@ -1964,7 +1963,7 @@ class CalendarPage {
         if (!app.currentGalleryId && this.organizerApp) { 
             this.calendarGridElement.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 20px;">Chargez ou créez une galerie pour voir le calendrier.</p>';
             this.monthYearLabelElement.textContent = "Calendrier";
-            this.buildUnscheduledJoursList(); // Also clear/update the side list
+            this.buildUnscheduledJoursList();
             return;
         }
 
@@ -2013,8 +2012,6 @@ class CalendarPage {
         }
     }
     
-    // La fonction ci-dessous a été modifiée pour générer la nouvelle structure HTML
-    // et appliquer les styles correspondants.
     createDayCell(dateObj, isOtherMonth, isToday = false, isPast = false) {
         const dayCell = document.createElement('div');
         dayCell.className = 'calendar-day-cell';
@@ -2043,24 +2040,22 @@ class CalendarPage {
                 const colorIndex = letter.charCodeAt(0) - 'A'.charCodeAt(0);
                 pubItemElement.style.borderColor = JOUR_COLORS[colorIndex % JOUR_COLORS.length];
                 
-                // --- DÉBUT DE LA STRUCTURE HTML MODIFIÉE ---
+                // Div principale pour le contenu (texte + image)
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'scheduled-item-content';
 
-                // 1. Label du jour (ex: "Jour A")
                 const textSpan = document.createElement('span'); 
                 textSpan.className = 'scheduled-item-text';
                 textSpan.textContent = itemData.label || `Jour ${letter}`;
-                pubItemElement.appendChild(textSpan);
+                contentDiv.appendChild(textSpan);
 
-                // 2. Conteneur pour la miniature (pour centrage facile)
                 const thumbContainer = document.createElement('div');
                 thumbContainer.className = 'scheduled-item-thumb-container';
-
                 const thumbDiv = document.createElement('div');
                 thumbDiv.className = 'scheduled-item-thumb';
                 this.loadCalendarThumb(thumbDiv, letter, itemData.galleryId);
                 thumbContainer.appendChild(thumbDiv);
-                
-                // Ajout de l'icône "ciseaux" si traité
+
                 const jourFrameInstance = this.organizerApp.jourFrames.find(jf => jf.letter === letter && jf.galleryId === itemData.galleryId);
                 if (jourFrameInstance && jourFrameInstance.hasBeenProcessedByCropper) { 
                     const iconSpan = document.createElement('span');
@@ -2068,17 +2063,15 @@ class CalendarPage {
                     iconSpan.textContent = '✂️';
                     thumbContainer.appendChild(iconSpan);
                 }
-
-                pubItemElement.appendChild(thumbContainer);
+                contentDiv.appendChild(thumbContainer);
+                pubItemElement.appendChild(contentDiv);
                 
-                // 3. Conteneur pour les boutons d'action
                 const actionsContainer = document.createElement('div');
                 actionsContainer.className = 'scheduled-item-actions';
 
-                // Bouton de téléchargement
                 const downloadBtn = document.createElement('button');
                 downloadBtn.className = 'scheduled-item-download-btn';
-                downloadBtn.innerHTML = '💾'; // Utilisez une image si vous préférez
+                downloadBtn.innerHTML = '💾';
                 downloadBtn.title = 'Télécharger le ZIP du Jour';
                 const jourDataForExport = this.allUserJours.find(j => j.galleryId === itemData.galleryId && j.letter === letter);
                 if (jourDataForExport) {
@@ -2089,7 +2082,6 @@ class CalendarPage {
                     actionsContainer.appendChild(downloadBtn);
                 }
 
-                // Bouton de suppression
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'scheduled-item-delete-btn';
                 deleteBtn.innerHTML = '&times;';
@@ -2099,10 +2091,8 @@ class CalendarPage {
                     this.removePublicationForDate(dateObj, letter);
                 };
                 actionsContainer.appendChild(deleteBtn);
-
                 pubItemElement.appendChild(actionsContainer);
 
-                // Nom de la galerie (si différente)
                 if (itemData.galleryName && itemData.galleryId !== this.organizerApp.currentGalleryId) {
                     const galleryNameSpan = document.createElement('span');
                     galleryNameSpan.className = 'scheduled-item-gallery-name';
@@ -2111,8 +2101,6 @@ class CalendarPage {
                     pubItemElement.appendChild(galleryNameSpan);
                 }
                 
-                // --- FIN DE LA STRUCTURE HTML MODIFIÉE ---
-
                 pubItemElement.dataset.jourLetter = letter;
                 pubItemElement.dataset.dateStr = dateKey;
                 pubItemElement.dataset.galleryId = itemData.galleryId; 
@@ -2180,15 +2168,13 @@ class CalendarPage {
             const colorIndex = jour.letter.charCodeAt(0) - 'A'.charCodeAt(0);
             letterSpan.style.backgroundColor = JOUR_COLORS[colorIndex % JOUR_COLORS.length];
             
-            // *** NOUVELLE LOGIQUE POUR AJOUTER LA MINIATURE ***
             const thumbDiv = document.createElement('div');
             thumbDiv.className = 'unscheduled-jour-item-thumb';
-            // Chercher le JourFrame correspondant pour obtenir l'image
             const jourFrame = this.organizerApp.jourFrames.find(jf => jf.galleryId === jour.galleryId && jf.letter === jour.letter);
             if (jourFrame && jourFrame.imagesData.length > 0) {
                 thumbDiv.style.backgroundImage = `url(${jourFrame.imagesData[0].dataURL})`;
             } else {
-                thumbDiv.textContent = '...'; // Placeholder si pas d'image
+                thumbDiv.textContent = '...';
             }
 
             const gallerySpan = document.createElement('span');
@@ -2196,7 +2182,7 @@ class CalendarPage {
             gallerySpan.textContent = jour.galleryName;
 
             contentDiv.appendChild(letterSpan);
-            contentDiv.appendChild(thumbDiv); // Ajout de la miniature
+            contentDiv.appendChild(thumbDiv);
             contentDiv.appendChild(gallerySpan);
             itemElement.appendChild(contentDiv);
 
@@ -2235,7 +2221,6 @@ class CalendarPage {
             }
         }, 0); 
     
-        // Nettoyage à la fin du drag
         const onDragEnd = () => {
             if (dragPayload.type === 'calendar') {
                 itemElement.classList.remove('dragging-schedule-item');
@@ -2250,7 +2235,6 @@ class CalendarPage {
     _onDrop(event, targetDateKey) {
         event.preventDefault();
         
-        // Nettoyage de la classe sur l'élément en cours de drag
         const draggingElement = document.querySelector('.dragging-schedule-item, .dragging-from-list');
         if (draggingElement) {
             draggingElement.classList.remove('dragging-schedule-item', 'dragging-from-list');
@@ -2260,7 +2244,6 @@ class CalendarPage {
             const droppedData = JSON.parse(event.dataTransfer.getData("application/json"));
             
             if (droppedData.type === 'unscheduled') {
-                // Ajout d'un nouveau jour depuis la liste
                 this.addOrUpdatePublicationForDate(
                     new Date(targetDateKey + 'T00:00:00'),
                     droppedData.letter,
@@ -2268,7 +2251,6 @@ class CalendarPage {
                     droppedData.galleryName
                 );
             } else if (droppedData.type === 'calendar') {
-                // Déplacement d'un jour déjà sur le calendrier
                 const { date: sourceDateStr, letter: sourceLetter, data: sourceData } = droppedData;
     
                 if (sourceDateStr === targetDateKey) { 
@@ -2276,13 +2258,11 @@ class CalendarPage {
                     return;
                 }
     
-                // Supprimer de l'ancienne position
                 delete this.scheduleData[sourceDateStr][sourceLetter];
                 if (Object.keys(this.scheduleData[sourceDateStr]).length === 0) {
                     delete this.scheduleData[sourceDateStr];
                 }
     
-                // Ajouter à la nouvelle position
                 if (!this.scheduleData[targetDateKey]) {
                     this.scheduleData[targetDateKey] = {};
                 }
@@ -2344,8 +2324,6 @@ class CalendarPage {
         }
 
         const exportUrl = `${BASE_API_URL}/api/galleries/${galleryId}/jours/${jourId}/export`;
-        
-        // Optionnel : donner un feedback visuel, mais le dialogue de téléchargement est souvent suffisant.
         console.log(`Préparation du téléchargement pour le Jour ${jourLetter}...`);
 
         try {
@@ -2415,7 +2393,6 @@ class CalendarPage {
         if (!this.scheduleData[dateStr]) {
             this.scheduleData[dateStr] = {};
         }
-        // Pour éviter de placer un jour deux fois sur la même date
         if (this.scheduleData[dateStr][jourLetter] && this.scheduleData[dateStr][jourLetter].galleryId === galleryId) {
             return;
         }
@@ -2703,6 +2680,11 @@ class PublicationOrganizer {
         this.clearGalleryImagesBtn.addEventListener('click', () => this.clearAllGalleryImages()); 
         this.addJourFrameBtn.addEventListener('click', () => this.addJourFrame());
         
+        // ** MODIFIÉ : Ajout du listener pour le nouveau bouton **
+        const downloadAllBtn = document.getElementById('downloadAllScheduledBtn');
+        if (downloadAllBtn) {
+            downloadAllBtn.addEventListener('click', () => this.downloadAllScheduledJours());
+        }
 
         this.createNewGalleryBtn.addEventListener('click', () => {
             this.newGalleryForm.style.display = this.newGalleryForm.style.display === 'none' ? 'flex' : 'none';
@@ -2726,6 +2708,75 @@ class PublicationOrganizer {
                 this.saveAppState(); 
             });
         });
+    }
+
+    // ** NOUVELLE FONCTION **
+    async downloadAllScheduledJours() {
+        if (!this.calendarPage || !this.calendarPage.scheduleData) {
+            alert("Les données du calendrier ne sont pas chargées.");
+            return;
+        }
+    
+        const scheduledJours = [];
+        const jourMap = new Map(this.calendarPage.allUserJours.map(j => [`${j.galleryId}-${j.letter}`, j._id]));
+    
+        for (const date in this.calendarPage.scheduleData) {
+            for (const letter in this.calendarPage.scheduleData[date]) {
+                const item = this.calendarPage.scheduleData[date][letter];
+                const jourId = jourMap.get(`${item.galleryId}-${letter}`);
+                if (jourId) {
+                    // Éviter les doublons
+                    if (!scheduledJours.some(j => j.jourId === jourId)) {
+                        scheduledJours.push({
+                            galleryId: item.galleryId,
+                            jourId: jourId
+                        });
+                    }
+                }
+            }
+        }
+    
+        if (scheduledJours.length === 0) {
+            alert("Aucun jour n'est actuellement planifié dans le calendrier.");
+            return;
+        }
+    
+        const downloadBtn = document.getElementById('downloadAllScheduledBtn');
+        const originalText = downloadBtn.textContent;
+        downloadBtn.textContent = 'Préparation...';
+        downloadBtn.disabled = true;
+    
+        try {
+            const response = await fetch(`${BASE_API_URL}/api/jours/export-all-scheduled`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ jours: scheduledJours })
+            });
+    
+            if (!response.ok) {
+                const errorText = await response.text();
+                throw new Error(`Erreur serveur ${response.status}: ${errorText}`);
+            }
+    
+            const blob = await response.blob();
+            let filename = 'Planning.zip';
+            const contentDisposition = response.headers.get('content-disposition');
+            if (contentDisposition) {
+                const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
+                if (filenameMatch && filenameMatch.length > 1) {
+                    filename = filenameMatch[1];
+                }
+            }
+    
+            Utils.downloadDataURL(window.URL.createObjectURL(blob), filename);
+    
+        } catch (error) {
+            console.error("Erreur lors du téléchargement de tous les jours planifiés:", error);
+            alert(`Erreur de téléchargement : ${error.message}`);
+        } finally {
+            downloadBtn.textContent = originalText;
+            downloadBtn.disabled = false;
+        }
     }
     
     updateUIToNoGalleryState() {
@@ -3644,7 +3695,6 @@ class PublicationOrganizer {
         this.saveAppState();
     }
 
-    // --- MODIFIÉ : Ajout de la vérification du nombre max de jours ---
     onGridItemClick(gridItem) { 
         if (!gridItem || !gridItem.isValid) return; 
 
@@ -3660,7 +3710,6 @@ class PublicationOrganizer {
         if (alreadyInCurrentJourFrame) { 
             this.currentJourFrame.removeImageById(gridItem.id);
         } else {
-            // --- DÉBUT DE LA NOUVELLE LOGIQUE DE VÉRIFICATION ---
             const combinedUsage = this.getCombinedUsageMapForMultiDay();
             const originalId = gridItem.parentImageId || gridItem.id;
             const usageArray = combinedUsage.get(originalId) || [];
@@ -3668,9 +3717,8 @@ class PublicationOrganizer {
 
             if (uniqueJourLetters.size >= 4) {
                 alert("Une image ne peut pas être sélectionnée dans plus de 4 jours différents.");
-                return; // Annule l'ajout
+                return;
             }
-            // --- FIN DE LA NOUVELLE LOGIQUE DE VÉRIFICATION ---
 
             const newElement = this.currentJourFrame.createJourItemElement({
                 imageId: gridItem.id,
@@ -3776,8 +3824,6 @@ class PublicationOrganizer {
             this.updateStatsLabel();
             this.saveAppState(); 
 
-            // *** LOGIQUE MODIFIÉE POUR METTRE À JOUR LA LISTE DES JOURS NON PLANIFIÉS ***
-            // Ajoute le nouveau jour aux données locales du calendrier pour qu'il apparaisse dans la liste
             if (this.calendarPage) {
                 const newJourContext = {
                     _id: newJourData._id,
