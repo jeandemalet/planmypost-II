@@ -2124,13 +2124,10 @@ class CalendarPage {
                 const colorIndex = letter.charCodeAt(0) - 'A'.charCodeAt(0);
                 pubItemElement.style.borderColor = JOUR_COLORS[colorIndex % JOUR_COLORS.length];
                 
-                const contentDiv = document.createElement('div');
-                contentDiv.className = 'scheduled-item-content';
-
                 const textSpan = document.createElement('span'); 
                 textSpan.className = 'scheduled-item-text';
                 textSpan.textContent = itemData.label || `Jour ${letter}`;
-                contentDiv.appendChild(textSpan);
+                pubItemElement.appendChild(textSpan);
 
                 const thumbContainer = document.createElement('div');
                 thumbContainer.className = 'scheduled-item-thumb-container';
@@ -2138,16 +2135,7 @@ class CalendarPage {
                 thumbDiv.className = 'scheduled-item-thumb';
                 this.loadCalendarThumb(thumbDiv, letter, itemData.galleryId);
                 thumbContainer.appendChild(thumbDiv);
-
-                const jourFrameInstance = this.organizerApp.jourFrames.find(jf => jf.letter === letter && jf.galleryId === itemData.galleryId);
-                if (jourFrameInstance && jourFrameInstance.hasBeenProcessedByCropper) { 
-                    const iconSpan = document.createElement('span');
-                    iconSpan.className = 'scheduled-item-icon';
-                    iconSpan.textContent = '✂️';
-                    thumbContainer.appendChild(iconSpan);
-                }
-                contentDiv.appendChild(thumbContainer);
-                pubItemElement.appendChild(contentDiv);
+                pubItemElement.appendChild(thumbContainer);
                 
                 const actionsContainer = document.createElement('div');
                 actionsContainer.className = 'scheduled-item-actions';
