@@ -1,6 +1,5 @@
-
 // =================================================================
-// --- Contenu complet du fichier : public/script.js (Corrigé) ---
+// --- Contenu complet du fichier : public/script.js (Corrigé et Robuste) ---
 // =================================================================
 
 // --- Constantes Globales et État ---
@@ -754,8 +753,12 @@ class CroppingManager {
         this.handleSize = 18; 
         this.handleDetectionOffset = this.handleSize / 2 + 6; 
 
-        this._initListeners();
+        // *** CORRECTION DE L'ERREUR D'INITIALISATION ***
+        // On définit les propriétés AVANT d'appeler _initListeners qui les utilise.
         this.debouncedUpdatePreview = Utils.debounce(() => this.updatePreview(), 150);
+        this.debouncedHandleResize = Utils.debounce(() => this._handleResize(), 50);
+
+        this._initListeners();
     }
 
     _initListeners() {
@@ -780,13 +783,40 @@ class CroppingManager {
         
         document.addEventListener('keydown', (e) => this.onDocumentKeyDown(e));
         
-        new ResizeObserver(() => {
-            if (this.editorPanel.style.display !== 'none' && this.currentImageObject) {
-                this.setCanvasDimensions();
-                this.redrawCanvasOnly(); 
-                this.debouncedUpdatePreview();
+        // On observe le conteneur du canvas pour gérer le redimensionnement
+        new ResizeObserver(this.debouncedHandleResize).observe(this.canvasElement.parentElement);
+    }
+    
+    _handleResize() {
+        if (!this.editorPanel.style.display || this.editorPanel.style.display === 'none' || !this.currentImageObject) return;
+
+        let relativeCrop = null;
+        if (this.cropRectDisplay) {
+            const oldImageDims = this.getImageDisplayDimensions();
+            if (oldImageDims.displayWidth > 0 && oldImageDims.displayHeight > 0) {
+                relativeCrop = {
+                    x: (this.cropRectDisplay.x - oldImageDims.displayX) / oldImageDims.displayWidth,
+                    y: (this.cropRectDisplay.y - oldImageDims.displayY) / oldImageDims.displayHeight,
+                    width: this.cropRectDisplay.width / oldImageDims.displayWidth,
+                    height: this.cropRectDisplay.height / oldImageDims.displayHeight
+                };
             }
-        }).observe(this.canvasElement.parentElement);
+        }
+
+        this.setCanvasDimensions();
+
+        if (relativeCrop) {
+            const newImageDims = this.getImageDisplayDimensions();
+            this.cropRectDisplay = {
+                x: newImageDims.displayX + (relativeCrop.x * newImageDims.displayWidth),
+                y: newImageDims.displayY + (relativeCrop.y * newImageDims.displayHeight),
+                width: relativeCrop.width * newImageDims.displayWidth,
+                height: relativeCrop.height * newImageDims.displayHeight
+            };
+        }
+        
+        this.redrawCanvasOnly();
+        this.debouncedUpdatePreview();
     }
     
     redrawCanvasOnly() {
@@ -951,7 +981,6 @@ class CroppingManager {
         this.canvasElement.style.cursor = 'default'; 
         
         this.croppingPage.clearEditor();
-        // **CORRECTION** : L'appel pour rafraîchir la liste est ajouté ici.
         this.croppingPage.populateJourList();
     }
 
@@ -1067,10 +1096,14 @@ class CroppingManager {
 
 
     getImageDisplayDimensions() { 
-        if (!this.currentImageObject) return { displayX:0, displayY:0, displayWidth:0, displayHeight:0, imageScale: 1};
+        if (!this.currentImageObject || !this.canvasElement.width || !this.canvasElement.height) {
+            return { displayX:0, displayY:0, displayWidth:0, displayHeight:0, imageScale: 1};
+        }
         const canvasWidth = this.canvasElement.width, canvasHeight = this.canvasElement.height;
         const imgWidth = this.currentImageObject.naturalWidth || this.currentImageObject.width;
         const imgHeight = this.currentImageObject.naturalHeight || this.currentImageObject.height;
+        if (imgWidth === 0 || imgHeight === 0) return { displayX:0, displayY:0, displayWidth:0, displayHeight:0, imageScale: 1};
+
         const scaleX = canvasWidth / imgWidth, scaleY = canvasHeight / imgHeight;
         const imageScale = Math.min(scaleX, scaleY);
         const displayWidth = imgWidth * imageScale, displayHeight = imgHeight * imageScale;
@@ -1622,7 +1655,7 @@ class CroppingManager {
 }
 
 // =================================================================
-// --- CLASSE CroppingPage ---
+// --- CLASSE CroppingPage (CORRIGÉE) ---
 // =================================================================
 class CroppingPage {
     constructor(organizerApp) {
@@ -1661,7 +1694,6 @@ class CroppingPage {
 
         if (!jours || jours.length === 0) {
             this.jourListElement.innerHTML = '<li>Aucun jour défini pour cette galerie.</li>';
-            // **CORRECTION** : On ne rappelle pas clearEditor ici pour éviter la boucle.
             return;
         }
 
@@ -1746,7 +1778,6 @@ class CroppingPage {
              this.jourListElement.querySelectorAll('.active-cropping-jour').forEach(li => li.classList.remove('active-cropping-jour'));
              this.currentSelectedJourFrame = null;
         }
-        // **CORRECTION** : On ne rappelle pas populateJourList ici pour éviter la boucle.
     }
 }
 
