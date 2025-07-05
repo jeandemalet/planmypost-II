@@ -1,5 +1,5 @@
 // =================================================================
-// --- Contenu complet du fichier : public/script.js ---
+// --- Contenu complet du fichier : public/script.js (Corrigé) ---
 // =================================================================
 
 // --- Constantes Globales et État ---
@@ -2013,6 +2013,8 @@ class CalendarPage {
         }
     }
     
+    // La fonction ci-dessous a été modifiée pour générer la nouvelle structure HTML
+    // et appliquer les styles correspondants.
     createDayCell(dateObj, isOtherMonth, isToday = false, isPast = false) {
         const dayCell = document.createElement('div');
         dayCell.className = 'calendar-day-cell';
@@ -2031,34 +2033,76 @@ class CalendarPage {
         if (this.scheduleData[dateKey]) {
             const itemsOnDay = this.scheduleData[dateKey];
             const sortedLetters = Object.keys(itemsOnDay).sort();
+
             sortedLetters.forEach(letter => {
                 const itemData = itemsOnDay[letter]; 
                 const pubItemElement = document.createElement('div');
                 pubItemElement.className = 'scheduled-item';
+                pubItemElement.draggable = true;
                 
-                const mainContentDiv = document.createElement('div'); 
-                mainContentDiv.className = 'scheduled-item-main-content';
+                const colorIndex = letter.charCodeAt(0) - 'A'.charCodeAt(0);
+                pubItemElement.style.borderColor = JOUR_COLORS[colorIndex % JOUR_COLORS.length];
+                
+                // --- DÉBUT DE LA STRUCTURE HTML MODIFIÉE ---
 
+                // 1. Label du jour (ex: "Jour A")
+                const textSpan = document.createElement('span'); 
+                textSpan.className = 'scheduled-item-text';
+                textSpan.textContent = itemData.label || `Jour ${letter}`;
+                pubItemElement.appendChild(textSpan);
+
+                // 2. Conteneur pour la miniature (pour centrage facile)
+                const thumbContainer = document.createElement('div');
+                thumbContainer.className = 'scheduled-item-thumb-container';
+
+                const thumbDiv = document.createElement('div');
+                thumbDiv.className = 'scheduled-item-thumb';
+                this.loadCalendarThumb(thumbDiv, letter, itemData.galleryId);
+                thumbContainer.appendChild(thumbDiv);
+                
+                // Ajout de l'icône "ciseaux" si traité
                 const jourFrameInstance = this.organizerApp.jourFrames.find(jf => jf.letter === letter && jf.galleryId === itemData.galleryId);
                 if (jourFrameInstance && jourFrameInstance.hasBeenProcessedByCropper) { 
                     const iconSpan = document.createElement('span');
                     iconSpan.className = 'scheduled-item-icon';
                     iconSpan.textContent = '✂️';
-                    mainContentDiv.appendChild(iconSpan);
+                    thumbContainer.appendChild(iconSpan);
                 }
-                
-                const textSpan = document.createElement('span'); 
-                textSpan.className = 'scheduled-item-text';
-                textSpan.textContent = itemData.label || `Jour ${letter}`;
-                mainContentDiv.appendChild(textSpan);
 
-                const thumbDiv = document.createElement('div');
-                thumbDiv.className = 'scheduled-item-thumb';
-                this.loadCalendarThumb(thumbDiv, letter, itemData.galleryId); 
-                mainContentDiv.appendChild(thumbDiv);
+                pubItemElement.appendChild(thumbContainer);
                 
-                pubItemElement.appendChild(mainContentDiv);
+                // 3. Conteneur pour les boutons d'action
+                const actionsContainer = document.createElement('div');
+                actionsContainer.className = 'scheduled-item-actions';
 
+                // Bouton de téléchargement
+                const downloadBtn = document.createElement('button');
+                downloadBtn.className = 'scheduled-item-download-btn';
+                downloadBtn.innerHTML = '💾'; // Utilisez une image si vous préférez
+                downloadBtn.title = 'Télécharger le ZIP du Jour';
+                const jourDataForExport = this.allUserJours.find(j => j.galleryId === itemData.galleryId && j.letter === letter);
+                if (jourDataForExport) {
+                    downloadBtn.onclick = (e) => {
+                        e.stopPropagation();
+                        this.exportJourById(itemData.galleryId, jourDataForExport._id, letter);
+                    };
+                    actionsContainer.appendChild(downloadBtn);
+                }
+
+                // Bouton de suppression
+                const deleteBtn = document.createElement('button');
+                deleteBtn.className = 'scheduled-item-delete-btn';
+                deleteBtn.innerHTML = '&times;';
+                deleteBtn.title = 'Supprimer cette publication du calendrier';
+                deleteBtn.onclick = (e) => {
+                    e.stopPropagation();
+                    this.removePublicationForDate(dateObj, letter);
+                };
+                actionsContainer.appendChild(deleteBtn);
+
+                pubItemElement.appendChild(actionsContainer);
+
+                // Nom de la galerie (si différente)
                 if (itemData.galleryName && itemData.galleryId !== this.organizerApp.currentGalleryId) {
                     const galleryNameSpan = document.createElement('span');
                     galleryNameSpan.className = 'scheduled-item-gallery-name';
@@ -2066,16 +2110,12 @@ class CalendarPage {
                     galleryNameSpan.title = itemData.galleryName;
                     pubItemElement.appendChild(galleryNameSpan);
                 }
-
-
-                const colorIndex = letter.charCodeAt(0) - 'A'.charCodeAt(0);
-                pubItemElement.style.backgroundColor = JOUR_COLORS[colorIndex % JOUR_COLORS.length];
-                pubItemElement.draggable = true;
+                
+                // --- FIN DE LA STRUCTURE HTML MODIFIÉE ---
 
                 pubItemElement.dataset.jourLetter = letter;
                 pubItemElement.dataset.dateStr = dateKey;
                 pubItemElement.dataset.galleryId = itemData.galleryId; 
-
 
                 pubItemElement.addEventListener('dragstart', (e) => this._onDragStart(e, {
                     type: 'calendar',
@@ -2085,34 +2125,6 @@ class CalendarPage {
                     data: itemData
                 }, pubItemElement));
                 
-                // AJOUTER la création du bouton de téléchargement
-                const downloadBtn = document.createElement('button');
-                downloadBtn.className = 'scheduled-item-download-btn';
-                downloadBtn.innerHTML = '💾'; // Icône simple pour télécharger
-                downloadBtn.title = 'Télécharger le ZIP du Jour';
-                
-                // Trouver les données complètes du jour pour obtenir son ID pour l'URL d'export
-                const jourDataForExport = this.allUserJours.find(j => j.galleryId === itemData.galleryId && j.letter === letter);
-                if (jourDataForExport) {
-                    downloadBtn.addEventListener('click', (e) => {
-                        e.stopPropagation(); // Empêche d'autres clics de se déclencher
-                        this.exportJourById(itemData.galleryId, jourDataForExport._id, letter);
-                    });
-                    pubItemElement.appendChild(downloadBtn);
-                }
-
-
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'scheduled-item-delete-btn';
-                deleteBtn.innerHTML = '&times;';
-                deleteBtn.title = 'Supprimer cette publication du calendrier';
-                deleteBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    this.removePublicationForDate(dateObj, letter);
-                };
-                pubItemElement.appendChild(deleteBtn);
-
-
                 dayCell.appendChild(pubItemElement);
             });
         }
