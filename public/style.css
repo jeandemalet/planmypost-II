@@ -1,4 +1,3 @@
-
 body {
     font-family: sans-serif; /* Police sans-serif classique et commune */
     margin: 0;
@@ -673,7 +672,7 @@ button.small-cancel-btn:hover {
     color: white;
     border-color: darkblue;
 }
-.jour-frame.jour-frame-processed .jour-frame-label {
+.jour-frame.jour-frame-processed .jour-frame-label, #croppingJourList li.jour-frame-processed {
     background-color: #d4edda;
     border-color: #c3e6cb;
     color: #155724;
@@ -1175,47 +1174,69 @@ button.small-cancel-btn:hover {
     border-radius: 4px; 
 }
 
-.modal {
-    display: none;
-    position: fixed;
-    z-index: 1000;
-    left: 0;
-    top: 0;
-    width: 100%;
-    height: 100%;
-    overflow: auto;
-    background-color: rgba(0,0,0,0.4);
-    align-items: center;
-    justify-content: center;
+/* STYLES MODALE SUPPRIMÉS */
+
+
+/* NOUVEAUX STYLES POUR L'ONGLET RECADRAGE */
+.cropping-layout {
+    display: flex;
+    gap: 15px;
+    height: calc(100vh - 200px);
 }
-.modal-content {
-    background-color: #fefefe;
-    margin: auto;
-    padding: 20px;
-    border: 1px solid #888;
-    border-radius: 8px; 
-    position: relative;
+
+#croppingJourListPanel {
+    width: 250px;
+    min-width: 200px;
+    border-right: 1px solid #ddd;
+    padding-right: 15px;
+    overflow-y: auto;
 }
-.cropper-modal-content {
-    width: 90%;
-    max-width: 1200px;
-    height: 90vh;
+#croppingJourListPanel h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.1em;
+    color: #333;
+}
+#croppingJourList {
+    list-style-type: none;
+    padding: 0;
+    margin: 0;
+}
+#croppingJourList li {
+    padding: 8px 10px;
+    cursor: pointer;
+    border-bottom: 1px solid #eee;
+    border-radius: 6px; 
+    margin-bottom: 3px;
+    transition: background-color 0.2s;
+}
+#croppingJourList li:hover {
+    background-color: #f0f0f0;
+}
+#croppingJourList li.active-cropping-jour {
+    background-color: #007bff;
+    color: white;
+    font-weight: bold;
+}
+
+#croppingEditorContainer {
+    flex-grow: 1;
+    padding-left: 15px;
     display: flex;
     flex-direction: column;
-    border-radius: 10px; 
 }
-.close-button {
-    color: #aaa;
-    position: absolute;
-    top: 10px;
-    right: 15px;
-    font-size: 28px;
-    font-weight: bold;
-    cursor: pointer;
+#croppingEditorContainer h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    color: #333;
 }
-.close-button:hover, .close-button:focus {
-    color: black;
+#croppingEditorPanel {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
 }
+/* FIN DES NOUVEAUX STYLES */
+
 
 .cropper-main-area {
     display: flex;

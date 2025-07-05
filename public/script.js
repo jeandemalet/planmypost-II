@@ -275,7 +275,7 @@ class GridItemBackend {
 }
 
 // =================================================================
-// --- CLASSE JourFrameBackend (LOGIQUE DRAG & DROP FINALE ET STABLE) ---
+// --- CLASSE JourFrameBackend ---
 // =================================================================
 class JourFrameBackend {
     constructor(organizer, jourData) {
@@ -304,8 +304,6 @@ class JourFrameBackend {
         const buttonsContainer = document.createElement('div');
         buttonsContainer.className = 'jour-frame-buttons';
 
-        this.cropBtn = document.createElement('button');
-        this.cropBtn.textContent = '✂️ Rec.';
         this.exportJourImagesBtn = document.createElement('button');
         this.exportJourImagesBtn.textContent = 'Exporter Images';
 
@@ -313,7 +311,6 @@ class JourFrameBackend {
         this.deleteJourBtn.textContent = '🗑️ Suppr. Jour';
         this.deleteJourBtn.className = 'danger-btn-small';
 
-        buttonsContainer.appendChild(this.cropBtn);
         buttonsContainer.appendChild(this.exportJourImagesBtn);
         buttonsContainer.appendChild(this.deleteJourBtn);
 
@@ -328,7 +325,6 @@ class JourFrameBackend {
             }
         });
 
-        this.cropBtn.addEventListener('click', () => this.openCropperForJour());
         this.exportJourImagesBtn.addEventListener('click', () => this.exportJourAsZip());
         this.deleteJourBtn.addEventListener('click', () => this.organizer.closeJourFrame(this));
 
@@ -618,10 +614,7 @@ class JourFrameBackend {
                 throw new Error(`Failed to save Jour ${this.letter}: ${response.statusText} - ${errorData}`);
             }
             await response.json();
-
-            // *** LOGIQUE MODIFIÉE POUR LA MISE À JOUR DU CALENDRIER ***
-            // Si l'onglet calendrier est actif, on le rafraîchit.
-            // Cela mettra à jour à la fois la grille ET la liste des jours non planifiés.
+            
             if (this.organizer && this.organizer.calendarPage && document.getElementById('calendar').classList.contains('active')) {
                 this.organizer.calendarPage.buildCalendarUI();
             }
@@ -633,37 +626,12 @@ class JourFrameBackend {
             return false;
         }
     }
-
-    openCropperForJour() {
-        if (!this.imagesData.length) { alert(`Le Jour ${this.letter} est vide.`); return; }
-        
-        const imageInfosForCropper = this.imagesData.map(imgData => {
-            const originalImageInGrid = this.organizer.gridItemsDict[imgData.originalReferencePath];
-            let baseImageToCropFromURL = imgData.dataURL; 
-
-            if (originalImageInGrid) {
-                 baseImageToCropFromURL = originalImageInGrid.imagePath; 
-            } else {
-                console.warn(`Image originale ${imgData.originalReferencePath} non trouvée dans la grille pour le recadrage.`);
-            }
-            
-            return {
-                pathForCropper: imgData.imageId, 
-                dataURL: imgData.dataURL, 
-                originalReferenceId: imgData.originalReferencePath, 
-                baseImageToCropFromDataURL: baseImageToCropFromURL, 
-                currentImageId: imgData.imageId 
-            };
-        });
-        this.organizer.openImageCropper(imageInfosForCropper, this);
-    }
     
     updateImagesFromCropper(modifiedDataMap) {
         let changesApplied = false;
         const newImagesDataArray = [];
         const finalElements = [];
     
-        // Itérer sur les éléments DOM actuels pour conserver l'ordre
         this.canvasWrapper.querySelectorAll('.jour-image-item').forEach(element => {
             const currentImageId = element.dataset.imageId;
             const modificationOutput = modifiedDataMap[currentImageId];
@@ -682,7 +650,6 @@ class JourFrameBackend {
                     finalElements.push(this.createJourItemElement(newData));
                 }
             } else {
-                // Si pas de modif, on garde l'ancien
                 const oldData = this.imagesData.find(d => d.imageId === currentImageId);
                 if (oldData) {
                     newImagesDataArray.push(oldData);
@@ -742,14 +709,16 @@ class JourFrameBackend {
         this.imagesData = []; 
     }
 }
-class ImageCropperPopup {
-    constructor(organizer) {
+
+class CroppingManager {
+    constructor(organizer, croppingPage) {
         this.organizer = organizer;
-        this.modalElement = document.getElementById('cropperModal');
-        this.closeButton = document.getElementById('closeCropperBtn');
+        this.croppingPage = croppingPage;
+        
+        this.editorPanel = document.getElementById('croppingEditorPanel');
         this.canvasElement = document.getElementById('cropperCanvas');
         this.ctx = this.canvasElement.getContext('2d', { alpha: false }); 
-        this.previewContainer = this.modalElement.querySelector('.cropper-previews'); 
+        this.previewContainer = this.editorPanel.querySelector('.cropper-previews'); 
         this.previewLeft = document.getElementById('cropperPreviewLeft');
         this.previewCenter = document.getElementById('cropperPreviewCenter'); 
         this.previewRight = document.getElementById('cropperPreviewRight');
@@ -790,7 +759,6 @@ class ImageCropperPopup {
     }
 
     _initListeners() {
-        this.closeButton.onclick = () => this.finishAndApply();
         this.finishBtn.onclick = () => this.finishAndApply();
         this.prevBtn.onclick = () => this.prevImage(); 
         this.nextBtn.onclick = () => this.nextImage(false); 
@@ -813,7 +781,7 @@ class ImageCropperPopup {
         document.addEventListener('keydown', (e) => this.onDocumentKeyDown(e));
         
         new ResizeObserver(() => {
-            if (this.modalElement.style.display === 'flex' && this.currentImageObject) {
+            if (this.editorPanel.style.display !== 'none' && this.currentImageObject) {
                 this.setCanvasDimensions();
                 this.redrawCanvasOnly(); 
                 this.debouncedUpdatePreview();
@@ -910,7 +878,7 @@ class ImageCropperPopup {
 
 
     async onDocumentKeyDown(event) { 
-        if (this.modalElement.style.display !== 'flex' || !this.currentImageObject) {
+        if (this.editorPanel.style.display === 'none' || !this.currentImageObject) {
             return; 
         }
         const activeElement = document.activeElement;
@@ -938,13 +906,15 @@ class ImageCropperPopup {
         this.canvasElement.height = container.clientHeight;
     }
     
-    async open(images, callingJourFrame) { 
+    async startCropping(images, callingJourFrame) { 
         this.imagesToCrop = images; 
         this.currentJourFrameInstance = callingJourFrame;
         this.currentImageIndex = -1;
         this.modifiedDataMap = {};
         this.saveMode = 'crop'; 
-        this.modalElement.style.display = 'flex';
+
+        this.croppingPage.showEditor();
+        
         this.setCanvasDimensions(); 
         this.isDragging = false; 
         this.dragMode = null;    
@@ -967,7 +937,7 @@ class ImageCropperPopup {
         if (this.currentImageIndex >= 0 && this.currentImageIndex < this.imagesToCrop.length && !this.ignoreSaveForThisImage) {
             await this.applyAndSaveCurrentImage();
         }
-        this.modalElement.style.display = 'none';
+
         if (this.currentJourFrameInstance) {
             this.currentJourFrameInstance.updateImagesFromCropper(this.modifiedDataMap);
         }
@@ -979,11 +949,10 @@ class ImageCropperPopup {
         this.isDragging = false;
         this.dragMode = null;
         this.canvasElement.style.cursor = 'default'; 
-        this.splitModeState = 0;
-        this.showSplitLineCount = 0;
-        this.splitLineBtn.textContent = "Mode Split";
-        this.splitLineBtn.classList.remove('active-crop-btn');
-        this.whiteBarsBtn.classList.remove('active-crop-btn');
+        
+        this.croppingPage.clearEditor();
+        // **CORRECTION** : L'appel pour rafraîchir la liste est ajouté ici.
+        this.croppingPage.populateJourList();
     }
 
     async loadCurrentImage() {
@@ -1653,6 +1622,136 @@ class ImageCropperPopup {
 }
 
 // =================================================================
+// --- CLASSE CroppingPage ---
+// =================================================================
+class CroppingPage {
+    constructor(organizerApp) {
+        this.organizerApp = organizerApp;
+        this.jourListElement = document.getElementById('croppingJourList');
+        this.editorContainerElement = document.getElementById('croppingEditorContainer');
+        this.editorPanelElement = document.getElementById('croppingEditorPanel');
+        this.editorPlaceholderElement = document.getElementById('croppingEditorPlaceholder');
+        this.editorTitleElement = document.getElementById('croppingEditorTitle');
+        
+        this.currentSelectedJourFrame = null;
+        this.croppingManager = new CroppingManager(this.organizerApp, this);
+
+        this.jourListElement.addEventListener('click', (e) => this.onJourClick(e));
+    }
+
+    show() {
+        if (!this.organizerApp.currentGalleryId) {
+            this.jourListElement.innerHTML = '<li>Chargez une galerie pour voir ses jours.</li>';
+            this.clearEditor();
+            return;
+        }
+        this.populateJourList();
+
+        const stillExists = this.currentSelectedJourFrame ? this.organizerApp.jourFrames.find(jf => jf.id === this.currentSelectedJourFrame.id) : null;
+        if (stillExists) {
+            this.selectJour(stillExists, true);
+        } else {
+            this.clearEditor();
+        }
+    }
+
+    populateJourList() {
+        this.jourListElement.innerHTML = '';
+        const jours = this.organizerApp.jourFrames;
+
+        if (!jours || jours.length === 0) {
+            this.jourListElement.innerHTML = '<li>Aucun jour défini pour cette galerie.</li>';
+            // **CORRECTION** : On ne rappelle pas clearEditor ici pour éviter la boucle.
+            return;
+        }
+
+        jours.forEach(jourFrame => {
+            const li = document.createElement('li');
+            li.textContent = `Jour ${jourFrame.letter}`;
+            li.dataset.jourId = jourFrame.id;
+
+            if (this.currentSelectedJourFrame && this.currentSelectedJourFrame.id === jourFrame.id) {
+                li.classList.add('active-cropping-jour');
+            }
+            if (jourFrame.hasBeenProcessedByCropper) {
+                li.classList.add('jour-frame-processed');
+            }
+            this.jourListElement.appendChild(li);
+        });
+    }
+
+    onJourClick(event) {
+        const li = event.target.closest('li');
+        if (!li || !li.dataset.jourId) return;
+
+        const jourFrame = this.organizerApp.jourFrames.find(jf => jf.id === li.dataset.jourId);
+        if (jourFrame) {
+            this.selectJour(jourFrame);
+        }
+    }
+
+    selectJour(jourFrame, preventStart = false) {
+        if (this.currentSelectedJourFrame === jourFrame && this.editorPanelElement.style.display !== 'none') {
+            return; 
+        }
+
+        this.currentSelectedJourFrame = jourFrame;
+        
+        this.jourListElement.querySelectorAll('li').forEach(item => {
+            item.classList.toggle('active-cropping-jour', item.dataset.jourId === jourFrame.id);
+        });
+
+        if (!preventStart) {
+            this.startCroppingForJour(jourFrame);
+        } else {
+            this.editorTitleElement.textContent = `Recadrage pour Jour ${jourFrame.letter}`;
+        }
+    }
+
+    startCroppingForJour(jourFrame) {
+        if (!jourFrame.imagesData || jourFrame.imagesData.length === 0) {
+            alert(`Le Jour ${jourFrame.letter} est vide et ne peut pas être recadré.`);
+            this.clearEditor();
+            return;
+        }
+        
+        this.editorTitleElement.textContent = `Recadrage pour Jour ${jourFrame.letter}`;
+        
+        const imageInfosForCropper = jourFrame.imagesData.map(imgData => {
+            const originalImageInGrid = this.organizerApp.gridItemsDict[imgData.originalReferencePath];
+            const baseImageToCropFromDataURL = originalImageInGrid ? originalImageInGrid.imagePath : imgData.dataURL;
+            
+            return {
+                pathForCropper: imgData.imageId, 
+                dataURL: imgData.dataURL, 
+                originalReferenceId: imgData.originalReferencePath, 
+                baseImageToCropFromDataURL, 
+                currentImageId: imgData.imageId 
+            };
+        });
+        
+        this.croppingManager.startCropping(imageInfosForCropper, jourFrame);
+    }
+    
+    showEditor() {
+        this.editorPanelElement.style.display = 'flex';
+        this.editorPlaceholderElement.style.display = 'none';
+    }
+
+    clearEditor() {
+        this.editorPanelElement.style.display = 'none';
+        this.editorPlaceholderElement.style.display = 'block';
+        this.editorTitleElement.textContent = "Sélectionnez un jour à recadrer";
+        if (this.currentSelectedJourFrame) {
+             this.jourListElement.querySelectorAll('.active-cropping-jour').forEach(li => li.classList.remove('active-cropping-jour'));
+             this.currentSelectedJourFrame = null;
+        }
+        // **CORRECTION** : On ne rappelle pas populateJourList ici pour éviter la boucle.
+    }
+}
+
+
+// =================================================================
 // --- CLASSE DescriptionManager ---
 // =================================================================
 class DescriptionManager {
@@ -1799,7 +1898,7 @@ class DescriptionManager {
 }
 
 // =================================================================
-// --- CLASSE CalendarPage (MODIFIÉE) ---
+// --- CLASSE CalendarPage ---
 // =================================================================
 class CalendarPage {
     constructor(parentElement, organizerApp) {
@@ -1844,7 +1943,6 @@ class CalendarPage {
             }, 100);
         });
 
-        // Clic global pour cacher les popups restantes
         document.addEventListener('click', (e) => {
             if (this.contextPreviewModal.style.display === 'block' && 
                 !this.contextPreviewModal.contains(e.target) &&
@@ -1852,7 +1950,6 @@ class CalendarPage {
                     this._hideContextPreview();
             }
         });
-        // Cacher aussi avec la touche Echap
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
                 if (this.contextPreviewModal.style.display === 'block') {
@@ -1863,11 +1960,9 @@ class CalendarPage {
 
         this.runAutoScheduleBtn.addEventListener('click', () => this.runAutoSchedule());
         
-        // --- DÉBUT DES AJOUTS POUR LE DRAG & DROP VERS LA LISTE ---
         this.unscheduledJoursListElement.addEventListener('dragover', (e) => this._onDragOverUnscheduledList(e));
         this.unscheduledJoursListElement.addEventListener('dragleave', (e) => this._onDragLeaveUnscheduledList(e));
         this.unscheduledJoursListElement.addEventListener('drop', (e) => this._onDropOnUnscheduledList(e));
-        // --- FIN DES AJOUTS POUR LE DRAG & DROP VERS LA LISTE ---
 
         const reorganizeAllBtn = document.getElementById('reorganizeAllBtn');
         if (reorganizeAllBtn) {
@@ -1880,10 +1975,8 @@ class CalendarPage {
             return;
         }
 
-        // Vider les données de planification
         this.scheduleData = {};
 
-        // Sauvegarder le calendrier vide et rafraîchir l'interface
         this.saveSchedule();
         this.buildCalendarUI();
     }
@@ -1892,7 +1985,6 @@ class CalendarPage {
         event.preventDefault();
         try {
             const droppedData = JSON.parse(event.dataTransfer.getData("application/json"));
-            // Accepter le drop uniquement si l'élément vient du calendrier
             if (droppedData && droppedData.type === 'calendar') {
                 event.dataTransfer.dropEffect = 'move';
                 this.unscheduledJoursListElement.classList.add('drag-over-list');
@@ -1915,24 +2007,20 @@ class CalendarPage {
         try {
             const droppedData = JSON.parse(event.dataTransfer.getData("application/json"));
 
-            // Ne rien faire si l'élément ne vient pas du calendrier
             if (droppedData.type !== 'calendar') {
                 return;
             }
 
             const { date: sourceDateStr, letter: sourceLetter } = droppedData;
 
-            // Retirer l'élément des données du calendrier
             if (this.scheduleData[sourceDateStr] && this.scheduleData[sourceDateStr][sourceLetter]) {
                 delete this.scheduleData[sourceDateStr][sourceLetter];
-                // Si la date est maintenant vide, on la supprime
                 if (Object.keys(this.scheduleData[sourceDateStr]).length === 0) {
                     delete this.scheduleData[sourceDateStr];
                 }
 
-                // Sauvegarder et rafraîchir l'interface
                 this.saveSchedule();
-                this.buildCalendarUI(); // Rafraîchit le calendrier ET la liste des jours non planifiés
+                this.buildCalendarUI();
             }
 
         } catch (err) {
@@ -2040,7 +2128,6 @@ class CalendarPage {
                 const colorIndex = letter.charCodeAt(0) - 'A'.charCodeAt(0);
                 pubItemElement.style.borderColor = JOUR_COLORS[colorIndex % JOUR_COLORS.length];
                 
-                // Div principale pour le contenu (texte + image)
                 const contentDiv = document.createElement('div');
                 contentDiv.className = 'scheduled-item-content';
 
@@ -2622,7 +2709,7 @@ class PublicationOrganizer {
         this.tabs = document.querySelectorAll('.tab-button');
         this.tabContents = document.querySelectorAll('.tab-content');
 
-        this.cropper = new ImageCropperPopup(this); 
+        this.croppingPage = new CroppingPage(this);
         this.calendarPage = null;
         this.descriptionManager = null; 
 
@@ -2680,7 +2767,6 @@ class PublicationOrganizer {
         this.clearGalleryImagesBtn.addEventListener('click', () => this.clearAllGalleryImages()); 
         this.addJourFrameBtn.addEventListener('click', () => this.addJourFrame());
         
-        // ** MODIFIÉ : Ajout du listener pour le nouveau bouton **
         const downloadAllBtn = document.getElementById('downloadAllScheduledBtn');
         if (downloadAllBtn) {
             downloadAllBtn.addEventListener('click', () => this.downloadAllScheduledJours());
@@ -2710,7 +2796,6 @@ class PublicationOrganizer {
         });
     }
 
-    // ** NOUVELLE FONCTION **
     async downloadAllScheduledJours() {
         if (!this.calendarPage || !this.calendarPage.scheduleData) {
             alert("Les données du calendrier ne sont pas chargées.");
@@ -2725,7 +2810,6 @@ class PublicationOrganizer {
                 const item = this.calendarPage.scheduleData[date][letter];
                 const jourId = jourMap.get(`${item.galleryId}-${letter}`);
                 if (jourId) {
-                    // Éviter les doublons
                     if (!scheduledJours.some(j => j.jourId === jourId)) {
                         scheduledJours.push({
                             galleryId: item.galleryId,
@@ -2819,6 +2903,17 @@ class PublicationOrganizer {
                 this.calendarPage.buildCalendarUI(); 
             }
         }
+        
+        const croppingTabContent = document.getElementById('cropping');
+        croppingTabContent.querySelectorAll('button, select').forEach(el => el.disabled = noGalleryActive);
+        if (this.croppingPage) {
+            if (noGalleryActive) {
+                this.croppingPage.clearEditor();
+                this.croppingPage.populateJourList();
+            } else if (croppingTabContent.classList.contains('active')) {
+                this.croppingPage.show();
+            }
+        }
 
         const descriptionTabContent = document.getElementById('description');
         descriptionTabContent.querySelectorAll('button, textarea').forEach(el => el.disabled = noGalleryActive);
@@ -2854,16 +2949,16 @@ class PublicationOrganizer {
                 if (!this.selectedGalleryForPreviewId) {
                     this.clearGalleryPreview();
                 }
-            } else if (tabId === 'currentGallery' && !this.currentGalleryId) {
+            } else if (tabId === 'cropping') {
+                if (this.currentGalleryId) {
+                    this.croppingPage.show();
+                }
             } else if (tabId === 'description') {
                 if (!this.descriptionManager) {
                     this.descriptionManager = new DescriptionManager(this);
                 }
                 if (this.currentGalleryId) {
                     this.descriptionManager.show();
-                } else {
-                    this.descriptionManager.clearEditor();
-                    this.descriptionManager.populateJourList();
                 }
             } else if (tabId === 'calendar') {
                 if (!this.calendarPage) {
@@ -3132,6 +3227,10 @@ class PublicationOrganizer {
             this.descriptionManager.clearEditor();
         }
 
+        if (this.croppingPage) {
+            this.croppingPage.clearEditor();
+        }
+
         if(this.galleriesUploadProgressContainer) this.galleriesUploadProgressContainer.style.display = 'none';
         if(this.currentGalleryUploadProgressContainer) this.currentGalleryUploadProgressContainer.style.display = 'none';
 
@@ -3169,7 +3268,6 @@ class PublicationOrganizer {
             }
             const data = await response.json();
 
-            // Reset state before loading new data
             this.gridItems = [];
             this.gridItemsDict = {};
             this.imageGridElement.innerHTML = '';
@@ -3177,20 +3275,17 @@ class PublicationOrganizer {
             this.jourFramesContainer.innerHTML = '';
             this.currentJourFrame = null;
 
-            // Load gallery state
             const galleryState = data.galleryState || {};
             this.galleryCache[this.currentGalleryId] = galleryState.name || 'Galerie sans nom';
             this.currentThumbSize = galleryState.currentThumbSize || { width: 150, height: 150 };
             this.sortOptionsSelect.value = galleryState.sortOption || 'date_desc';
             this.nextJourIndex = galleryState.nextJourIndex || 0;
 
-            // Load images
             if (data.images && data.images.length > 0) {
                 this.addImagesToGrid(data.images);
                 this.sortGridItemsAndReflow();
             }
             
-            // Load Jours
             if (data.jours && data.jours.length > 0) {
                 data.jours.sort((a, b) => a.index - b.index).forEach(jourData => {
                     const newJourFrame = new JourFrameBackend(this, jourData);
@@ -3200,7 +3295,6 @@ class PublicationOrganizer {
                 this.recalculateNextJourIndex();
             }
 
-            // Load schedule and prepare calendar data
             this.scheduleContext = {
                 schedule: data.schedule || {},
                 allUserJours: data.scheduleContext.allUserJours || []
@@ -3282,6 +3376,7 @@ class PublicationOrganizer {
                 this.nextJourIndex = 0;
                 this.scheduleContext = { schedule: {}, allUserJours: [] };
                 if (this.descriptionManager) this.descriptionManager.clearEditor();
+                if (this.croppingPage) this.croppingPage.clearEditor();
             }
 
             await this.loadGalleriesList(); 
@@ -3836,6 +3931,10 @@ class PublicationOrganizer {
                     this.calendarPage.buildCalendarUI();
                 }
             }
+            
+            if (this.croppingPage && document.getElementById('cropping').classList.contains('active')) {
+                this.croppingPage.populateJourList();
+            }
 
             if (this.descriptionManager && document.getElementById('description').classList.contains('active')) {
                 this.descriptionManager.populateJourList();
@@ -3890,6 +3989,13 @@ class PublicationOrganizer {
                 });
             }
 
+            if (this.croppingPage && document.getElementById('cropping').classList.contains('active')) {
+                this.croppingPage.populateJourList();
+                if (this.croppingPage.currentSelectedJourFrame === jourFrameToClose) {
+                    this.croppingPage.clearEditor();
+                }
+            }
+
             if (this.descriptionManager && document.getElementById('description').classList.contains('active')) {
                 this.descriptionManager.populateJourList();
                 if (this.descriptionManager.currentSelectedJourFrame === jourFrameToClose) {
@@ -3929,10 +4035,6 @@ class PublicationOrganizer {
 
     isJourReadyForPublishing(galleryId, letter) {
         return true;
-    }
-    
-    openImageCropper(imagesDataForCropper, callingJourFrame) {
-        this.cropper.open(imagesDataForCropper, callingJourFrame);
     }
     
     async saveAppState() {

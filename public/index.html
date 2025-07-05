@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -132,19 +131,54 @@
             </div>
         </div>
 
+        <!-- NOUVELLE STRUCTURE POUR L'ONGLET RECADRAGE -->
         <div id="cropping" class="tab-content">
             <h2>Recadrage des images</h2>
-            <div class="description-layout">
+            <div class="cropping-layout">
                 <div id="croppingJourListPanel">
-                    <h4>Jours de la Galerie Actuelle</h4>
+                    <h4>Jours de la Galerie</h4>
                     <ul id="croppingJourList">
+                        <!-- La liste des jours sera générée ici par JS -->
                     </ul>
                 </div>
-                <div id="croppingEditorPanel">
-                    
+                <div id="croppingEditorContainer">
+                    <h3 id="croppingEditorTitle">Sélectionnez un jour à recadrer</h3>
+                    <div id="croppingEditorPanel" style="display: none;">
+                        <!-- Le contenu de l'ancienne modale est déplacé ici -->
+                        <div class="cropper-main-area">
+                            <div class="cropper-canvas-container">
+                                <canvas id="cropperCanvas"></canvas>
+                            </div>
+                            <div class="cropper-previews">
+                                <p>Aperçu:</p>
+                                <img id="cropperPreviewLeft" alt="Aperçu Gauche">
+                                <img id="cropperPreviewCenter" alt="Aperçu Milieu">
+                                <img id="cropperPreviewRight" alt="Aperçu Droit">
+                            </div>
+                        </div>
+                        <div class="cropper-controls">
+                            <button id="cropPrevImageBtn">◀ Préc.</button>
+                            <button id="cropNextImageBtn">Suiv. ▶</button>
+                            <button id="cropFlipBtn">Retourner H</button>
+                            <select id="cropAspectRatio">
+                                <option value="3:4">3:4 (Vertical)</option>
+                                <option value="1:1">1:1 (Carré)</option>
+                                <option value="16:9">16:9 (Paysage)</option>
+                                <option value="3:2">3:2 (Paysage)</option>
+                                <option value="free">Libre</option>
+                            </select>
+                            <button id="cropAddWhiteBarsBtn">Barres Blanches (3:4)</button>
+                            <button id="cropSplitLineBtn">Mode Split</button> 
+                            <button id="cropIgnoreBtn">Ignorer & Suiv.</button>
+                            <button id="cropFinishBtn" class="primary-action">Terminer et Appliquer</button>
+                        </div>
+                        <div id="cropperInfoLabel"></div>
+                    </div>
+                    <p id="croppingEditorPlaceholder">Aucun jour sélectionné.</p>
                 </div>
             </div>
         </div>
+        <!-- FIN DE LA NOUVELLE STRUCTURE -->
 
         <div id="description" class="tab-content">
             <h2>Description des Publications</h2>
@@ -174,7 +208,6 @@
             </div>
         </div>
 
-        <!-- STRUCTURE MODIFIÉE POUR L'ONGLET CALENDRIER -->
         <div id="calendar" class="tab-content">
             <div id="calendar-sidebar">
                 <div class="sidebar-section auto-schedule-box">
@@ -210,12 +243,9 @@
                     <h4>Jours à Planifier</h4>
                     <p class="sidebar-info">Glissez-déposez un jour sur le calendrier.</p>
                     <div id="unscheduledJoursList">
-                        <!-- Les jours non planifiés apparaîtront ici -->
                     </div>
-                    <!-- *** MODIFIÉ: Ajout des nouveaux boutons *** -->
                     <button id="reorganizeAllBtn" class="secondary-action" style="margin-top: 10px;">Tout Réorganiser</button>
                     <button id="downloadAllScheduledBtn" class="primary-action" style="margin-top: 5px;">Tout Télécharger</button>
-                    <!-- *** FIN DES MODIFICATIONS *** -->
                 </div>
 
             </div>
@@ -231,43 +261,7 @@
                 <div id="calendarContextImages"></div>
             </div>
         </div>
-        <!-- FIN DE LA STRUCTURE MODIFIÉE -->
 
-    </div>
-
-    <div id="cropperModal" class="modal">
-        <div class="modal-content cropper-modal-content">
-            <span class="close-button" id="closeCropperBtn">×</span>
-            <h3>Outil de Recadrage</h3>
-            <div class="cropper-main-area">
-                <div class="cropper-canvas-container">
-                    <canvas id="cropperCanvas"></canvas>
-                </div>
-                <div class="cropper-previews">
-                    <p>Aperçu:</p>
-                    <img id="cropperPreviewLeft" alt="Aperçu Gauche">
-                    <img id="cropperPreviewCenter" alt="Aperçu Milieu">
-                    <img id="cropperPreviewRight" alt="Aperçu Droit">
-                </div>
-            </div>
-            <div class="cropper-controls">
-                <button id="cropPrevImageBtn">◀ Préc.</button>
-                <button id="cropNextImageBtn">Suiv. ▶</button>
-                <button id="cropFlipBtn">Retourner H</button>
-                <select id="cropAspectRatio">
-                    <option value="3:4">3:4 (Vertical)</option>
-                    <option value="1:1">1:1 (Carré)</option>
-                    <option value="16:9">16:9 (Paysage)</option>
-                    <option value="3:2">3:2 (Paysage)</option>
-                    <option value="free">Libre</option>
-                </select>
-                <button id="cropAddWhiteBarsBtn">Barres Blanches (3:4)</button>
-                <button id="cropSplitLineBtn">Mode Split</button> 
-                <button id="cropIgnoreBtn">Ignorer & Suiv.</button>
-                <button id="cropFinishBtn" class="primary-action">Terminer et Appliquer</button>
-            </div>
-            <div id="cropperInfoLabel"></div>
-        </div>
     </div>
 
     <script src="script.js"></script>
