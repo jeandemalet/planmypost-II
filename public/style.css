@@ -168,55 +168,79 @@ button:disabled .profile-action-icon {
 #galleries.tab-content.active {
     display: flex;
     flex-direction: column;
+    background-color: #f8f9fa; /* Couleur de fond légèrement grise */
 }
 .galleries-layout {
     display: flex;
     flex-grow: 1;
-    gap: 15px;
+    gap: 20px; /* Espace plus grand entre les panneaux */
     overflow: hidden;
+    padding: 15px; /* Ajout de padding autour */
 }
 
 #galleriesListContainer {
-    width: 350px;
-    min-width: 300px;
-    border-right: 1px solid #ddd;
-    padding-right: 15px;
+    width: 380px; /* Largeur augmentée */
+    min-width: 320px;
+    background-color: #ffffff; /* Fond blanc pour la liste */
+    border: 1px solid #dee2e6; /* Bordure plus subtile */
+    border-radius: 8px; /* Coins arrondis */
+    padding: 15px;
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 220px);
-    /* Pas de border-radius ici car c'est une colonne latérale */
+    height: calc(100vh - 230px);
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* Ombre légère */
 }
 
 .gallery-management-controls {
-    margin-bottom: 15px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #eee;
-}
-#newGalleryForm {
-    margin-top:10px;
-    gap:5px;
-    align-items:center;
-    display: flex;
-}
-#newGalleryNameInput {
-    padding: 6px;
-    border: 1px solid #ccc;
-    border-radius: 6px; /* Arrondi */
-    flex-grow: 1;
-}
-button.small-confirm-btn, button.small-cancel-btn {
-    padding: 5px 8px;
-    font-size: 0.9em;
-}
-button.small-cancel-btn {
-    background-color: #f8d7da;
-    border-color: #f5c6cb;
-    color: #721c24;
-}
-button.small-cancel-btn:hover {
-    background-color: #f1b0b7;
+    margin-top: 15px; /* Espace au-dessus du bouton */
+    padding-top: 15px;
+    border-top: 1px solid #e9ecef; /* Ligne de séparation */
+    display: flex; /* Active flexbox */
+    justify-content: center; /* Centre horizontalement */
+    align-items: center; /* Centre verticalement */
+    flex-direction: column; /* Empile les éléments verticalement */
 }
 
+#createNewGalleryBtn {
+    width: 80%; /* Largeur du bouton */
+    padding: 10px 15px; /* Padding interne */
+    border-radius: 20px; /* Bords très arrondis */
+    font-size: 1em;
+    line-height: 1.5;
+}
+
+#newGalleryForm {
+    margin-top: 10px;
+    gap: 8px;
+    align-items: center;
+    display: flex;
+    width: 90%; /* S'assure que le formulaire ne dépasse pas */
+}
+#newGalleryNameInput {
+    padding: 8px 12px; /* Plus de padding */
+    border: 1px solid #ced4da;
+    border-radius: 6px;
+    flex-grow: 1;
+    font-size: 0.95em;
+}
+#newGalleryNameInput:focus {
+    border-color: #80bdff;
+    outline: 0;
+    box-shadow: 0 0 0 0.2rem rgba(0,123,255,.25);
+}
+button.small-confirm-btn, button.small-cancel-btn {
+    padding: 6px 10px;
+    font-size: 1em;
+    border-radius: 5px;
+}
+button.small-cancel-btn {
+    background-color: #f1f3f5;
+    border-color: #ced4da;
+    color: #495057;
+}
+button.small-cancel-btn:hover {
+    background-color: #e9ecef;
+}
 
 #galleriesList {
     list-style-type: none;
@@ -229,115 +253,119 @@ button.small-cancel-btn:hover {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 8px 5px;
-    border-bottom: 1px solid #eee;
-    border-radius: 4px; /* Arrondir chaque item de liste */
-    margin-bottom: 3px;
+    padding: 12px 10px; /* Padding augmenté */
+    border: 1px solid transparent; /* Bordure transparente pour garder la taille */
+    border-bottom: 1px solid #e9ecef;
+    border-radius: 6px;
+    margin-bottom: 5px;
+    transition: background-color 0.2s, border-left-color 0.2s;
 }
 .gallery-list-item:hover {
-    background-color: #f9f9f9;
+    background-color: #f8f9fa;
 }
 .gallery-list-item.selected-for-preview {
     background-color: #e6f7ff;
-    border-left: 3px solid #007bff;
+    border-left: 4px solid #007bff;
+    font-weight: 500;
 }
 .gallery-list-item:last-child {
-    border-bottom: none;
+    border-bottom: 1px solid #e9ecef;
 }
 .gallery-name {
-    font-weight: 500;
+    font-weight: 400; /* Police plus fine */
     flex-grow: 1;
     margin-right: 10px;
     cursor: pointer;
     padding: 5px 0;
+    color: #212529;
 }
 .gallery-name:hover {
     color: #0056b3;
 }
 
-.jour-image-placeholder {
-    width: 60px; /* Ou la taille de vos .jour-image-item */
-    height: 60px;
-    border: 2px dashed #007bff;
-    background-color: rgba(0, 123, 255, 0.1);
-    box-sizing: border-box;
-    margin: 2.5px; /* Pour correspondre au gap si vous en avez un */
-    border-radius: 4px;
-}
-
-.jour-image-item.dragging-jour-item {
-    opacity: 0.5; /* Rend l'élément glissé semi-transparent */
-
-}
 .gallery-name.current-loaded-gallery {
-    color: dodgerblue;
-    font-weight: bold;
+    color: #28a745; /* Vert pour la galerie chargée */
+    font-weight: 600;
 }
 .gallery-actions button {
     margin-left: 5px;
-    font-size: 0.8em;
-    padding: 4px 6px;
+    font-size: 0.85em;
+    padding: 5px 8px;
+    border-radius: 5px;
 }
 
 #galleryPreviewArea {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 220px);
-    background-color: #f7f7f7;
-    padding: 10px;
-    border: 1px solid #e0e0e0;
-    border-radius: 8px; /* Arrondi pour cette zone principale */
+    height: calc(100vh - 230px);
+    background-color: #ffffff;
+    padding: 20px;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 #galleryPreviewPlaceholder {
     text-align: center;
-    color: #777;
-    margin-top: 20px;
-    font-style: italic;
+    color: #6c757d;
+    margin-top: 30px;
+    font-size: 1.1em;
 }
 #galleryPreviewHeader {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-bottom: 10px;
-    padding-bottom: 10px;
-    border-bottom: 1px solid #ddd;
+    margin-bottom: 15px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #e9ecef;
 }
 #galleryPreviewHeader h3 {
     margin: 0;
+    font-size: 1.4em;
+    color: #343a40;
 }
 #openGalleryInEditorBtn {
     background-color: #007bff;
     color: white;
-    border-radius: 6px; /* Arrondi */
+    border-radius: 6px;
+    padding: 8px 15px;
+    font-size: 0.95em;
 }
 #openGalleryInEditorBtn:hover {
-    background-color: #0056b3;
+    background-color: #0069d9;
 }
 
 #galleryPreviewGrid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-    gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); /* Images plus grandes */
+    gap: 12px; /* Espace plus grand */
     flex-grow: 1;
     overflow-y: auto;
     position: relative;
+    padding-top: 5px;
 }
 .preview-grid-item {
     position: relative;
-    border-radius: 4px; /* Arrondir les items de la preview grid */
+    border-radius: 8px; /* Arrondi plus prononcé */
+    overflow: hidden; /* Pour que l'image respecte le border-radius */
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+.preview-grid-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.1);
 }
 .preview-delete-btn {
     position: absolute;
-    top: 2px;
-    right: 2px;
-    background-color: rgba(220, 53, 69, 0.7);
+    top: 5px;
+    right: 5px;
+    background-color: rgba(220, 53, 69, 0.8);
     color: white;
     border: none;
     border-radius: 50%;
-    width: 20px;
-    height: 20px;
-    font-size: 12px;
+    width: 24px;
+    height: 24px;
+    font-size: 14px;
     line-height: 1;
     text-align: center;
     cursor: pointer;
@@ -353,31 +381,31 @@ button.small-cancel-btn:hover {
     opacity: 1;
 }
 .preview-delete-btn:hover {
-    background-color: #dc3545;
+    background-color: #c82333;
 }
 
 #galleryPreviewGrid .grid-item {
-    width: 100px;
-    height: 100px;
-    border: 1px solid #ccc;
-    background-color: white;
+    width: auto; /* La grille gère la largeur */
+    height: 120px; /* Hauteur fixe pour l'uniformité */
+    border: 1px solid #e9ecef;
+    background-color: #f8f9fa;
     overflow: hidden;
     display: flex;
     justify-content: center;
     align-items: center;
     cursor: default;
-    border-radius: 4px; /* Arrondi */
+    border-radius: 8px;
 }
 #galleryPreviewGrid .grid-item img {
-    max-width: 100%;
-    max-height: 100%;
-    object-fit: contain;
-    border-radius: 3px; /* Léger arrondi pour l'image elle-même si elle ne remplit pas */
+    width: 100%;
+    height: 100%;
+    object-fit: cover; /* Rempli l'espace, peut couper l'image */
 }
 #galleryPreviewGrid .grid-item .order-text,
 #galleryPreviewGrid .grid-item .grid-item-delete-btn:not(.preview-delete-btn) {
     display: none;
 }
+
 
 
 .controls-bar {
