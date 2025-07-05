@@ -19,7 +19,6 @@ body {
     padding: 10px 20px;
     background-color: #fff;
     border-bottom: 1px solid #ddd;
-    /* Les headers pleine largeur n'ont généralement pas de coins arrondis, sauf s'ils sont flottants */
 }
 
 #logoPlaceholder {
@@ -41,20 +40,20 @@ body {
     background: none;
     border: none;
     color: #333;
-    font-size: 1.5em; /* Ajusté pour que l'icône image ne soit pas trop grosse */
+    font-size: 1.5em; 
     cursor: pointer;
     padding: 5px;
     line-height: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    border-radius: 50%; /* Pour un bouton icône perfectly rond */
-    overflow: hidden; /* Clip content to the circular shape */
+    border-radius: 50%;
+    overflow: hidden;
 }
 .icon-button:hover {
-    background-color: rgba(0,0,0,0.05); /* Léger fond au survol */
+    background-color: rgba(0,0,0,0.05);
 }
-.profile-action-icon { /* Utilisé aussi pour settings.png */
+.profile-action-icon { 
     width: 28px;
     height: 28px;
     object-fit: cover;
@@ -62,7 +61,6 @@ body {
 }
 
 
-/* Classe pour les icônes DANS les boutons */
 .btn-icon {
     width: 18px;
     height: 18px;
@@ -71,7 +69,6 @@ body {
     flex-shrink: 0;
 }
 
-/* Style GÉNÉRAL pour TOUS les boutons qui peuvent contenir une icône + texte */
 button {
     cursor: pointer;
     background-color: #e7e7e7;
@@ -136,7 +133,7 @@ button:disabled .profile-action-icon {
     border-bottom: none;
     background-color: #eee;
     margin-right: 5px;
-    border-radius: 8px 8px 0 0; /* Onglets plus arrondis en haut */
+    border-radius: 8px 8px 0 0;
     margin-top: 5px;
     flex-grow: 1;
     text-align: center;
@@ -157,7 +154,7 @@ button:disabled .profile-action-icon {
     border-top: none;
     background-color: #fff;
     min-height: calc(100vh - 150px);
-    border-radius: 0 0 8px 8px; /* Arrondir les coins inférieurs du conteneur d'onglet actif */
+    border-radius: 0 0 8px 8px;
 }
 
 .tab-content.active {
@@ -167,43 +164,43 @@ button:disabled .profile-action-icon {
 #galleries.tab-content.active {
     display: flex;
     flex-direction: column;
-    background-color: #f8f9fa; /* Couleur de fond légèrement grise */
+    background-color: #f8f9fa;
 }
 .galleries-layout {
     display: flex;
     flex-grow: 1;
-    gap: 20px; /* Espace plus grand entre les panneaux */
+    gap: 20px;
     overflow: hidden;
-    padding: 15px; /* Ajout de padding autour */
+    padding: 15px;
 }
 
 #galleriesListContainer {
-    width: 380px; /* Largeur augmentée */
+    width: 380px;
     min-width: 320px;
-    background-color: #ffffff; /* Fond blanc pour la liste */
-    border: 1px solid #dee2e6; /* Bordure plus subtile */
-    border-radius: 8px; /* Coins arrondis */
+    background-color: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
     padding: 15px;
     display: flex;
     flex-direction: column;
     height: calc(100vh - 230px);
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05); /* Ombre légère */
+    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
 }
 
 .gallery-management-controls {
-    margin-top: 15px; /* Espace au-dessus du bouton */
+    margin-top: 15px;
     padding-top: 15px;
-    border-top: 1px solid #e9ecef; /* Ligne de séparation */
-    display: flex; /* Active flexbox */
-    justify-content: center; /* Centre horizontalement */
-    align-items: center; /* Centre verticalement */
-    flex-direction: column; /* Empile les éléments verticalement */
+    border-top: 1px solid #e9ecef;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
 }
 
 #createNewGalleryBtn {
-    width: 80%; /* Largeur du bouton */
-    padding: 10px 15px; /* Padding interne */
-    border-radius: 20px; /* Bords très arrondis */
+    width: 80%;
+    padding: 10px 15px;
+    border-radius: 20px;
     font-size: 1em;
     line-height: 1.5;
 }
@@ -213,10 +210,10 @@ button:disabled .profile-action-icon {
     gap: 8px;
     align-items: center;
     display: flex;
-    width: 90%; /* S'assure que le formulaire ne dépasse pas */
+    width: 90%;
 }
 #newGalleryNameInput {
-    padding: 8px 12px; /* Plus de padding */
+    padding: 8px 12px;
     border: 1px solid #ced4da;
     border-radius: 6px;
     flex-grow: 1;
@@ -252,8 +249,8 @@ button.small-cancel-btn:hover {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: 12px 10px; /* Padding augmenté */
-    border: 1px solid transparent; /* Bordure transparente pour garder la taille */
+    padding: 12px 10px;
+    border: 1px solid transparent;
     border-bottom: 1px solid #e9ecef;
     border-radius: 6px;
     margin-bottom: 5px;
@@ -271,7 +268,7 @@ button.small-cancel-btn:hover {
     border-bottom: 1px solid #e9ecef;
 }
 .gallery-name {
-    font-weight: 400; /* Police plus fine */
+    font-weight: 400;
     flex-grow: 1;
     margin-right: 10px;
     cursor: pointer;
@@ -283,7 +280,7 @@ button.small-cancel-btn:hover {
 }
 
 .gallery-name.current-loaded-gallery {
-    color: #28a745; /* Vert pour la galerie chargée */
+    color: #28a745;
     font-weight: 600;
 }
 .gallery-actions button {
@@ -336,8 +333,8 @@ button.small-cancel-btn:hover {
 
 #galleryPreviewGrid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); /* Images plus grandes */
-    gap: 12px; /* Espace plus grand */
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 12px;
     flex-grow: 1;
     overflow-y: auto;
     position: relative;
@@ -345,8 +342,8 @@ button.small-cancel-btn:hover {
 }
 .preview-grid-item {
     position: relative;
-    border-radius: 8px; /* Arrondi plus prononcé */
-    overflow: hidden; /* Pour que l'image respecte le border-radius */
+    border-radius: 8px;
+    overflow: hidden;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
     transition: transform 0.2s, box-shadow 0.2s;
 }
@@ -384,8 +381,8 @@ button.small-cancel-btn:hover {
 }
 
 #galleryPreviewGrid .grid-item {
-    width: auto; /* La grille gère la largeur */
-    height: 120px; /* Hauteur fixe pour l'uniformité */
+    width: auto;
+    height: 120px;
     border: 1px solid #e9ecef;
     background-color: #f8f9fa;
     overflow: hidden;
@@ -398,7 +395,7 @@ button.small-cancel-btn:hover {
 #galleryPreviewGrid .grid-item img {
     width: 100%;
     height: 100%;
-    object-fit: cover; /* Rempli l'espace, peut couper l'image */
+    object-fit: cover;
 }
 #galleryPreviewGrid .grid-item .order-text,
 #galleryPreviewGrid .grid-item .grid-item-delete-btn:not(.preview-delete-btn) {
@@ -416,12 +413,12 @@ button.small-cancel-btn:hover {
     border-bottom: 1px solid #ddd;
     margin-bottom: 10px;
     flex-wrap: wrap;
-    border-radius: 8px; /* Arrondi pour la barre de contrôle */
+    border-radius: 8px;
 }
 
 .controls-bar button {
     padding: 7px 12px;
-    border-radius: 6px; /* Arrondi pour boutons dans la barre */
+    border-radius: 6px;
 }
 
 .add-btn-green {
@@ -447,7 +444,7 @@ button.small-cancel-btn:hover {
     color: white;
     font-size: 0.8em !important;
     padding: 4px 8px !important;
-    border-radius: 4px; /* Arrondi */
+    border-radius: 4px;
 }
 .danger-btn-small:hover {
     background-color: #dc3545;
@@ -462,7 +459,7 @@ button.small-cancel-btn:hover {
 .zoom-btn-round {
     width: 30px;
     height: 30px;
-    border-radius: 50%; /* Déjà rond, c'est bien */
+    border-radius: 50%;
     padding: 0;
     font-size: 1.2em;
     line-height: 1;
@@ -483,7 +480,7 @@ button.small-cancel-btn:hover {
 .controls-bar select {
     padding: 7px 8px;
     border: 1px solid #ccc;
-    border-radius: 6px; /* Arrondi */
+    border-radius: 6px;
     font-size: 0.9em;
     background-color: white;
 }
@@ -519,7 +516,7 @@ button.small-cancel-btn:hover {
     padding: 5px;
     background-color: #e9e9e9;
     position: relative;
-    border-radius: 8px; /* Arrondi */
+    border-radius: 8px;
 }
 
 .add-photos-placeholder {
@@ -531,7 +528,7 @@ button.small-cancel-btn:hover {
     font-size: 1.1em;
     background-color: #007bff;
     color: white;
-    border-radius: 6px; /* Arrondi */
+    border-radius: 6px;
     display: none;
 }
 .add-photos-placeholder:hover {
@@ -672,7 +669,7 @@ button.small-cancel-btn:hover {
     color: white;
     border-color: darkblue;
 }
-.jour-frame.jour-frame-processed .jour-frame-label, #croppingJourList li.jour-frame-processed {
+.jour-frame.jour-frame-processed .jour-frame-label {
     background-color: #d4edda;
     border-color: #c3e6cb;
     color: #155724;
@@ -750,7 +747,7 @@ button.small-cancel-btn:hover {
     border-radius: 6px; 
 }
 
-/* --- DEBUT STYLES CALENDRIER (MODIFIÉS) --- */
+/* --- DEBUT STYLES CALENDRIER --- */
 
 #calendar.tab-content.active {
     display: flex;
@@ -863,13 +860,13 @@ button.small-cancel-btn:hover {
     padding-top: 15px;
     display: flex;
     flex-direction: column;
-    min-height: 150px; /* Donne de l'espace même si vide */
-    flex-grow: 1; /* Permet au conteneur de grandir */
+    min-height: 150px;
+    flex-grow: 1;
 }
 
 #unscheduledJoursList {
     flex-grow: 1;
-    overflow-y: auto; /* Ajoute une barre de défilement si nécessaire */
+    overflow-y: auto;
     padding: 4px;
     background-color: #efefef;
     border-radius: 6px;
@@ -1022,22 +1019,20 @@ button.small-cancel-btn:hover {
     color: #aaa;
 }
 
-/* ===== DÉBUT DES STYLES MODIFIÉS POUR L'ÉLÉMENT DU CALENDRIER ===== */
-
 .scheduled-item {
     background-color: #f8f9fa;
-    padding: 4px; /* Un peu plus d'espace intérieur */
+    padding: 4px;
     border-radius: 6px; 
     font-size: 0.8em;
     margin-top: 4px;
     cursor: grab;
     display: flex;
-    flex-direction: column; /* Les éléments internes (content, gallery name) sont en colonne */
-    align-items: stretch; /* Les enfants prennent toute la largeur */
+    flex-direction: column;
+    align-items: stretch;
     overflow: hidden;
     position: relative;
     border: 1px solid #dee2e6;
-    border-left: 4px solid lightblue; /* Bordure colorée conservée */
+    border-left: 4px solid lightblue;
     min-height: 55px;
     transition: background-color 0.2s, box-shadow 0.2s;
 }
@@ -1047,16 +1042,14 @@ button.small-cancel-btn:hover {
     box-shadow: 0 1px 4px rgba(0,0,0,0.1);
 }
 
-/* NOUVEAU: Le conteneur principal du contenu (Texte + Image) */
 .scheduled-item-content {
     display: flex;
-    align-items: center; /* Centre verticalement le texte */
-    position: relative; /* Pour le positionnement absolu de l'image */
+    align-items: center;
+    position: relative;
     margin-bottom: 2px;
-    min-height: 32px; /* Assurer une hauteur minimale pour l'image positionnée */
+    min-height: 32px;
 }
 
-/* NOUVEAU: Conteneur pour les actions (croix + télécharger) */
 .scheduled-item-actions {
     position: absolute;
     top: 2px;
@@ -1067,13 +1060,13 @@ button.small-cancel-btn:hover {
     padding: 2px;
     border-radius: 5px;
     transition: opacity 0.2s ease-in-out;
-    opacity: 1; /* Actions toujours visibles */
+    opacity: 1;
     z-index: 5;
 }
 
 .scheduled-item-delete-btn,
 .scheduled-item-download-btn {
-    position: static; /* N'est plus en position absolue */
+    position: static;
     background-color: rgba(0, 0, 0, 0.4);
     color: white;
     border: none;
@@ -1094,18 +1087,16 @@ button.small-cancel-btn:hover {
 .scheduled-item-download-btn { font-size: 10px; }
 
 
-/* Style du texte du jour (à gauche) */
 .scheduled-item-text {
     font-weight: bold;
     color: #495057;
     font-size: 0.95em;
-    text-align: left; /* Aligné à gauche */
+    text-align: left;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
 
-/* NOUVEAU: Conteneur de la miniature pour positionner l'icône ciseaux */
 .scheduled-item-thumb-container {
     position: absolute;
     left: 50%;
@@ -1115,7 +1106,6 @@ button.small-cancel-btn:hover {
     height: 32px;
 }
 
-/* Style de la miniature de l'image (maintenant plus grande et centrée) */
 .scheduled-item-thumb {
     width: 32px;
     height: 32px;
@@ -1127,7 +1117,6 @@ button.small-cancel-btn:hover {
     box-shadow: 0 1px 2px rgba(0,0,0,0.05);
 }
 
-/* Style de l'icône de traitement (ciseaux) */
 .scheduled-item-icon {
     position: absolute;
     bottom: -2px;
@@ -1140,19 +1129,16 @@ button.small-cancel-btn:hover {
     box-shadow: 0 0 3px rgba(0,0,0,0.3);
 }
 
-/* Style du nom de la galerie (si affiché) */
 .scheduled-item-gallery-name {
     font-size: 0.8em;
     color: #868e96;
-    margin-top: auto; /* Pousse en bas si l'espace le permet */
+    margin-top: auto;
     width: 100%;
     text-align: center;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
 }
-
-/* ===== FIN DES STYLES MODIFIÉS ===== */
 
 .modal-preview {
     position: fixed;
@@ -1174,93 +1160,133 @@ button.small-cancel-btn:hover {
     border-radius: 4px; 
 }
 
-/* STYLES MODALE SUPPRIMÉS */
 
-
-/* NOUVEAUX STYLES POUR L'ONGLET RECADRAGE */
-.cropping-layout {
-    display: flex;
-    gap: 15px;
-    height: calc(100vh - 200px);
-}
-
-#croppingJourListPanel {
-    width: 250px;
-    min-width: 200px;
-    border-right: 1px solid #ddd;
-    padding-right: 15px;
-    overflow-y: auto;
-}
-#croppingJourListPanel h4 {
-    margin-top: 0;
-    margin-bottom: 10px;
-    font-size: 1.1em;
-    color: #333;
-}
-#croppingJourList {
+/* --- STYLES PANNEAUX LATÉRAUX PARTAGÉS & ICÔNES --- */
+#croppingJourList,
+#descriptionJourList {
     list-style-type: none;
     padding: 0;
     margin: 0;
 }
-#croppingJourList li {
-    padding: 8px 10px;
+
+.jour-list-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px 12px;
     cursor: pointer;
     border-bottom: 1px solid #eee;
     border-radius: 6px; 
     margin-bottom: 3px;
     transition: background-color 0.2s;
 }
-#croppingJourList li:hover {
+
+.jour-list-item:hover {
     background-color: #f0f0f0;
 }
-#croppingJourList li.active-cropping-jour {
+
+.jour-list-item-text {
+    flex-grow: 1;
+    margin-right: 10px;
+}
+
+.jour-list-item-icons {
+    display: flex;
+    gap: 8px;
+    font-size: 14px;
+    flex-shrink: 0;
+}
+
+.status-icon {
+    opacity: 0.2;
+    filter: grayscale(100%);
+    transition: opacity 0.2s, filter 0.2s;
+}
+
+.status-icon.active {
+    opacity: 1;
+    filter: grayscale(0%);
+}
+
+#croppingJourList .jour-list-item.active-cropping-jour,
+#descriptionJourList .jour-list-item.active-description-jour {
     background-color: #007bff;
     color: white;
     font-weight: bold;
 }
 
-#croppingEditorContainer {
+
+/* --- Layouts pour Recadrage et Description --- */
+.cropping-layout, .description-layout {
+    display: flex;
+    gap: 15px;
+    height: calc(100vh - 200px);
+}
+
+#croppingJourListPanel, #descriptionJourListPanel {
+    width: 280px;
+    min-width: 250px;
+    border-right: 1px solid #ddd;
+    padding-right: 15px;
+    overflow-y: auto;
+}
+
+#croppingJourListPanel h4, #descriptionJourListPanel h4 {
+    margin-top: 0;
+    margin-bottom: 10px;
+    font-size: 1.1em;
+    color: #333;
+}
+
+#croppingEditorContainer, #descriptionEditorPanel {
     flex-grow: 1;
     padding-left: 15px;
     display: flex;
     flex-direction: column;
+    min-width: 0; /* Important pour le flexbox shrink */
 }
-#croppingEditorContainer h3 {
+#croppingEditorContainer h3, #descriptionEditorPanel h3 {
     margin-top: 0;
     margin-bottom: 15px;
     color: #333;
 }
-#croppingEditorPanel {
-    flex-grow: 1;
+#croppingEditorPanel, #descriptionEditorPanel {
     display: flex;
     flex-direction: column;
 }
-/* FIN DES NOUVEAUX STYLES */
 
 
+/* --- Zone de Recadrage --- */
 .cropper-main-area {
     display: flex;
     flex-grow: 1;
     gap: 15px;
     overflow: hidden;
     margin-bottom: 15px;
+    align-items: center;
 }
 .cropper-canvas-container {
     flex-grow: 1;
-    background-color: #ddd;
+    flex-shrink: 1;
     display: flex;
     align-items: center;
     justify-content: center;
-    overflow: hidden;
-    min-width: 0;
-    border-radius: 6px; 
+    
+    /* La clé pour le ratio 1:1 */
+    aspect-ratio: 1 / 1; 
+
+    /* Contraintes pour éviter qu'il ne soit trop grand */
+    max-height: calc(100vh - 350px);
+    min-width: 0; 
+    
+    background-color: #2e2e2e;
+    border-radius: 8px;
 }
 #cropperCanvas {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
     cursor: crosshair;
-    background-color: white;
 }
 .cropper-previews {
     width: 240px;
@@ -1273,6 +1299,7 @@ button.small-cancel-btn:hover {
     align-items: flex-start;
     overflow-y: auto;
     border-radius: 6px; 
+    align-self: stretch;
 }
 .cropper-previews p {
     margin-top: 0;
@@ -1408,63 +1435,6 @@ button.small-cancel-btn:hover {
     max-width: 100%;
     max-height: 100%;
     object-fit: contain;
-}
-
-/* Styles pour l'onglet Description */
-.description-layout {
-    display: flex;
-    gap: 15px;
-    height: calc(100vh - 200px);
-}
-
-#descriptionJourListPanel {
-    width: 250px;
-    min-width: 200px;
-    border-right: 1px solid #ddd;
-    padding-right: 15px;
-    overflow-y: auto;
-}
-#descriptionJourListPanel h4 {
-    margin-top: 0;
-    margin-bottom: 10px;
-    font-size: 1.1em;
-    color: #333;
-}
-
-#descriptionJourList {
-    list-style-type: none;
-    padding: 0;
-    margin: 0;
-}
-
-#descriptionJourList li {
-    padding: 8px 10px;
-    cursor: pointer;
-    border-bottom: 1px solid #eee;
-    border-radius: 6px; 
-    margin-bottom: 3px;
-}
-
-#descriptionJourList li:hover {
-    background-color: #f0f0f0;
-}
-
-#descriptionJourList li.active-description-jour {
-    background-color: #007bff;
-    color: white;
-    font-weight: bold;
-}
-
-#descriptionEditorPanel {
-    flex-grow: 1;
-    padding-left: 15px;
-    display: flex;
-    flex-direction: column;
-}
-#descriptionEditorPanel h3 {
-    margin-top: 0;
-    margin-bottom: 15px;
-    color: #333;
 }
 
 .description-fields {
