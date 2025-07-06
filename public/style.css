@@ -748,11 +748,14 @@ button.small-cancel-btn:hover {
 }
 
 /* --- DEBUT STYLES CALENDRIER --- */
-
 #calendar.tab-content.active {
+    padding: 10px;
+}
+
+.calendar-layout {
     display: flex;
     gap: 15px;
-    padding: 10px;
+    height: calc(100vh - 180px);
 }
 
 #calendar-sidebar {
@@ -1019,6 +1022,12 @@ button.small-cancel-btn:hover {
     color: #aaa;
 }
 
+.calendar-day-cell.highlighted-day {
+    background-color: #e6f7ff;
+    border: 1px dashed #99d6ff;
+}
+
+
 .scheduled-item {
     background-color: #f8f9fa;
     padding: 4px;
@@ -1159,7 +1168,8 @@ button.small-cancel-btn:hover {
 
 /* --- STYLES PANNEAUX LATÉRAUX PARTAGÉS & ICÔNES --- */
 #croppingJourList,
-#descriptionJourList {
+#descriptionJourList,
+#calendarJourList {
     list-style-type: none;
     padding: 0;
     margin: 0;
@@ -1205,7 +1215,8 @@ button.small-cancel-btn:hover {
 }
 
 #croppingJourList .jour-list-item.active-cropping-jour,
-#descriptionJourList .jour-list-item.active-description-jour {
+#descriptionJourList .jour-list-item.active-description-jour,
+#calendarJourList .jour-list-item.active-calendar-jour {
     background-color: #007bff;
     color: white;
     font-weight: bold;
@@ -1219,7 +1230,7 @@ button.small-cancel-btn:hover {
     height: calc(100vh - 200px);
 }
 
-#croppingJourListPanel, #descriptionJourListPanel {
+#croppingJourListPanel, #descriptionJourListPanel, #calendarJourListPanel {
     width: 280px;
     min-width: 250px;
     border-right: 1px solid #ddd;
@@ -1227,7 +1238,7 @@ button.small-cancel-btn:hover {
     overflow-y: auto;
 }
 
-#croppingJourListPanel h4, #descriptionJourListPanel h4 {
+#croppingJourListPanel h4, #descriptionJourListPanel h4, #calendarJourListPanel h4 {
     margin-top: 0;
     margin-bottom: 10px;
     font-size: 1.1em;

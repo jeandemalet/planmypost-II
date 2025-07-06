@@ -131,20 +131,17 @@
             </div>
         </div>
 
-        <!-- NOUVELLE STRUCTURE POUR L'ONGLET RECADRAGE -->
         <div id="cropping" class="tab-content">
             <h2>Recadrage des images</h2>
             <div class="cropping-layout">
                 <div id="croppingJourListPanel">
                     <h4>Jours de la Galerie</h4>
                     <ul id="croppingJourList">
-                        <!-- La liste des jours sera générée ici par JS -->
                     </ul>
                 </div>
                 <div id="croppingEditorContainer">
                     <h3 id="croppingEditorTitle">Sélectionnez un jour à recadrer</h3>
                     <div id="croppingEditorPanel" style="display: none;">
-                        <!-- Le contenu de l'ancienne modale est déplacé ici -->
                         <div class="cropper-main-area">
                             <div class="cropper-canvas-container">
                                 <canvas id="cropperCanvas"></canvas>
@@ -178,7 +175,6 @@
                 </div>
             </div>
         </div>
-        <!-- FIN DE LA NOUVELLE STRUCTURE -->
 
         <div id="description" class="tab-content">
             <h2>Description des Publications</h2>
@@ -209,52 +205,59 @@
         </div>
 
         <div id="calendar" class="tab-content">
-            <div id="calendar-sidebar">
-                <div class="sidebar-section auto-schedule-box">
-                    <h4>Planification Automatique</h4>
-                    <div class="auto-schedule-options">
-                        <div class="option-group">
-                            <input type="radio" id="autoScheduleChrono" name="autoScheduleMode" value="chrono" checked>
-                            <label for="autoScheduleChrono" title="Place les jours les uns après les autres, dans l'ordre (Jour A, Jour B, Jour C...).">Chronologique</label>
-                        </div>
-                        <div class="option-group">
-                            <input type="radio" id="autoScheduleInterlaced" name="autoScheduleMode" value="interlaced">
-                            <label for="autoScheduleInterlaced" title="Place les jours en alternant les galeries, tout en respectant l'ordre chronologique de chaque galerie.">Chronologique Interlacé</label>
-                        </div>
-                        <div class="option-group">
-                            <input type="radio" id="autoScheduleRandom" name="autoScheduleMode" value="random">
-                            <label for="autoScheduleRandom" title="Place les jours de manière aléatoire sur les dates disponibles.">Aléatoire</label>
-                        </div>
-                    </div>
-                    <div class="auto-schedule-settings">
-                        <div class="setting-group">
-                            <label for="autoSchedulePerDay">Publier</label>
-                            <input type="number" id="autoSchedulePerDay" value="1" min="1">
-                            <span>tous les</span>
-                            <input type="number" id="autoScheduleEveryXDays" value="1" min="1">
-                            <span>jour(s)</span>
-                        </div>
-                    </div>
-                    <button id="runAutoScheduleBtn" class="primary-action">Lancer la Planification</button>
-                    <p id="auto-schedule-info" class="sidebar-info"></p>
+            <div class="calendar-layout">
+                <div id="calendarJourListPanel">
+                    <h4>Jours de la Galerie</h4>
+                    <ul id="calendarJourList">
+                        <!-- La liste des jours sera générée ici par JS -->
+                    </ul>
                 </div>
+                <div id="calendar-main-content">
+                    <div class="scheduler-header">
+                        <h2 id="monthYearLabel">Mois Année</h2>
+                        <button id="todayBtn">Aujourd'hui</button>
+                    </div>
+                    <div id="calendarGrid"></div>
+                </div>
+                <div id="calendar-sidebar">
+                    <div class="sidebar-section auto-schedule-box">
+                        <h4>Planification Automatique</h4>
+                        <div class="auto-schedule-options">
+                            <div class="option-group">
+                                <input type="radio" id="autoScheduleChrono" name="autoScheduleMode" value="chrono" checked>
+                                <label for="autoScheduleChrono" title="Place les jours les uns après les autres, dans l'ordre (Jour A, Jour B, Jour C...).">Chronologique</label>
+                            </div>
+                            <div class="option-group">
+                                <input type="radio" id="autoScheduleInterlaced" name="autoScheduleMode" value="interlaced">
+                                <label for="autoScheduleInterlaced" title="Place les jours en alternant les galeries, tout en respectant l'ordre chronologique de chaque galerie.">Chronologique Interlacé</label>
+                            </div>
+                            <div class="option-group">
+                                <input type="radio" id="autoScheduleRandom" name="autoScheduleMode" value="random">
+                                <label for="autoScheduleRandom" title="Place les jours de manière aléatoire sur les dates disponibles.">Aléatoire</label>
+                            </div>
+                        </div>
+                        <div class="auto-schedule-settings">
+                            <div class="setting-group">
+                                <label for="autoSchedulePerDay">Publier</label>
+                                <input type="number" id="autoSchedulePerDay" value="1" min="1">
+                                <span>tous les</span>
+                                <input type="number" id="autoScheduleEveryXDays" value="1" min="1">
+                                <span>jour(s)</span>
+                            </div>
+                        </div>
+                        <button id="runAutoScheduleBtn" class="primary-action">Lancer la Planification</button>
+                        <p id="auto-schedule-info" class="sidebar-info"></p>
+                    </div>
 
-                <div id="unscheduledJoursContainer" class="sidebar-section">
-                    <h4>Jours à Planifier</h4>
-                    <p class="sidebar-info">Glissez-déposez un jour sur le calendrier.</p>
-                    <div id="unscheduledJoursList">
+                    <div id="unscheduledJoursContainer" class="sidebar-section">
+                        <h4>Jours à Planifier</h4>
+                        
+                        <div id="unscheduledJoursList">
+                        </div>
+                        <button id="reorganizeAllBtn" class="secondary-action" style="margin-top: 10px;">Tout Réorganiser</button>
+                        <button id="downloadAllScheduledBtn" class="primary-action" style="margin-top: 5px;">Tout Télécharger</button>
                     </div>
-                    <button id="reorganizeAllBtn" class="secondary-action" style="margin-top: 10px;">Tout Réorganiser</button>
-                    <button id="downloadAllScheduledBtn" class="primary-action" style="margin-top: 5px;">Tout Télécharger</button>
                 </div>
-
-            </div>
-            <div id="calendar-main-content">
-                <div class="scheduler-header">
-                    <h2 id="monthYearLabel">Mois Année</h2>
-                    <button id="todayBtn">Aujourd'hui</button>
-                </div>
-                <div id="calendarGrid"></div>
             </div>
             <div id="calendarContextPreviewModal" class="modal-preview">
                 <h4 id="calendarContextTitle">Aperçu</h4>
