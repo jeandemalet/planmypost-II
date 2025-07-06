@@ -754,7 +754,6 @@ class CroppingManager {
         this.handleSize = 18; 
         this.handleDetectionOffset = this.handleSize / 2 + 6; 
 
-        // *** CORRECTION DE L'ERREUR D'INITIALISATION ***
         this.debouncedUpdatePreview = Utils.debounce(() => this.updatePreview(), 150);
         this.debouncedHandleResize = Utils.debounce(() => this._handleResize(), 50);
 
@@ -1896,15 +1895,16 @@ class DescriptionManager {
 }
 
 // =================================================================
-// --- CLASSE CalendarPage ---
+// --- CLASSE CalendarPage (VERSION DÉFINITIVEMENT CORRIGÉE) ---
 // =================================================================
 class CalendarPage {
     constructor(parentElement, organizerApp) {
         this.parentElement = parentElement;
         this.organizerApp = organizerApp;
-        this.scheduleData = {}; 
-        this.allUserJours = []; 
-
+        
+        // On ne stocke plus de copie locale des données ici pour éviter la désynchronisation.
+        // On lira toujours depuis this.organizerApp.scheduleContext
+        
         this.currentDate = new Date(); 
         this.calendarGridElement = this.parentElement.querySelector('#calendarGrid');
         this.monthYearLabelElement = this.parentElement.querySelector('#monthYearLabel');
@@ -1973,8 +1973,8 @@ class CalendarPage {
             return;
         }
 
-        this.scheduleData = {};
-
+        // ====> CORRECTION N°1 : On modifie la source de vérité <====
+        this.organizerApp.scheduleContext.schedule = {};
         this.saveSchedule();
     }
 
@@ -2010,10 +2010,10 @@ class CalendarPage {
 
             const { date: sourceDateStr, letter: sourceLetter } = droppedData;
 
-            if (this.scheduleData[sourceDateStr] && this.scheduleData[sourceDateStr][sourceLetter]) {
-                delete this.scheduleData[sourceDateStr][sourceLetter];
-                if (Object.keys(this.scheduleData[sourceDateStr]).length === 0) {
-                    delete this.scheduleData[sourceDateStr];
+            if (this.organizerApp.scheduleContext.schedule[sourceDateStr] && this.organizerApp.scheduleContext.schedule[sourceDateStr][sourceLetter]) {
+                delete this.organizerApp.scheduleContext.schedule[sourceDateStr][sourceLetter];
+                if (Object.keys(this.organizerApp.scheduleContext.schedule[sourceDateStr]).length === 0) {
+                    delete this.organizerApp.scheduleContext.schedule[sourceDateStr];
                 }
 
                 this.saveSchedule();
@@ -2110,9 +2110,12 @@ class CalendarPage {
         
         const dateKey = this.formatDateKey(dateObj);
         dayCell.dataset.dateKey = dateKey;
+        
+        // On lit toujours depuis la source de vérité
+        const scheduleData = this.organizerApp.scheduleContext.schedule;
 
-        if (this.scheduleData[dateKey]) {
-            const itemsOnDay = this.scheduleData[dateKey];
+        if (scheduleData[dateKey]) {
+            const itemsOnDay = scheduleData[dateKey];
             const sortedLetters = Object.keys(itemsOnDay).sort();
 
             sortedLetters.forEach(letter => {
@@ -2144,7 +2147,7 @@ class CalendarPage {
                 downloadBtn.className = 'scheduled-item-download-btn';
                 downloadBtn.innerHTML = '💾';
                 downloadBtn.title = 'Télécharger le ZIP du Jour';
-                const jourDataForExport = this.allUserJours.find(j => j.galleryId === itemData.galleryId && j.letter === letter);
+                const jourDataForExport = this.organizerApp.scheduleContext.allUserJours.find(j => j.galleryId === itemData.galleryId && j.letter === letter);
                 if (jourDataForExport) {
                     downloadBtn.onclick = (e) => {
                         e.stopPropagation();
@@ -2208,15 +2211,18 @@ class CalendarPage {
 
         this.unscheduledJoursListElement.innerHTML = '';
 
+        const scheduleData = this.organizerApp.scheduleContext.schedule;
+        const allUserJours = this.organizerApp.scheduleContext.allUserJours;
+
         const scheduledSet = new Set();
-        for (const date in this.scheduleData) {
-            for (const letter in this.scheduleData[date]) {
-                const item = this.scheduleData[date][letter];
+        for (const date in scheduleData) {
+            for (const letter in scheduleData[date]) {
+                const item = scheduleData[date][letter];
                 scheduledSet.add(`${item.galleryId}-${letter}`);
             }
         }
 
-        const unscheduled = this.allUserJours.filter(jour => {
+        const unscheduled = allUserJours.filter(jour => {
             return !scheduledSet.has(`${jour.galleryId}-${jour.letter}`);
         });
 
@@ -2313,6 +2319,7 @@ class CalendarPage {
 
         try {
             const droppedData = JSON.parse(event.dataTransfer.getData("application/json"));
+            const scheduleData = this.organizerApp.scheduleContext.schedule;
             
             if (droppedData.type === 'unscheduled') {
                 this.addOrUpdatePublicationForDate(
@@ -2329,15 +2336,15 @@ class CalendarPage {
                     return;
                 }
     
-                delete this.scheduleData[sourceDateStr][sourceLetter];
-                if (Object.keys(this.scheduleData[sourceDateStr]).length === 0) {
-                    delete this.scheduleData[sourceDateStr];
+                delete scheduleData[sourceDateStr][sourceLetter];
+                if (Object.keys(scheduleData[sourceDateStr]).length === 0) {
+                    delete scheduleData[sourceDateStr];
                 }
     
-                if (!this.scheduleData[targetDateKey]) {
-                    this.scheduleData[targetDateKey] = {};
+                if (!scheduleData[targetDateKey]) {
+                    scheduleData[targetDateKey] = {};
                 }
-                this.scheduleData[targetDateKey][sourceLetter] = sourceData;
+                scheduleData[targetDateKey][sourceLetter] = sourceData;
     
                 this.saveSchedule(); 
             }
@@ -2422,8 +2429,9 @@ class CalendarPage {
     }
 
     isJourScheduled(galleryId, jourLetter) {
-        for (const dateKey in this.scheduleData) {
-            const dayEvents = this.scheduleData[dateKey];
+        const scheduleData = this.organizerApp.scheduleContext.schedule;
+        for (const dateKey in scheduleData) {
+            const dayEvents = scheduleData[dateKey];
             if (dayEvents[jourLetter] && dayEvents[jourLetter].galleryId === galleryId) {
                 return true; 
             }
@@ -2431,10 +2439,8 @@ class CalendarPage {
         return false;
     }
 
-
     loadData(schedule, allJours) {
-        this.scheduleData = schedule || {};
-        this.allUserJours = allJours || [];
+        // Cette fonction n'est plus nécessaire car on lit directement depuis l'organizerApp
     }
 
     async saveSchedule() { 
@@ -2446,13 +2452,18 @@ class CalendarPage {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/schedule`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(this.scheduleData) 
+                // ====> CORRECTION N°2 : Toujours envoyer la source de vérité <====
+                body: JSON.stringify(this.organizerApp.scheduleContext.schedule) 
             });
             if (!response.ok) {
                 throw new Error(`Failed to save schedule: ${response.statusText}`);
             }
             console.log("Schedule saved successfully for user.");
-            this.organizerApp.refreshSidePanels(); // Rafraîchir les icônes après sauvegarde
+            this.organizerApp.refreshSidePanels();
+
+            // ====> CORRECTION N°3 : Redessiner l'UI après chaque sauvegarde <====
+            this.buildCalendarUI();
+            
         } catch (e) {
             console.error("Error saving schedule data to backend:", e);
             alert("Erreur lors de la sauvegarde de la programmation."); 
@@ -2461,13 +2472,15 @@ class CalendarPage {
 
     addOrUpdatePublicationForDate(dateObj, jourLetter, galleryId, galleryName) { 
         const dateStr = this.formatDateKey(dateObj);
-        if (!this.scheduleData[dateStr]) {
-            this.scheduleData[dateStr] = {};
+        const scheduleData = this.organizerApp.scheduleContext.schedule;
+
+        if (!scheduleData[dateStr]) {
+            scheduleData[dateStr] = {};
         }
-        if (this.scheduleData[dateStr][jourLetter] && this.scheduleData[dateStr][jourLetter].galleryId === galleryId) {
+        if (scheduleData[dateStr][jourLetter] && scheduleData[dateStr][jourLetter].galleryId === galleryId) {
             return;
         }
-        this.scheduleData[dateStr][jourLetter] = {
+        scheduleData[dateStr][jourLetter] = {
             label: `Jour ${jourLetter}`, 
             galleryId: galleryId,
             galleryName: galleryName
@@ -2477,38 +2490,13 @@ class CalendarPage {
 
     removePublicationForDate(dateObj, jourLetter) {
         const dateStr = this.formatDateKey(dateObj);
-        if (this.scheduleData[dateStr] && this.scheduleData[dateStr][jourLetter]) {
-            delete this.scheduleData[dateStr][jourLetter];
-            if (Object.keys(this.scheduleData[dateStr]).length === 0) {
-                delete this.scheduleData[dateStr];
+        const scheduleData = this.organizerApp.scheduleContext.schedule;
+        if (scheduleData[dateStr] && scheduleData[dateStr][jourLetter]) {
+            delete scheduleData[dateStr][jourLetter];
+            if (Object.keys(scheduleData[dateStr]).length === 0) {
+                delete scheduleData[dateStr];
             }
             this.saveSchedule();
-        }
-    }
-
-    scheduleJourInNextAvailableSlot(jourLetter, galleryId, galleryName) {
-        if (!galleryId || galleryId === 'unknown') {
-            console.warn("Tentative de planification d'un jour sans galleryId valide. Opération annulée.");
-            return;
-        }
-        let checkDate = new Date(); 
-        checkDate.setHours(0,0,0,0);
-        let slotFound = false;
-        const MAX_SEARCH_DAYS = 90; 
-
-        for (let i = 0; i < MAX_SEARCH_DAYS; i++) {
-            const dateKey = this.formatDateKey(checkDate);
-            if (!this.scheduleData[dateKey] || !this.scheduleData[dateKey][jourLetter]) {
-                this.addOrUpdatePublicationForDate(checkDate, jourLetter, galleryId, galleryName);
-                slotFound = true;
-                console.log(`Jour ${jourLetter} (Galerie: ${galleryName}) auto-placé le ${dateKey}`);
-                break;
-            }
-            checkDate.setDate(checkDate.getDate() + 1); 
-        }
-        if (!slotFound) {
-            console.warn(`Impossible de trouver un slot libre pour le Jour ${jourLetter} (Galerie: ${galleryName}) dans les ${MAX_SEARCH_DAYS} prochains jours.`);
-             alert(`Impossible de planifier automatiquement le Jour ${jourLetter} de la galerie "${galleryName}". Veuillez le placer manuellement dans le calendrier.`);
         }
     }
 
@@ -2524,9 +2512,13 @@ class CalendarPage {
             if (postsPerDay <= 0 || everyXDays <= 0) {
                 throw new Error("Les valeurs de publication doivent être supérieures à zéro.");
             }
+            
+            // ====> CORRECTION N°4 : Travailler sur la source de vérité <====
+            const scheduleData = this.organizerApp.scheduleContext.schedule;
+            const allUserJours = this.organizerApp.scheduleContext.allUserJours;
 
             const scheduledJourIdentifiers = new Set();
-            Object.values(this.scheduleData).forEach(day => {
+            Object.values(scheduleData).forEach(day => {
                 Object.values(day).forEach(item => {
                     const letter = item.label ? item.label.split(' ')[1] : Object.keys(day).find(k => day[k] === item);
                     if(letter) {
@@ -2535,7 +2527,7 @@ class CalendarPage {
                 });
             });
 
-            let unpublishedJours = this.allUserJours.filter(jour => 
+            let unpublishedJours = allUserJours.filter(jour => 
                 !scheduledJourIdentifiers.has(`${jour.galleryId}-${jour.letter}`) && this.organizerApp.isJourReadyForPublishing(jour.galleryId, jour.letter)
             );
 
@@ -2587,14 +2579,14 @@ class CalendarPage {
 
             while (unpublishedJours.length > 0) {
                 const dateKey = this.formatDateKey(currentDate);
-                let postsOnThisDay = this.scheduleData[dateKey] ? Object.keys(this.scheduleData[dateKey]).length : 0;
+                let postsOnThisDay = scheduleData[dateKey] ? Object.keys(scheduleData[dateKey]).length : 0;
                 
                 while(postsOnThisDay < postsPerDay && unpublishedJours.length > 0) {
                     const jourToPlace = unpublishedJours.shift();
-                    if (!this.scheduleData[dateKey]) {
-                        this.scheduleData[dateKey] = {};
+                    if (!scheduleData[dateKey]) {
+                        scheduleData[dateKey] = {};
                     }
-                    this.scheduleData[dateKey][jourToPlace.letter] = {
+                    scheduleData[dateKey][jourToPlace.letter] = {
                         galleryId: jourToPlace.galleryId,
                         galleryName: jourToPlace.galleryName,
                         label: `Jour ${jourToPlace.letter}`
@@ -2844,17 +2836,17 @@ class PublicationOrganizer {
     }
     
     async downloadAllScheduledJours() {
-        if (!this.calendarPage || !this.calendarPage.scheduleData) {
+        if (!this.calendarPage || !this.organizerApp.scheduleContext.schedule) {
             alert("Les données du calendrier ne sont pas chargées.");
             return;
         }
     
         const scheduledJours = [];
-        const jourMap = new Map(this.calendarPage.allUserJours.map(j => [`${j.galleryId}-${j.letter}`, j._id]));
+        const jourMap = new Map(this.organizerApp.scheduleContext.allUserJours.map(j => [`${j.galleryId}-${j.letter}`, j._id]));
     
-        for (const date in this.calendarPage.scheduleData) {
-            for (const letter in this.calendarPage.scheduleData[date]) {
-                const item = this.calendarPage.scheduleData[date][letter];
+        for (const date in this.organizerApp.scheduleContext.schedule) {
+            for (const letter in this.organizerApp.scheduleContext.schedule[date]) {
+                const item = this.organizerApp.scheduleContext.schedule[date][letter];
                 const jourId = jourMap.get(`${item.galleryId}-${letter}`);
                 if (jourId) {
                     if (!scheduledJours.some(j => j.jourId === jourId)) {
@@ -2943,12 +2935,12 @@ class PublicationOrganizer {
 
         if (this.calendarPage) {
              if (noGalleryActive) {
-                this.calendarPage.loadData({}, []); 
+                this.scheduleContext = { schedule: {}, allUserJours: [] }; // Vider les données
+                this.calendarPage.buildCalendarUI(); // Redessiner avec les données vides
                 this.calendarPage.monthYearLabelElement.textContent = "Calendrier";
-                this.calendarPage.calendarGridElement.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 20px;">Chargez ou créez une galerie pour voir le calendrier.</p>';
-            } else {
+             } else {
                 this.calendarPage.buildCalendarUI(); 
-            }
+             }
         }
         
         const croppingTabContent = document.getElementById('cropping');
@@ -3012,7 +3004,6 @@ class PublicationOrganizer {
                     this.calendarPage = new CalendarPage(tabContent, this);
                 }
                  if (this.currentGalleryId) {
-                    this.calendarPage.loadData(this.scheduleContext.schedule, this.scheduleContext.allUserJours);
                     this.calendarPage.buildCalendarUI(); 
                 }
             }
@@ -3348,7 +3339,7 @@ class PublicationOrganizer {
             };
 
             if (this.calendarPage) {
-                this.calendarPage.loadData(this.scheduleContext.schedule, this.scheduleContext.allUserJours);
+                this.calendarPage.buildCalendarUI();
             }
             
             this.updateGridUsage();
@@ -3774,7 +3765,7 @@ class PublicationOrganizer {
             this.updateAddPhotosPlaceholderVisibility();
             
             if (this.calendarPage && document.getElementById('calendar').classList.contains('active')) {
-                this.calendarPage.loadData({}, []); 
+                this.scheduleContext.schedule = {}; // Vider les données
                 this.calendarPage.buildCalendarUI();
             }
             if (this.selectedGalleryForPreviewId === this.currentGalleryId) {
@@ -4017,8 +4008,8 @@ class PublicationOrganizer {
             
             if (this.calendarPage) {
                 const datesToRemove = [];
-                for (const dateStr in this.calendarPage.scheduleData) {
-                    if (this.calendarPage.scheduleData[dateStr][jourFrameToClose.letter] && this.calendarPage.scheduleData[dateStr][jourFrameToClose.letter].galleryId === jourFrameToClose.galleryId) {
+                for (const dateStr in this.organizerApp.scheduleContext.schedule) {
+                    if (this.organizerApp.scheduleContext.schedule[dateStr][jourFrameToClose.letter] && this.organizerApp.scheduleContext.schedule[dateStr][jourFrameToClose.letter].galleryId === jourFrameToClose.galleryId) {
                         datesToRemove.push(new Date(dateStr + 'T00:00:00')); 
                     }
                 }
