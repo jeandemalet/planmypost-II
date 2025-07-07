@@ -1472,22 +1472,7 @@ button.small-cancel-btn:hover {
     border-radius: 6px; 
 }
 
-.description-filter-controls {
-    margin-top: 20px;
-    padding-top: 15px;
-    border-top: 1px dashed #ddd;
-}
-.description-filter-controls label,
-.description-filter-controls select,
-.description-filter-controls button {
-    display: block;
-    margin-bottom: 8px;
-}
-.description-filter-controls select {
-    width: 100%;
-    padding: 8px;
-    border-radius: 6px; 
-}
+
 
 
 .upload-progress-area {
@@ -1684,3 +1669,5 @@ button.small-cancel-btn:hover {
     border: 2px dashed #007bff;
     box-shadow: inset 0 0 10px rgba(0, 123, 255, 0.2);
 }
+
+
