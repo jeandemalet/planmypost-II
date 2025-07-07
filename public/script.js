@@ -1932,7 +1932,7 @@ class CalendarPage {
         this.currentDate = new Date(); 
         this.calendarGridElement = this.parentElement.querySelector('#calendarGrid');
         this.monthYearLabelElement = this.parentElement.querySelector('#monthYearLabel');
-        this.unscheduledJoursListElement = this.parentElement.querySelector('#unscheduledJoursList');
+        this.jourListElement = this.parentElement.querySelector('#calendarJourList');
         
         this.contextPreviewModal = document.getElementById('calendarContextPreviewModal');
         this.contextPreviewTitle = document.getElementById('calendarContextTitle');
@@ -1982,10 +1982,6 @@ class CalendarPage {
 
         this.runAutoScheduleBtn.addEventListener('click', () => this.runAutoSchedule());
         
-        this.unscheduledJoursListElement.addEventListener('dragover', (e) => this._onDragOverUnscheduledList(e));
-        this.unscheduledJoursListElement.addEventListener('dragleave', (e) => this._onDragLeaveUnscheduledList(e));
-        this.unscheduledJoursListElement.addEventListener('drop', (e) => this._onDropOnUnscheduledList(e));
-
         const reorganizeAllBtn = document.getElementById('reorganizeAllBtn');
         if (reorganizeAllBtn) {
             reorganizeAllBtn.addEventListener('click', () => this.reorganizeAll());
@@ -1998,53 +1994,6 @@ class CalendarPage {
         }
         this.organizerApp.scheduleContext.schedule = {};
         this.saveSchedule();
-    }
-
-    _onDragOverUnscheduledList(event) {
-        event.preventDefault();
-        try {
-            const droppedData = JSON.parse(event.dataTransfer.getData("application/json"));
-            if (droppedData && droppedData.type === 'calendar') {
-                event.dataTransfer.dropEffect = 'move';
-                this.unscheduledJoursListElement.classList.add('drag-over-list');
-            } else {
-                event.dataTransfer.dropEffect = 'none';
-            }
-        } catch(e) {
-            event.dataTransfer.dropEffect = 'none';
-        }
-    }
-
-    _onDragLeaveUnscheduledList(event) {
-        this.unscheduledJoursListElement.classList.remove('drag-over-list');
-    }
-
-    _onDropOnUnscheduledList(event) {
-        event.preventDefault();
-        this.unscheduledJoursListElement.classList.remove('drag-over-list');
-
-        try {
-            const droppedData = JSON.parse(event.dataTransfer.getData("application/json"));
-
-            if (droppedData.type !== 'calendar') {
-                return;
-            }
-
-            const { date: sourceDateStr, letter: sourceLetter } = droppedData;
-            
-            const scheduleData = this.organizerApp.scheduleContext.schedule;
-
-            if (scheduleData[sourceDateStr] && scheduleData[sourceDateStr][sourceLetter]) {
-                delete scheduleData[sourceDateStr][sourceLetter];
-                if (Object.keys(scheduleData[sourceDateStr]).length === 0) {
-                    delete scheduleData[sourceDateStr];
-                }
-                this.saveSchedule();
-            }
-
-        } catch (err) {
-            console.error("Erreur lors du drop sur la liste des jours non planifiés :", err);
-        }
     }
 
     goToToday() {
@@ -2070,11 +2019,11 @@ class CalendarPage {
         if (!app.currentGalleryId) { 
             this.calendarGridElement.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 20px;">Chargez ou créez une galerie pour voir le calendrier.</p>';
             this.monthYearLabelElement.textContent = "Calendrier";
-            this.buildUnscheduledJoursList();
+            this.populateJourList();
             return;
         }
 
-        this.buildUnscheduledJoursList();
+        this.populateJourList();
 
         const year = this.currentDate.getFullYear();
         const month = this.currentDate.getMonth(); 
@@ -2117,6 +2066,14 @@ class CalendarPage {
             const nextMonthDay = new Date(year, month + 1, i);
             this.createDayCell(nextMonthDay, true, false, nextMonthDay < today);
         }
+    }
+
+    populateJourList() {
+        this.organizerApp._populateSharedJourList(
+            this.jourListElement,
+            null, 
+            'calendar'
+        );
     }
     
     createDayCell(dateObj, isOtherMonth, isToday = false, isPast = false) {
