@@ -1,3 +1,4 @@
+
 // =================================================================
 // --- Contenu complet du fichier : public/script.js (Corrigé et Robuste) ---
 // =================================================================
@@ -983,20 +984,23 @@ class CroppingManager {
         this.organizer.refreshSidePanels();
     }
 
+    // =========================================================================
+    // === MÉTHODE MODIFIÉE POUR INTÉGRER SMARTCROP.JS ===
+    // =========================================================================
     async loadCurrentImage() {
         this.ignoreSaveForThisImage = false;
         this.flippedH = false;
-        this.cropRectDisplay = null; 
-        this.isDragging = false; 
-        this.dragMode = null;    
-        this.canvasElement.style.cursor = 'crosshair'; 
+        this.cropRectDisplay = null;
+        this.isDragging = false;
+        this.dragMode = null;
+        this.canvasElement.style.cursor = 'crosshair';
 
         if (this.currentImageIndex < 0 || this.currentImageIndex >= this.imagesToCrop.length) {
             this.currentImageObject = null;
             this.ctx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
             this.infoLabel.textContent = "Toutes les images traitées.";
             this.updatePreview(null, null);
-            if (this.imagesToCrop.length > 0) this.finishBtn.focus(); 
+            if (this.imagesToCrop.length > 0) this.finishBtn.focus();
             return;
         }
 
@@ -1004,11 +1008,82 @@ class CroppingManager {
         const originalGridItem = this.organizer.gridItemsDict[imgInfo.originalReferenceId];
         const displayName = originalGridItem ? originalGridItem.basename : `Image ID ${imgInfo.originalReferenceId}`;
         this.infoLabel.textContent = `Chargement ${this.currentImageIndex + 1}/${this.imagesToCrop.length}: ${displayName}...`;
-        
-        try {
-            this.currentImageObject = await Utils.loadImage(imgInfo.baseImageToCropFromDataURL); 
 
-            if (this.currentImageObject) {
+        try {
+            this.currentImageObject = await Utils.loadImage(imgInfo.baseImageToCropFromDataURL);
+
+            // =====================================================================
+            // --- DÉBUT DE LA NOUVELLE LOGIQUE AVEC SMARTCROP ---
+            // =====================================================================
+            if (this.currentImageObject && typeof smartcrop !== 'undefined') {
+                this.infoLabel.textContent = `Analyse intelligente de l'image...`;
+
+                // 1. Obtenir le ratio depuis le selecteur de l'UI
+                const aspectRatioName = this.aspectRatioSelect.value;
+
+                // 2. Déterminer les dimensions pour l'analyse smartcrop
+                const imageDims = {
+                    width: this.currentImageObject.naturalWidth,
+                    height: this.currentImageObject.naturalHeight
+                };
+
+                let cropOptionsForSmartcrop;
+
+                // 3. Calculer les dimensions de recadrage idéales pour ce ratio
+                if (aspectRatioName === 'free') {
+                    // Pour 'libre', on prend le plus grand carré possible comme base
+                    const size = Math.min(imageDims.width, imageDims.height);
+                    cropOptionsForSmartcrop = { width: size, height: size };
+                } else {
+                    const ratioParts = aspectRatioName.split(':').map(Number);
+                    const targetRatio = ratioParts[0] / ratioParts[1];
+                    const imageRatio = imageDims.width / imageDims.height;
+
+                    if (imageRatio > targetRatio) { // L'image est plus large que le ratio cible
+                        cropOptionsForSmartcrop = { width: imageDims.height * targetRatio, height: imageDims.height };
+                    } else { // L'image est plus haute (ou identique)
+                        cropOptionsForSmartcrop = { width: imageDims.width, height: imageDims.width / targetRatio };
+                    }
+                }
+                
+                // 4. Appeler smartcrop.js
+                const result = await smartcrop.crop(this.currentImageObject, cropOptionsForSmartcrop);
+                const bestCrop = result.topCrop;
+
+                // 5. La Logique Cruciale : Conversion des Coordonnées
+                //    `bestCrop` donne les coordonnées sur l'image originale (haute résolution).
+                //    On doit les convertir en coordonnées pour l'image affichée sur le canvas (basse résolution).
+                const { displayX, displayY, imageScale } = this.getImageDisplayDimensions();
+                
+                if (imageScale > 0) {
+                    this.cropRectDisplay = {
+                        x: displayX + (bestCrop.x * imageScale),
+                        y: displayY + (bestCrop.y * imageScale),
+                        width: bestCrop.width * imageScale,
+                        height: bestCrop.height * imageScale
+                    };
+                } else {
+                    // Si l'échelle est nulle, on retombe sur le comportement par défaut
+                    throw new Error("L'échelle de l'image est nulle, utilisation du recadrage par défaut.");
+                }
+
+                // Appliquer les contraintes du ratio au cas où il y aurait des imprécisions
+                this.currentAspectRatioName = aspectRatioName;
+                this.adjustCropRectToAspectRatio();
+
+            } else {
+                // Fallback si smartcrop n'est pas défini ou si l'image n'est pas chargée
+                throw new Error("Smartcrop non disponible ou l'image n'a pu être chargée.");
+            }
+            // =====================================================================
+            // --- FIN DE LA NOUVELLE LOGIQUE ---
+            // =====================================================================
+
+        } catch (e) {
+            // EN CAS D'ERREUR (ex: smartcrop non chargé), on utilise l'ancienne logique
+            console.warn("L'analyse Smartcrop a échoué, utilisation du recadrage par défaut.", e.message);
+            
+            if (this.currentImageObject) { // S'assurer que l'image est quand même chargée
                 if (this.splitModeState === 1) { 
                     this.currentAspectRatioName = '6:4split'; 
                     this.setDefaultMaximizedCropRectForSplit();
@@ -1025,24 +1100,27 @@ class CroppingManager {
                         else if (imgWidth > imgHeight * 1.1) defaultRatio = '3:2'; 
                         else defaultRatio = '1:1';
                     }
-                    this.aspectRatioSelect.value = defaultRatio; 
-                    this.onRatioChanged(defaultRatio); 
+                    this.aspectRatioSelect.value = defaultRatio;
+                    // On appelle la méthode qui initialise le rectangle de recadrage
+                    this.onRatioChanged(defaultRatio);
                 }
+            } else {
+                console.error(`Erreur chargement: ${displayName}:`, e);
+                this.infoLabel.textContent = `Erreur chargement: ${displayName}`;
+                this.currentImageObject = null;
+                this.updatePreview(null, null);
+                return;
             }
-             
-            this.aspectRatioSelect.disabled = this.splitModeState > 0 || this.saveMode === 'white_bars';
-            this.whiteBarsBtn.disabled = this.splitModeState > 0;
-            this.splitLineBtn.disabled = this.saveMode === 'white_bars';
-
-            this.redrawCanvasOnly(); 
-            this.debouncedUpdatePreview();
-            this.infoLabel.textContent = `Image ${this.currentImageIndex + 1}/${this.imagesToCrop.length}: ${displayName}`;
-        } catch (e) {
-            console.error(`Error loading image in cropper for ${displayName}:`, e);
-            this.infoLabel.textContent = `Erreur chargement: ${displayName}`;
-            this.currentImageObject = null;
-            this.updatePreview(null, null);
         }
+        
+        // Finalisation (commun à smartcrop ou fallback)
+        this.aspectRatioSelect.disabled = this.splitModeState > 0 || this.saveMode === 'white_bars';
+        this.whiteBarsBtn.disabled = this.splitModeState > 0;
+        this.splitLineBtn.disabled = this.saveMode === 'white_bars';
+
+        this.redrawCanvasOnly(); 
+        this.debouncedUpdatePreview();
+        this.infoLabel.textContent = `Image ${this.currentImageIndex + 1}/${this.imagesToCrop.length}: ${displayName}`;
     }
     
     setDefaultCropRect() { 
