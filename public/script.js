@@ -1,9 +1,3 @@
-
-// =================================================================
-// --- Contenu complet du fichier : public/script.js (Corrigé et Robuste) ---
-// =================================================================
-
-// --- Constantes Globales et État ---
 const BASE_API_URL = '';
 const JOUR_COLORS = [
     "red", "blue", "green", "purple", "orange",
@@ -985,7 +979,7 @@ class CroppingManager {
     }
 
     // =========================================================================
-    // === MÉTHODE MODIFIÉE POUR INTÉGRER SMARTCROP.JS ===
+    // === MÉTHODE CORRIGÉE POUR LE PROBLÈME DE RATIO PAR DÉFAUT ===
     // =========================================================================
     async loadCurrentImage() {
         this.ignoreSaveForThisImage = false;
@@ -1013,15 +1007,37 @@ class CroppingManager {
             this.currentImageObject = await Utils.loadImage(imgInfo.baseImageToCropFromDataURL);
 
             // =====================================================================
-            // --- DÉBUT DE LA NOUVELLE LOGIQUE AVEC SMARTCROP ---
+            // === DÉBUT DE LA CORRECTION : DÉFINIR LE RATIO PAR DÉFAUT AVANT TOUT ===
             // =====================================================================
+            
+            let defaultRatio;
+            const imgWidth = this.currentImageObject.naturalWidth || this.currentImageObject.width;
+            const imgHeight = this.currentImageObject.naturalHeight || this.currentImageObject.height;
+
+            // On utilise un seuil (ex: 5%) pour éviter de changer pour les images presque carrées
+            if (imgWidth > imgHeight * 1.05) { // Clairement horizontale
+                defaultRatio = '3:2';
+            } else if (imgHeight > imgWidth * 1.05) { // Clairement verticale
+                defaultRatio = '3:4';
+            } else { // Carrée ou presque
+                defaultRatio = '1:1';
+            }
+            
+            // On met à jour l'élément <select> de l'interface.
+            // C'est cette valeur qui sera utilisée par la suite.
+            this.aspectRatioSelect.value = defaultRatio;
+
+            // =====================================================================
+            // === FIN DE LA CORRECTION ===
+            // =====================================================================
+
             if (this.currentImageObject && typeof smartcrop !== 'undefined') {
                 this.infoLabel.textContent = `Analyse intelligente de l'image...`;
 
-                // 1. Obtenir le ratio depuis le selecteur de l'UI
+                // On lit la valeur qu'on vient de définir dans le <select>
                 const aspectRatioName = this.aspectRatioSelect.value;
+                this.currentAspectRatioName = aspectRatioName; // Mettre à jour l'état interne
 
-                // 2. Déterminer les dimensions pour l'analyse smartcrop
                 const imageDims = {
                     width: this.currentImageObject.naturalWidth,
                     height: this.currentImageObject.naturalHeight
@@ -1029,9 +1045,7 @@ class CroppingManager {
 
                 let cropOptionsForSmartcrop;
 
-                // 3. Calculer les dimensions de recadrage idéales pour ce ratio
                 if (aspectRatioName === 'free') {
-                    // Pour 'libre', on prend le plus grand carré possible comme base
                     const size = Math.min(imageDims.width, imageDims.height);
                     cropOptionsForSmartcrop = { width: size, height: size };
                 } else {
@@ -1039,20 +1053,16 @@ class CroppingManager {
                     const targetRatio = ratioParts[0] / ratioParts[1];
                     const imageRatio = imageDims.width / imageDims.height;
 
-                    if (imageRatio > targetRatio) { // L'image est plus large que le ratio cible
+                    if (imageRatio > targetRatio) {
                         cropOptionsForSmartcrop = { width: imageDims.height * targetRatio, height: imageDims.height };
-                    } else { // L'image est plus haute (ou identique)
+                    } else {
                         cropOptionsForSmartcrop = { width: imageDims.width, height: imageDims.width / targetRatio };
                     }
                 }
                 
-                // 4. Appeler smartcrop.js
                 const result = await smartcrop.crop(this.currentImageObject, cropOptionsForSmartcrop);
                 const bestCrop = result.topCrop;
 
-                // 5. La Logique Cruciale : Conversion des Coordonnées
-                //    `bestCrop` donne les coordonnées sur l'image originale (haute résolution).
-                //    On doit les convertir en coordonnées pour l'image affichée sur le canvas (basse résolution).
                 const { displayX, displayY, imageScale } = this.getImageDisplayDimensions();
                 
                 if (imageScale > 0) {
@@ -1063,47 +1073,22 @@ class CroppingManager {
                         height: bestCrop.height * imageScale
                     };
                 } else {
-                    // Si l'échelle est nulle, on retombe sur le comportement par défaut
                     throw new Error("L'échelle de l'image est nulle, utilisation du recadrage par défaut.");
                 }
 
-                // Appliquer les contraintes du ratio au cas où il y aurait des imprécisions
-                this.currentAspectRatioName = aspectRatioName;
                 this.adjustCropRectToAspectRatio();
 
             } else {
-                // Fallback si smartcrop n'est pas défini ou si l'image n'est pas chargée
                 throw new Error("Smartcrop non disponible ou l'image n'a pu être chargée.");
             }
-            // =====================================================================
-            // --- FIN DE LA NOUVELLE LOGIQUE ---
-            // =====================================================================
 
         } catch (e) {
-            // EN CAS D'ERREUR (ex: smartcrop non chargé), on utilise l'ancienne logique
-            console.warn("L'analyse Smartcrop a échoué, utilisation du recadrage par défaut.", e.message);
+            console.warn("L'analyse Smartcrop a échoué ou n'a pas été utilisée, application du recadrage par défaut.", e.message);
             
-            if (this.currentImageObject) { // S'assurer que l'image est quand même chargée
-                if (this.splitModeState === 1) { 
-                    this.currentAspectRatioName = '6:4split'; 
-                    this.setDefaultMaximizedCropRectForSplit();
-                } else if (this.splitModeState === 2) { 
-                    this.currentAspectRatioName = '9:4doublesplit'; 
-                    this.setDefaultMaximizedCropRectForDoubleSplit();
-                } else { 
-                    let defaultRatio = this.aspectRatioSelect.value; 
-                    
-                    if (this.saveMode === 'crop') { 
-                        const imgWidth = this.currentImageObject.naturalWidth || this.currentImageObject.width;
-                        const imgHeight = this.currentImageObject.naturalHeight || this.currentImageObject.height;
-                        if (imgHeight > imgWidth * 1.1) defaultRatio = '3:4'; 
-                        else if (imgWidth > imgHeight * 1.1) defaultRatio = '2:3'; 
-                        else defaultRatio = '1:1';
-                    }
-                    this.aspectRatioSelect.value = defaultRatio;
-                    // On appelle la méthode qui initialise le rectangle de recadrage
-                    this.onRatioChanged(defaultRatio);
-                }
+            if (this.currentImageObject) {
+                // La logique de fallback reste utile en cas de vrai problème
+                // et elle utilisera la valeur `defaultRatio` déjà définie dans le <select>.
+                this.onRatioChanged(this.aspectRatioSelect.value);
             } else {
                 console.error(`Erreur chargement: ${displayName}:`, e);
                 this.infoLabel.textContent = `Erreur chargement: ${displayName}`;
@@ -1113,7 +1098,7 @@ class CroppingManager {
             }
         }
         
-        // Finalisation (commun à smartcrop ou fallback)
+        // Finalisation
         this.aspectRatioSelect.disabled = this.splitModeState > 0 || this.saveMode === 'white_bars';
         this.whiteBarsBtn.disabled = this.splitModeState > 0;
         this.splitLineBtn.disabled = this.saveMode === 'white_bars';
@@ -1464,108 +1449,127 @@ class CroppingManager {
         this.debouncedUpdatePreview();
     }
     
-    async applyAndSaveCurrentImage() { 
-        if (this.ignoreSaveForThisImage || !this.currentImageObject || this.currentImageIndex < 0) return;
+// =========================================================================
+// === MÉTHODE CORRIGÉE POUR ÉVITER LES ERREURS DE FORMAT D'URL ===
+// =========================================================================
+async applyAndSaveCurrentImage() { 
+    if (this.ignoreSaveForThisImage || !this.currentImageObject || this.currentImageIndex < 0) return;
 
-        const currentImgInfoForCropper = this.imagesToCrop[this.currentImageIndex];
-        const originalImageId = currentImgInfoForCropper.originalReferenceId; 
-        const currentImageIdInJour = currentImgInfoForCropper.currentImageId; 
-        const galleryIdForAPI = this.currentJourFrameInstance.galleryId;
+    const currentImgInfoForCropper = this.imagesToCrop[this.currentImageIndex];
+    const originalImageId = currentImgInfoForCropper.originalReferenceId; 
+    const currentImageIdInJour = currentImgInfoForCropper.currentImageId; 
+    const galleryIdForAPI = this.currentJourFrameInstance.galleryId;
 
-        const saveCanvas = document.createElement('canvas');
-        const saveCtx = saveCanvas.getContext('2d');
-        let cropOperationsPayloads = []; 
+    const saveCanvas = document.createElement('canvas');
+    const saveCtx = saveCanvas.getContext('2d');
+    let cropOperationsPayloads = []; 
 
-        try {
-            if (this.saveMode === 'white_bars') {
-                const { finalWidth, finalHeight, pasteX, pasteY } = this.calculateWhiteBarDimensions();
-                if (!finalWidth || !finalHeight) throw new Error("Invalid dimensions for white bars.");
-                saveCanvas.width = finalWidth; saveCanvas.height = finalHeight;
-                saveCtx.fillStyle = 'white'; saveCtx.fillRect(0, 0, finalWidth, finalHeight);
-                this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, pasteX, pasteY, this.currentImageObject.naturalWidth, this.currentImageObject.naturalHeight);
-                const newDataURL = saveCanvas.toDataURL('image/jpeg', 0.92); 
-                cropOperationsPayloads.push({ imageDataUrl: newDataURL, cropInfo: 'barres_3x4', filenameSuffix: 'barres_3x4' }); 
+    try {
+        if (this.saveMode === 'white_bars') {
+            const { finalWidth, finalHeight, pasteX, pasteY } = this.calculateWhiteBarDimensions();
+            // AJOUT DE LA VÉRIFICATION
+            if (!finalWidth || finalWidth <= 0 || !finalHeight || finalHeight <= 0) {
+                throw new Error("Dimensions invalides (nulles ou négatives) pour l'ajout de barres blanches.");
+            }
+            saveCanvas.width = finalWidth; saveCanvas.height = finalHeight;
+            saveCtx.fillStyle = 'white'; saveCtx.fillRect(0, 0, finalWidth, finalHeight);
+            this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, pasteX, pasteY, this.currentImageObject.naturalWidth, this.currentImageObject.naturalHeight);
+            const newDataURL = saveCanvas.toDataURL('image/jpeg', 0.92); 
+            cropOperationsPayloads.push({ imageDataUrl: newDataURL, cropInfo: 'barres_3x4', filenameSuffix: 'barres_3x4' }); 
 
-            } else if (this.saveMode === 'crop' && this.cropRectDisplay) {
-                const { sx, sy, sWidth, sHeight } = this.getCropSourceCoordinates();
-                if (sWidth <= 0 || sHeight <= 0) throw new Error("Invalid crop dimensions.");
-
-                if (this.splitModeState === 1) { 
-                    const sWidthLeft = Math.floor(sWidth / 2);
-                    const sWidthRight = sWidth - sWidthLeft; 
-
-                    if (sWidthLeft > 0) { 
-                        saveCanvas.width = sWidthLeft; saveCanvas.height = sHeight;
-                        this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthLeft, sHeight, sx, sy, sWidthLeft, sHeight);
-                        cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_gauche_3x4', filenameSuffix: 'gauche_3x4' }); 
-                    }
-                    if (sWidthRight > 0) { 
-                        saveCanvas.width = sWidthRight; saveCanvas.height = sHeight; saveCtx.clearRect(0,0, saveCanvas.width, saveCanvas.height);
-                        this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthRight, sHeight, sx + sWidthLeft, sy, sWidthRight, sHeight);
-                        cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_droite_3x4', filenameSuffix: 'droite_3x4' }); 
-                    }
-                } else if (this.splitModeState === 2) { 
-                    const sWidthThird = Math.floor(sWidth / 3);
-                    const sWidthLeft = sWidthThird;
-                    const sWidthMid = sWidthThird;
-                    const sWidthRight = sWidth - sWidthLeft - sWidthMid;
-
-                    if (sWidthLeft > 0) {
-                        saveCanvas.width = sWidthLeft; saveCanvas.height = sHeight; saveCtx.clearRect(0,0,saveCanvas.width,saveCanvas.height);
-                        this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthLeft, sHeight, sx, sy, sWidthLeft, sHeight);
-                        cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_gauche_3x4_sur3', filenameSuffix: 'g_3x4_3' }); 
-                    }
-                    if (sWidthMid > 0) {
-                        saveCanvas.width = sWidthMid; saveCanvas.height = sHeight; saveCtx.clearRect(0,0,saveCanvas.width,saveCanvas.height);
-                        this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthMid, sHeight, sx + sWidthLeft, sy, sWidthMid, sHeight);
-                        cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_milieu_3x4_sur3', filenameSuffix: 'm_3x4_3' }); 
-                    }
-                    if (sWidthRight > 0) {
-                        saveCanvas.width = sWidthRight; saveCanvas.height = sHeight; saveCtx.clearRect(0,0,saveCanvas.width,saveCanvas.height);
-                        this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthRight, sHeight, sx + sWidthLeft + sWidthMid, sy, sWidthRight, sHeight);
-                        cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_droite_3x4_sur3', filenameSuffix: 'd_3x4_3' }); 
-                    }
-                } else { 
-                    saveCanvas.width = sWidth; saveCanvas.height = sHeight;
-                    this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidth, sHeight, sx, sy, sWidth, sHeight);
-                    const suffix = this.currentAspectRatioName.replace(':','x'); 
-                    cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: `recadre_${suffix}`, filenameSuffix: `rec_${suffix}` });
-                }
+        } else if (this.saveMode === 'crop' && this.cropRectDisplay) {
+            const { sx, sy, sWidth, sHeight } = this.getCropSourceCoordinates();
+            
+            // AJOUT DE LA VÉRIFICATION CRUCIALE
+            if (sWidth <= 0 || sHeight <= 0) {
+                console.warn("Tentative de sauvegarde avec des dimensions de recadrage invalides (<= 0). Annulation.", {sWidth, sHeight});
+                this.infoLabel.textContent = `Recadrage ignoré (dimensions invalides).`;
+                // On ne lève pas d'erreur, on ignore simplement cette sauvegarde.
+                return;
             }
 
-            if (cropOperationsPayloads.length > 0) {
-                const backendResults = [];
-                for (const opPayload of cropOperationsPayloads) {
-                    const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryIdForAPI}/images/${originalImageId}/crop`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(opPayload)
-                    });
-                    if (!response.ok) {
-                        const errText = await response.text();
-                        throw new Error(`Crop save to backend failed: ${response.statusText} - ${errText}`);
-                    }
-                    const newImageDoc = await response.json(); 
-                    backendResults.push(newImageDoc);
+            if (this.splitModeState === 1) { 
+                const sWidthLeft = Math.floor(sWidth / 2);
+                const sWidthRight = sWidth - sWidthLeft; 
 
-                    if (!this.organizer.gridItemsDict[newImageDoc._id]) {
-                        const newGridItem = new GridItemBackend(newImageDoc, this.organizer.currentThumbSize, this.organizer);
-                        this.organizer.gridItems.push(newGridItem);
-                        this.organizer.gridItemsDict[newImageDoc._id] = newGridItem;
-                    }
+                if (sWidthLeft > 0) { 
+                    saveCanvas.width = sWidthLeft; saveCanvas.height = sHeight;
+                    this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthLeft, sHeight, sx, sy, sWidthLeft, sHeight);
+                    cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_gauche_3x4', filenameSuffix: 'gauche_3x4' }); 
                 }
-                this.modifiedDataMap[currentImageIdInJour] = backendResults.length === 1 ? backendResults[0] : backendResults;
-                
-                const savedNames = backendResults.map(doc => Utils.getFilenameFromURL(doc.filename)).join(', ');
-                this.infoLabel.textContent = `Sauvegardé: ${savedNames}`;
-            } else {
-                this.infoLabel.textContent = `Aucun recadrage à sauvegarder.`;
+                if (sWidthRight > 0) { 
+                    saveCanvas.width = sWidthRight; saveCanvas.height = sHeight; saveCtx.clearRect(0,0, saveCanvas.width, saveCanvas.height);
+                    this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthRight, sHeight, sx + sWidthLeft, sy, sWidthRight, sHeight);
+                    cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_droite_3x4', filenameSuffix: 'droite_3x4' }); 
+                }
+            } else if (this.splitModeState === 2) { 
+                const sWidthThird = Math.floor(sWidth / 3);
+                const sWidthLeft = sWidthThird;
+                const sWidthMid = sWidthThird;
+                const sWidthRight = sWidth - sWidthLeft - sWidthMid;
+
+                if (sWidthLeft > 0) {
+                    saveCanvas.width = sWidthLeft; saveCanvas.height = sHeight; saveCtx.clearRect(0,0,saveCanvas.width,saveCanvas.height);
+                    this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthLeft, sHeight, sx, sy, sWidthLeft, sHeight);
+                    cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_gauche_3x4_sur3', filenameSuffix: 'g_3x4_3' }); 
+                }
+                if (sWidthMid > 0) {
+                    saveCanvas.width = sWidthMid; saveCanvas.height = sHeight; saveCtx.clearRect(0,0,saveCanvas.width,saveCanvas.height);
+                    this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthMid, sHeight, sx + sWidthLeft, sy, sWidthMid, sHeight);
+                    cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_milieu_3x4_sur3', filenameSuffix: 'm_3x4_3' }); 
+                }
+                if (sWidthRight > 0) {
+                    saveCanvas.width = sWidthRight; saveCanvas.height = sHeight; saveCtx.clearRect(0,0,saveCanvas.width,saveCanvas.height);
+                    this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthRight, sHeight, sx + sWidthLeft + sWidthMid, sy, sWidthRight, sHeight);
+                    cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_droite_3x4_sur3', filenameSuffix: 'd_3x4_3' }); 
+                }
+            } else { 
+                saveCanvas.width = sWidth; saveCanvas.height = sHeight;
+                this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidth, sHeight, sx, sy, sWidth, sHeight);
+                const suffix = this.currentAspectRatioName.replace(':','x'); 
+                cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: `recadre_${suffix}`, filenameSuffix: `rec_${suffix}` });
             }
-        } catch (e) {
-            console.error("Error applying/saving image in cropper:", e);
-            this.infoLabel.textContent = `Erreur sauvegarde: ${e.message}`;
         }
+
+        if (cropOperationsPayloads.length > 0) {
+            const backendResults = [];
+            for (const opPayload of cropOperationsPayloads) {
+                // AJOUT D'UNE VÉRIFICATION JUSTE AVANT L'ENVOI
+                if (!opPayload.imageDataUrl || !opPayload.imageDataUrl.startsWith('data:image/jpeg;base64,')) {
+                    console.error('Données d\'image invalides générées, annulation de l\'envoi:', opPayload);
+                    continue; // Passe à l'opération suivante s'il y en a
+                }
+
+                const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryIdForAPI}/images/${originalImageId}/crop`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(opPayload)
+                });
+                if (!response.ok) {
+                    const errText = await response.text();
+                    throw new Error(`Crop save to backend failed: ${response.statusText} - ${errText}`);
+                }
+                const newImageDoc = await response.json(); 
+                backendResults.push(newImageDoc);
+
+                if (!this.organizer.gridItemsDict[newImageDoc._id]) {
+                    const newGridItem = new GridItemBackend(newImageDoc, this.organizer.currentThumbSize, this.organizer);
+                    this.organizer.gridItems.push(newGridItem);
+                    this.organizer.gridItemsDict[newImageDoc._id] = newGridItem;
+                }
+            }
+            this.modifiedDataMap[currentImageIdInJour] = backendResults.length === 1 ? backendResults[0] : backendResults;
+            
+            const savedNames = backendResults.map(doc => Utils.getFilenameFromURL(doc.filename)).join(', ');
+            this.infoLabel.textContent = `Sauvegardé: ${savedNames}`;
+        } else {
+            this.infoLabel.textContent = `Aucun recadrage à sauvegarder.`;
+        }
+    } catch (e) {
+        console.error("Error applying/saving image in cropper:", e);
+        this.infoLabel.textContent = `Erreur sauvegarde: ${e.message}`;
     }
+}
 
     async nextImage(skipSave = false) { 
         if (!skipSave && this.currentImageIndex >= 0 && this.currentImageIndex < this.imagesToCrop.length) {
