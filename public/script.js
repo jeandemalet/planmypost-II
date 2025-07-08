@@ -1097,7 +1097,7 @@ class CroppingManager {
                         const imgWidth = this.currentImageObject.naturalWidth || this.currentImageObject.width;
                         const imgHeight = this.currentImageObject.naturalHeight || this.currentImageObject.height;
                         if (imgHeight > imgWidth * 1.1) defaultRatio = '3:4'; 
-                        else if (imgWidth > imgHeight * 1.1) defaultRatio = '3:2'; 
+                        else if (imgWidth > imgHeight * 1.1) defaultRatio = '2:3'; 
                         else defaultRatio = '1:1';
                     }
                     this.aspectRatioSelect.value = defaultRatio;
