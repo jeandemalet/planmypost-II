@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="fr">
 <head>
@@ -14,10 +13,20 @@
     </div>
 
     <div class="app-container">
+        <!-- MODIFICATION : La div .tabs a été déplacée à l'intérieur du header -->
         <header class="app-header">
             <div id="logoPlaceholder">
                 <img src="/assets/logo.png" alt="Organisateur de Publications Logo" id="appLogo">
             </div>
+
+            <div class="tabs">
+                <button class="tab-button" data-tab="galleries">📚 Galeries</button>
+                <button class="tab-button active" data-tab="currentGallery">🖼️ Tri</button>
+                <button class="tab-button" data-tab="cropping">✂️ Recadrage</button>
+                <button class="tab-button" data-tab="description">📝 Description</button>
+                <button class="tab-button" data-tab="calendar">🗓️ Calendrier</button>
+            </div>
+
             <nav id="userActionsPlaceholder">
                 <div class="profile-container">
                     <button class="icon-button" id="profileButton" aria-label="Profil">
@@ -34,13 +43,7 @@
             </nav>
         </header>
 
-        <div class="tabs">
-            <button class="tab-button" data-tab="galleries">📚 Galeries</button>
-            <button class="tab-button active" data-tab="currentGallery">🖼️ Tri</button>
-            <button class="tab-button" data-tab="cropping">✂️ Recadrage</button>
-            <button class="tab-button" data-tab="description">📝 Description</button>
-            <button class="tab-button" data-tab="calendar">🗓️ Calendrier</button>
-        </div>
+        <!-- La div .tabs n'est plus ici -->
 
         <div id="galleries" class="tab-content"> 
             <h2>Gestion des Galeries</h2>
@@ -251,7 +254,6 @@
                         
                         <div id="unscheduledJoursList">
                         </div>
-                        <!-- MODIFICATION: Le bouton "Tout réorganiser" est ajouté ici -->
                         <button id="reorganizeAllBtn" class="secondary-action" style="margin-top: 10px;">Tout Réorganiser</button>
                         <button id="downloadAllScheduledBtn" class="primary-action" style="margin-top: 5px;">Tout Télécharger</button>
                     </div>
