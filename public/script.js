@@ -1423,28 +1423,41 @@ class CroppingManager {
         return { finalWidth, finalHeight, pasteX, pasteY };
     }
 
-    toggleWhiteBars() { 
+    toggleWhiteBars() {
         if (!this.currentImageObject) return;
-        if (this.saveMode !== 'white_bars') { 
-            if (this.splitModeState > 0) { 
+        if (this.saveMode !== 'white_bars') {
+            if (this.splitModeState > 0) {
                 this.splitModeState = 0;
                 this.splitLineBtn.classList.remove('active-crop-btn');
                 this.splitLineBtn.textContent = "Mode Split";
                 this.showSplitLineCount = 0;
             }
-            this.saveMode = 'white_bars'; 
-            this.aspectRatioSelect.value = '3:4'; 
-            this.currentAspectRatioName = '3:4'; 
-            this.aspectRatioSelect.disabled = true; 
+            this.saveMode = 'white_bars';
+            this.currentAspectRatioName = '3:4';
+            this.aspectRatioSelect.disabled = true;
             this.splitLineBtn.disabled = true;
-            this.cropRectDisplay = null; 
+            this.cropRectDisplay = null;
             this.whiteBarsBtn.classList.add('active-crop-btn');
-        } else { 
-            this.saveMode = 'crop'; 
-            this.aspectRatioSelect.disabled = (this.splitModeState > 0); 
+        } else {
+            this.saveMode = 'crop';
+            this.aspectRatioSelect.disabled = (this.splitModeState > 0);
             this.splitLineBtn.disabled = false;
-            const currentSelectedRatio = this.aspectRatioSelect.value || '3:4'; 
-            this.onRatioChanged(currentSelectedRatio);
+            
+            // CORRECTION : Redéfinir le ratio par défaut en se basant sur l'image
+            let defaultRatio;
+            const imgWidth = this.currentImageObject.naturalWidth || this.currentImageObject.width;
+            const imgHeight = this.currentImageObject.naturalHeight || this.currentImageObject.height;
+
+            if (imgWidth > imgHeight * 1.05) {
+                defaultRatio = '3:2';
+            } else if (imgHeight > imgWidth * 1.05) {
+                defaultRatio = '3:4';
+            } else {
+                defaultRatio = '1:1';
+            }
+            this.aspectRatioSelect.value = defaultRatio;
+            
+            this.onRatioChanged(defaultRatio);
             this.whiteBarsBtn.classList.remove('active-crop-btn');
         }
         this.redrawCanvasOnly();
