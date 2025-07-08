@@ -1,3 +1,8 @@
+// =================================================================
+// --- Contenu complet du fichier : public/script.js (Corrigé et Robuste) ---
+// =================================================================
+
+// --- Constantes Globales et État ---
 const BASE_API_URL = '';
 const JOUR_COLORS = [
     "red", "blue", "green", "purple", "orange",
@@ -978,9 +983,20 @@ class CroppingManager {
         this.organizer.refreshSidePanels();
     }
 
-    // =========================================================================
-    // === MÉTHODE CORRIGÉE POUR LE PROBLÈME DE RATIO PAR DÉFAUT ===
-    // =========================================================================
+    async goToImage(index) {
+        if (index === this.currentImageIndex || index < 0 || index >= this.imagesToCrop.length) {
+            return;
+        }
+
+        // Sauvegarder l'image actuelle avant de changer
+        if (this.currentImageIndex >= 0) {
+            await this.applyAndSaveCurrentImage();
+        }
+        
+        this.currentImageIndex = index;
+        await this.loadCurrentImage();
+    }
+
     async loadCurrentImage() {
         this.ignoreSaveForThisImage = false;
         this.flippedH = false;
@@ -1006,15 +1022,10 @@ class CroppingManager {
         try {
             this.currentImageObject = await Utils.loadImage(imgInfo.baseImageToCropFromDataURL);
 
-            // =====================================================================
-            // === DÉBUT DE LA CORRECTION : DÉFINIR LE RATIO PAR DÉFAUT AVANT TOUT ===
-            // =====================================================================
-            
             let defaultRatio;
             const imgWidth = this.currentImageObject.naturalWidth || this.currentImageObject.width;
             const imgHeight = this.currentImageObject.naturalHeight || this.currentImageObject.height;
 
-            // On utilise un seuil (ex: 5%) pour éviter de changer pour les images presque carrées
             if (imgWidth > imgHeight * 1.05) { // Clairement horizontale
                 defaultRatio = '3:2';
             } else if (imgHeight > imgWidth * 1.05) { // Clairement verticale
@@ -1023,20 +1034,13 @@ class CroppingManager {
                 defaultRatio = '1:1';
             }
             
-            // On met à jour l'élément <select> de l'interface.
-            // C'est cette valeur qui sera utilisée par la suite.
             this.aspectRatioSelect.value = defaultRatio;
-
-            // =====================================================================
-            // === FIN DE LA CORRECTION ===
-            // =====================================================================
 
             if (this.currentImageObject && typeof smartcrop !== 'undefined') {
                 this.infoLabel.textContent = `Analyse intelligente de l'image...`;
 
-                // On lit la valeur qu'on vient de définir dans le <select>
                 const aspectRatioName = this.aspectRatioSelect.value;
-                this.currentAspectRatioName = aspectRatioName; // Mettre à jour l'état interne
+                this.currentAspectRatioName = aspectRatioName;
 
                 const imageDims = {
                     width: this.currentImageObject.naturalWidth,
@@ -1086,8 +1090,6 @@ class CroppingManager {
             console.warn("L'analyse Smartcrop a échoué ou n'a pas été utilisée, application du recadrage par défaut.", e.message);
             
             if (this.currentImageObject) {
-                // La logique de fallback reste utile en cas de vrai problème
-                // et elle utilisera la valeur `defaultRatio` déjà définie dans le <select>.
                 this.onRatioChanged(this.aspectRatioSelect.value);
             } else {
                 console.error(`Erreur chargement: ${displayName}:`, e);
@@ -1098,7 +1100,6 @@ class CroppingManager {
             }
         }
         
-        // Finalisation
         this.aspectRatioSelect.disabled = this.splitModeState > 0 || this.saveMode === 'white_bars';
         this.whiteBarsBtn.disabled = this.splitModeState > 0;
         this.splitLineBtn.disabled = this.saveMode === 'white_bars';
@@ -1106,6 +1107,7 @@ class CroppingManager {
         this.redrawCanvasOnly(); 
         this.debouncedUpdatePreview();
         this.infoLabel.textContent = `Image ${this.currentImageIndex + 1}/${this.imagesToCrop.length}: ${displayName}`;
+        this.croppingPage._updateThumbnailStripHighlight(this.currentImageIndex);
     }
     
     setDefaultCropRect() { 
@@ -1449,127 +1451,120 @@ class CroppingManager {
         this.debouncedUpdatePreview();
     }
     
-// =========================================================================
-// === MÉTHODE CORRIGÉE POUR ÉVITER LES ERREURS DE FORMAT D'URL ===
-// =========================================================================
-async applyAndSaveCurrentImage() { 
-    if (this.ignoreSaveForThisImage || !this.currentImageObject || this.currentImageIndex < 0) return;
+    async applyAndSaveCurrentImage() { 
+        if (this.ignoreSaveForThisImage || !this.currentImageObject || this.currentImageIndex < 0) return;
 
-    const currentImgInfoForCropper = this.imagesToCrop[this.currentImageIndex];
-    const originalImageId = currentImgInfoForCropper.originalReferenceId; 
-    const currentImageIdInJour = currentImgInfoForCropper.currentImageId; 
-    const galleryIdForAPI = this.currentJourFrameInstance.galleryId;
+        const currentImgInfoForCropper = this.imagesToCrop[this.currentImageIndex];
+        const originalImageId = currentImgInfoForCropper.originalReferenceId; 
+        const currentImageIdInJour = currentImgInfoForCropper.currentImageId; 
+        const galleryIdForAPI = this.currentJourFrameInstance.galleryId;
 
-    const saveCanvas = document.createElement('canvas');
-    const saveCtx = saveCanvas.getContext('2d');
-    let cropOperationsPayloads = []; 
+        const saveCanvas = document.createElement('canvas');
+        const saveCtx = saveCanvas.getContext('2d');
+        let cropOperationsPayloads = []; 
 
-    try {
-        if (this.saveMode === 'white_bars') {
-            const { finalWidth, finalHeight, pasteX, pasteY } = this.calculateWhiteBarDimensions();
-            // AJOUT DE LA VÉRIFICATION
-            if (!finalWidth || finalWidth <= 0 || !finalHeight || finalHeight <= 0) {
-                throw new Error("Dimensions invalides (nulles ou négatives) pour l'ajout de barres blanches.");
+        try {
+            if (this.saveMode === 'white_bars') {
+                const { finalWidth, finalHeight, pasteX, pasteY } = this.calculateWhiteBarDimensions();
+                if (!finalWidth || finalWidth <= 0 || !finalHeight || finalHeight <= 0) {
+                    throw new Error("Dimensions invalides (nulles ou négatives) pour l'ajout de barres blanches.");
+                }
+                saveCanvas.width = finalWidth; saveCanvas.height = finalHeight;
+                saveCtx.fillStyle = 'white'; saveCtx.fillRect(0, 0, finalWidth, finalHeight);
+                this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, pasteX, pasteY, this.currentImageObject.naturalWidth, this.currentImageObject.naturalHeight);
+                const newDataURL = saveCanvas.toDataURL('image/jpeg', 0.92); 
+                cropOperationsPayloads.push({ imageDataUrl: newDataURL, cropInfo: 'barres_3x4', filenameSuffix: 'barres_3x4' }); 
+
+            } else if (this.saveMode === 'crop' && this.cropRectDisplay) {
+                const { sx, sy, sWidth, sHeight } = this.getCropSourceCoordinates();
+                
+                if (sWidth <= 0 || sHeight <= 0) {
+                    console.warn("Tentative de sauvegarde avec des dimensions de recadrage invalides (<= 0). Annulation.", {sWidth, sHeight});
+                    this.infoLabel.textContent = `Recadrage ignoré (dimensions invalides).`;
+                    return;
+                }
+
+                if (this.splitModeState === 1) { 
+                    const sWidthLeft = Math.floor(sWidth / 2);
+                    const sWidthRight = sWidth - sWidthLeft; 
+
+                    if (sWidthLeft > 0) { 
+                        saveCanvas.width = sWidthLeft; saveCanvas.height = sHeight;
+                        this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthLeft, sHeight, sx, sy, sWidthLeft, sHeight);
+                        cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_gauche_3x4', filenameSuffix: 'gauche_3x4' }); 
+                    }
+                    if (sWidthRight > 0) { 
+                        saveCanvas.width = sWidthRight; saveCanvas.height = sHeight; saveCtx.clearRect(0,0, saveCanvas.width, saveCanvas.height);
+                        this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthRight, sHeight, sx + sWidthLeft, sy, sWidthRight, sHeight);
+                        cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_droite_3x4', filenameSuffix: 'droite_3x4' }); 
+                    }
+                } else if (this.splitModeState === 2) { 
+                    const sWidthThird = Math.floor(sWidth / 3);
+                    const sWidthLeft = sWidthThird;
+                    const sWidthMid = sWidthThird;
+                    const sWidthRight = sWidth - sWidthLeft - sWidthMid;
+
+                    if (sWidthLeft > 0) {
+                        saveCanvas.width = sWidthLeft; saveCanvas.height = sHeight; saveCtx.clearRect(0,0,saveCanvas.width,saveCanvas.height);
+                        this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthLeft, sHeight, sx, sy, sWidthLeft, sHeight);
+                        cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_gauche_3x4_sur3', filenameSuffix: 'g_3x4_3' }); 
+                    }
+                    if (sWidthMid > 0) {
+                        saveCanvas.width = sWidthMid; saveCanvas.height = sHeight; saveCtx.clearRect(0,0,saveCanvas.width,saveCanvas.height);
+                        this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthMid, sHeight, sx + sWidthLeft, sy, sWidthMid, sHeight);
+                        cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_milieu_3x4_sur3', filenameSuffix: 'm_3x4_3' }); 
+                    }
+                    if (sWidthRight > 0) {
+                        saveCanvas.width = sWidthRight; saveCanvas.height = sHeight; saveCtx.clearRect(0,0,saveCanvas.width,saveCanvas.height);
+                        this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthRight, sHeight, sx + sWidthLeft + sWidthMid, sy, sWidthRight, sHeight);
+                        cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_droite_3x4_sur3', filenameSuffix: 'd_3x4_3' }); 
+                    }
+                } else { 
+                    saveCanvas.width = sWidth; saveCanvas.height = sHeight;
+                    this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidth, sHeight, sx, sy, sWidth, sHeight);
+                    const suffix = this.currentAspectRatioName.replace(':','x'); 
+                    cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: `recadre_${suffix}`, filenameSuffix: `rec_${suffix}` });
+                }
             }
-            saveCanvas.width = finalWidth; saveCanvas.height = finalHeight;
-            saveCtx.fillStyle = 'white'; saveCtx.fillRect(0, 0, finalWidth, finalHeight);
-            this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, pasteX, pasteY, this.currentImageObject.naturalWidth, this.currentImageObject.naturalHeight);
-            const newDataURL = saveCanvas.toDataURL('image/jpeg', 0.92); 
-            cropOperationsPayloads.push({ imageDataUrl: newDataURL, cropInfo: 'barres_3x4', filenameSuffix: 'barres_3x4' }); 
 
-        } else if (this.saveMode === 'crop' && this.cropRectDisplay) {
-            const { sx, sy, sWidth, sHeight } = this.getCropSourceCoordinates();
-            
-            // AJOUT DE LA VÉRIFICATION CRUCIALE
-            if (sWidth <= 0 || sHeight <= 0) {
-                console.warn("Tentative de sauvegarde avec des dimensions de recadrage invalides (<= 0). Annulation.", {sWidth, sHeight});
-                this.infoLabel.textContent = `Recadrage ignoré (dimensions invalides).`;
-                // On ne lève pas d'erreur, on ignore simplement cette sauvegarde.
-                return;
+            if (cropOperationsPayloads.length > 0) {
+                const backendResults = [];
+                for (const opPayload of cropOperationsPayloads) {
+                    if (!opPayload.imageDataUrl || !opPayload.imageDataUrl.startsWith('data:image/jpeg;base64,')) {
+                        console.error('Données d\'image invalides générées, annulation de l\'envoi:', opPayload);
+                        continue; 
+                    }
+
+                    const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryIdForAPI}/images/${originalImageId}/crop`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(opPayload)
+                    });
+                    if (!response.ok) {
+                        const errText = await response.text();
+                        throw new Error(`Crop save to backend failed: ${response.statusText} - ${errText}`);
+                    }
+                    const newImageDoc = await response.json(); 
+                    backendResults.push(newImageDoc);
+
+                    if (!this.organizer.gridItemsDict[newImageDoc._id]) {
+                        const newGridItem = new GridItemBackend(newImageDoc, this.organizer.currentThumbSize, this.organizer);
+                        this.organizer.gridItems.push(newGridItem);
+                        this.organizer.gridItemsDict[newImageDoc._id] = newGridItem;
+                    }
+                }
+                this.modifiedDataMap[currentImageIdInJour] = backendResults.length === 1 ? backendResults[0] : backendResults;
+                
+                const savedNames = backendResults.map(doc => Utils.getFilenameFromURL(doc.filename)).join(', ');
+                this.infoLabel.textContent = `Sauvegardé: ${savedNames}`;
+            } else {
+                this.infoLabel.textContent = `Aucun recadrage à sauvegarder.`;
             }
-
-            if (this.splitModeState === 1) { 
-                const sWidthLeft = Math.floor(sWidth / 2);
-                const sWidthRight = sWidth - sWidthLeft; 
-
-                if (sWidthLeft > 0) { 
-                    saveCanvas.width = sWidthLeft; saveCanvas.height = sHeight;
-                    this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthLeft, sHeight, sx, sy, sWidthLeft, sHeight);
-                    cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_gauche_3x4', filenameSuffix: 'gauche_3x4' }); 
-                }
-                if (sWidthRight > 0) { 
-                    saveCanvas.width = sWidthRight; saveCanvas.height = sHeight; saveCtx.clearRect(0,0, saveCanvas.width, saveCanvas.height);
-                    this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthRight, sHeight, sx + sWidthLeft, sy, sWidthRight, sHeight);
-                    cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_droite_3x4', filenameSuffix: 'droite_3x4' }); 
-                }
-            } else if (this.splitModeState === 2) { 
-                const sWidthThird = Math.floor(sWidth / 3);
-                const sWidthLeft = sWidthThird;
-                const sWidthMid = sWidthThird;
-                const sWidthRight = sWidth - sWidthLeft - sWidthMid;
-
-                if (sWidthLeft > 0) {
-                    saveCanvas.width = sWidthLeft; saveCanvas.height = sHeight; saveCtx.clearRect(0,0,saveCanvas.width,saveCanvas.height);
-                    this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthLeft, sHeight, sx, sy, sWidthLeft, sHeight);
-                    cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_gauche_3x4_sur3', filenameSuffix: 'g_3x4_3' }); 
-                }
-                if (sWidthMid > 0) {
-                    saveCanvas.width = sWidthMid; saveCanvas.height = sHeight; saveCtx.clearRect(0,0,saveCanvas.width,saveCanvas.height);
-                    this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthMid, sHeight, sx + sWidthLeft, sy, sWidthMid, sHeight);
-                    cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_milieu_3x4_sur3', filenameSuffix: 'm_3x4_3' }); 
-                }
-                if (sWidthRight > 0) {
-                    saveCanvas.width = sWidthRight; saveCanvas.height = sHeight; saveCtx.clearRect(0,0,saveCanvas.width,saveCanvas.height);
-                    this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthRight, sHeight, sx + sWidthLeft + sWidthMid, sy, sWidthRight, sHeight);
-                    cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_droite_3x4_sur3', filenameSuffix: 'd_3x4_3' }); 
-                }
-            } else { 
-                saveCanvas.width = sWidth; saveCanvas.height = sHeight;
-                this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidth, sHeight, sx, sy, sWidth, sHeight);
-                const suffix = this.currentAspectRatioName.replace(':','x'); 
-                cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: `recadre_${suffix}`, filenameSuffix: `rec_${suffix}` });
-            }
+        } catch (e) {
+            console.error("Error applying/saving image in cropper:", e);
+            this.infoLabel.textContent = `Erreur sauvegarde: ${e.message}`;
         }
-
-        if (cropOperationsPayloads.length > 0) {
-            const backendResults = [];
-            for (const opPayload of cropOperationsPayloads) {
-                // AJOUT D'UNE VÉRIFICATION JUSTE AVANT L'ENVOI
-                if (!opPayload.imageDataUrl || !opPayload.imageDataUrl.startsWith('data:image/jpeg;base64,')) {
-                    console.error('Données d\'image invalides générées, annulation de l\'envoi:', opPayload);
-                    continue; // Passe à l'opération suivante s'il y en a
-                }
-
-                const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryIdForAPI}/images/${originalImageId}/crop`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(opPayload)
-                });
-                if (!response.ok) {
-                    const errText = await response.text();
-                    throw new Error(`Crop save to backend failed: ${response.statusText} - ${errText}`);
-                }
-                const newImageDoc = await response.json(); 
-                backendResults.push(newImageDoc);
-
-                if (!this.organizer.gridItemsDict[newImageDoc._id]) {
-                    const newGridItem = new GridItemBackend(newImageDoc, this.organizer.currentThumbSize, this.organizer);
-                    this.organizer.gridItems.push(newGridItem);
-                    this.organizer.gridItemsDict[newImageDoc._id] = newGridItem;
-                }
-            }
-            this.modifiedDataMap[currentImageIdInJour] = backendResults.length === 1 ? backendResults[0] : backendResults;
-            
-            const savedNames = backendResults.map(doc => Utils.getFilenameFromURL(doc.filename)).join(', ');
-            this.infoLabel.textContent = `Sauvegardé: ${savedNames}`;
-        } else {
-            this.infoLabel.textContent = `Aucun recadrage à sauvegarder.`;
-        }
-    } catch (e) {
-        console.error("Error applying/saving image in cropper:", e);
-        this.infoLabel.textContent = `Erreur sauvegarde: ${e.message}`;
     }
-}
 
     async nextImage(skipSave = false) { 
         if (!skipSave && this.currentImageIndex >= 0 && this.currentImageIndex < this.imagesToCrop.length) {
@@ -1735,9 +1730,6 @@ async applyAndSaveCurrentImage() {
     }
 }
 
-// =================================================================
-// --- CLASSE CroppingPage (CORRIGÉE) ---
-// =================================================================
 class CroppingPage {
     constructor(organizerApp) {
         this.organizerApp = organizerApp;
@@ -1746,6 +1738,7 @@ class CroppingPage {
         this.editorPanelElement = document.getElementById('croppingEditorPanel');
         this.editorPlaceholderElement = document.getElementById('croppingEditorPlaceholder');
         this.editorTitleElement = document.getElementById('croppingEditorTitle');
+        this.thumbnailStripElement = document.getElementById('croppingThumbnailStrip');
         
         this.currentSelectedJourFrame = null;
         this.croppingManager = new CroppingManager(this.organizerApp, this);
@@ -1805,13 +1798,16 @@ class CroppingPage {
 
     startCroppingForJour(jourFrame) {
         if (!jourFrame.imagesData || jourFrame.imagesData.length === 0) {
-            alert(`Le Jour ${jourFrame.letter} est vide et ne peut pas être recadré.`);
             this.clearEditor();
+            this.editorTitleElement.textContent = `Jour ${jourFrame.letter}`;
+            this.editorPlaceholderElement.textContent = `Le Jour ${jourFrame.letter} est vide et ne peut pas être recadré.`;
             return;
         }
         
         this.editorTitleElement.textContent = `Recadrage pour Jour ${jourFrame.letter}`;
         
+        this._populateThumbnailStrip(jourFrame);
+
         const imageInfosForCropper = jourFrame.imagesData.map(imgData => {
             const originalImageInGrid = this.organizerApp.gridItemsDict[imgData.originalReferencePath];
             const baseImageToCropFromDataURL = originalImageInGrid ? originalImageInGrid.imagePath : imgData.dataURL;
@@ -1828,6 +1824,34 @@ class CroppingPage {
         this.croppingManager.startCropping(imageInfosForCropper, jourFrame);
     }
     
+    _populateThumbnailStrip(jourFrame) {
+        this.thumbnailStripElement.innerHTML = '';
+        jourFrame.imagesData.forEach((imgData, index) => {
+            const thumbDiv = document.createElement('div');
+            thumbDiv.className = 'crop-strip-thumb';
+            thumbDiv.style.backgroundImage = `url(${imgData.dataURL})`;
+            thumbDiv.dataset.index = index;
+            
+            thumbDiv.addEventListener('click', () => {
+                this.croppingManager.goToImage(index);
+            });
+
+            this.thumbnailStripElement.appendChild(thumbDiv);
+        });
+    }
+
+    _updateThumbnailStripHighlight(activeIndex) {
+        const thumbs = this.thumbnailStripElement.querySelectorAll('.crop-strip-thumb');
+        thumbs.forEach((thumb, index) => {
+            if (index === activeIndex) {
+                thumb.classList.add('active-crop-thumb');
+                thumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            } else {
+                thumb.classList.remove('active-crop-thumb');
+            }
+        });
+    }
+
     showEditor() {
         this.editorPanelElement.style.display = 'flex';
         this.editorPlaceholderElement.style.display = 'none';
@@ -1837,6 +1861,8 @@ class CroppingPage {
         this.editorPanelElement.style.display = 'none';
         this.editorPlaceholderElement.style.display = 'block';
         this.editorTitleElement.textContent = "Sélectionnez un jour à recadrer";
+        this.thumbnailStripElement.innerHTML = '';
+
         if (this.currentSelectedJourFrame) {
              this.currentSelectedJourFrame = null;
              this.populateJourList();
@@ -1858,28 +1884,22 @@ class DescriptionManager {
         this.editorPlaceholderElement = document.getElementById('descriptionEditorPlaceholder');
         this.descriptionTextElement = document.getElementById('descriptionText');
         this.descriptionHashtagsElement = document.getElementById('descriptionHashtags');
-        
-        // MODIFICATION: Référence au nouvel élément de statut
-        this.saveStatusElement = document.getElementById('descriptionSaveStatus');
+        this.imagesPreviewBanner = document.getElementById('descriptionImagesPreview');
         
         this.currentSelectedJourFrame = null;
 
-        // MODIFICATION: Création de la fonction de sauvegarde "debounced"
         this.debouncedSave = Utils.debounce(() => this.saveCurrentDescription(), 1500);
 
         this._initListeners();
     }
 
     _initListeners() {
-        // MODIFICATION: On écoute les entrées dans les textareas pour déclencher la sauvegarde auto
         this.descriptionTextElement.addEventListener('input', () => {
             if (!this.currentSelectedJourFrame) return;
-            this.showSaveStatus('saving');
             this.debouncedSave();
         });
         this.descriptionHashtagsElement.addEventListener('input', () => {
             if (!this.currentSelectedJourFrame) return;
-            this.showSaveStatus('saving');
             this.debouncedSave();
         });
         
@@ -1943,8 +1963,6 @@ class DescriptionManager {
         this.editorContentElement.style.display = 'block';
         this.editorPlaceholderElement.style.display = 'none';
         
-        this.showSaveStatus('hidden');
-
         this.imagesPreviewBanner.innerHTML = '';
         if (jourFrame.imagesData && jourFrame.imagesData.length > 0) {
             jourFrame.imagesData.forEach(imgData => {
@@ -1975,15 +1993,9 @@ class DescriptionManager {
             this.imagesPreviewBanner.style.display = 'none';
         }
     }
-    
-    showSaveStatus(status) {
-        // The UI element for save status is now hidden.
-        return;
-    }
 
     async saveCurrentDescription() {
         if (!this.currentSelectedJourFrame || !app.currentGalleryId) {
-            this.showSaveStatus('hidden');
             return;
         }
         
@@ -1994,10 +2006,7 @@ class DescriptionManager {
         const success = await jourToUpdate.save(); 
         
         if (success) {
-            this.showSaveStatus('saved');
             this.organizerApp.refreshSidePanels();
-        } else {
-            this.showSaveStatus('error');
         }
     }
 }
@@ -2014,7 +2023,6 @@ class CalendarPage {
         this.calendarGridElement = this.parentElement.querySelector('#calendarGrid');
         this.monthYearLabelElement = this.parentElement.querySelector('#monthYearLabel');
         this.jourListElement = this.parentElement.querySelector('#calendarJourList');
-        // MODIFICATION: Ajout de la référence à la liste des jours non planifiés
         this.unscheduledJoursListElement = this.parentElement.querySelector('#unscheduledJoursList');
         
         this.contextPreviewModal = document.getElementById('calendarContextPreviewModal');
@@ -2065,22 +2073,17 @@ class CalendarPage {
 
         this.runAutoScheduleBtn.addEventListener('click', () => this.runAutoSchedule());
         
-        // MODIFICATION: Ajout de l'écouteur pour le nouveau bouton
         const reorganizeAllBtn = document.getElementById('reorganizeAllBtn');
         if (reorganizeAllBtn) {
             reorganizeAllBtn.addEventListener('click', () => this.reorganizeAll());
         }
     }
 
-    // MODIFICATION: Nouvelle fonction pour gérer le bouton "Tout Réorganiser"
     reorganizeAll() {
         if (!confirm("Êtes-vous sûr de vouloir retirer tous les jours du calendrier et les replacer dans la liste 'Jours à Planifier' ?")) {
             return;
         }
-        // Vider l'objet de programmation localement
         this.organizerApp.scheduleContext.schedule = {};
-        // Appeler la fonction de sauvegarde, qui enverra l'objet vide au backend
-        // et rafraîchira l'interface en cas de succès.
         this.saveSchedule();
     }
 
@@ -2113,7 +2116,6 @@ class CalendarPage {
         }
 
         this.populateJourList();
-        // MODIFICATION: Appel pour mettre à jour la liste des jours non planifiés
         this.buildUnscheduledJoursList();
 
         const year = this.currentDate.getFullYear();

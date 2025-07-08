@@ -1678,3 +1678,40 @@ button.small-cancel-btn:hover {
     border: 2px dashed #007bff;
     box-shadow: inset 0 0 10px rgba(0, 123, 255, 0.2);
 }
+
+/* --- STYLES POUR LA BANDE DE VIGNETTES DE RECADRAGE --- */
+.cropping-thumbnail-strip {
+    display: flex;
+    gap: 10px;
+    padding: 10px 5px;
+    margin-top: 10px;
+    background-color: #3a3a3a;
+    border-radius: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    height: 80px; /* Hauteur fixe pour la bande */
+    align-items: center;
+}
+
+.crop-strip-thumb {
+    width: 60px;
+    height: 60px;
+    flex-shrink: 0; /* Empêche les images de se réduire */
+    border: 3px solid transparent;
+    border-radius: 6px;
+    cursor: pointer;
+    background-size: cover;
+    background-position: center;
+    transition: border-color 0.2s, transform 0.2s;
+}
+
+.crop-strip-thumb:hover {
+    border-color: #aaa;
+    transform: scale(1.05);
+}
+
+.crop-strip-thumb.active-crop-thumb {
+    border-color: #E0FF00; /* Jaune fluo pour la sélection */
+    transform: scale(1.1);
+    box-shadow: 0 0 10px rgba(224, 255, 0, 0.5);
+}
