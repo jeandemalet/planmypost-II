@@ -1,4 +1,3 @@
-
 // =================================================================
 // --- Contenu complet du fichier : public/script.js (Corrigé et Robuste) ---
 // =================================================================
@@ -1933,6 +1932,8 @@ class CalendarPage {
         this.calendarGridElement = this.parentElement.querySelector('#calendarGrid');
         this.monthYearLabelElement = this.parentElement.querySelector('#monthYearLabel');
         this.jourListElement = this.parentElement.querySelector('#calendarJourList');
+        // MODIFICATION: Ajout de la référence à la liste des jours non planifiés
+        this.unscheduledJoursListElement = this.parentElement.querySelector('#unscheduledJoursList');
         
         this.contextPreviewModal = document.getElementById('calendarContextPreviewModal');
         this.contextPreviewTitle = document.getElementById('calendarContextTitle');
@@ -1982,17 +1983,22 @@ class CalendarPage {
 
         this.runAutoScheduleBtn.addEventListener('click', () => this.runAutoSchedule());
         
+        // MODIFICATION: Ajout de l'écouteur pour le nouveau bouton
         const reorganizeAllBtn = document.getElementById('reorganizeAllBtn');
         if (reorganizeAllBtn) {
             reorganizeAllBtn.addEventListener('click', () => this.reorganizeAll());
         }
     }
 
+    // MODIFICATION: Nouvelle fonction pour gérer le bouton "Tout Réorganiser"
     reorganizeAll() {
         if (!confirm("Êtes-vous sûr de vouloir retirer tous les jours du calendrier et les replacer dans la liste 'Jours à Planifier' ?")) {
             return;
         }
+        // Vider l'objet de programmation localement
         this.organizerApp.scheduleContext.schedule = {};
+        // Appeler la fonction de sauvegarde, qui enverra l'objet vide au backend
+        // et rafraîchira l'interface en cas de succès.
         this.saveSchedule();
     }
 
@@ -2020,10 +2026,13 @@ class CalendarPage {
             this.calendarGridElement.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 20px;">Chargez ou créez une galerie pour voir le calendrier.</p>';
             this.monthYearLabelElement.textContent = "Calendrier";
             this.populateJourList();
+            this.buildUnscheduledJoursList();
             return;
         }
 
         this.populateJourList();
+        // MODIFICATION: Appel pour mettre à jour la liste des jours non planifiés
+        this.buildUnscheduledJoursList();
 
         const year = this.currentDate.getFullYear();
         const month = this.currentDate.getMonth(); 
