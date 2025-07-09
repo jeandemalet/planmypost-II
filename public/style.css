@@ -1,3 +1,7 @@
+/* ===============================
+ Fichier: public\style.css (Corrigé)
+=============================== */
+
 body {
     font-family: sans-serif; /* Police sans-serif classique et commune */
     margin: 0;
@@ -351,6 +355,7 @@ button.small-cancel-btn:hover {
     padding: 10px;
     background-color: #e9e9e9;
     border-radius: 8px;
+    align-content: start; /* <--- Ligne ajoutée pour corriger l'espacement vertical */
 }
 
 /* ### SUPPRESSION: Les classes .preview-grid-item et .preview-delete-btn sont supprimées ### */
