@@ -1704,3 +1704,32 @@ button.small-cancel-btn:hover {
     margin-right: 8px;
     vertical-align: middle;
 }
+
+/* Styles for auto-schedule options */
+.auto-schedule-options .option-group input[type="radio"] {
+    display: none;
+}
+
+.auto-schedule-options .option-group label {
+    display: flex;
+    align-items: center;
+    padding: 8px;
+    border: 2px solid #ddd;
+    border-radius: 8px;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s;
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.auto-schedule-options .option-group label:hover {
+    background-color: #f0f0f0;
+    border-color: #bbb;
+}
+
+.auto-schedule-options .option-group input[type="radio"]:checked + label {
+    background-color: #e6f7ff;
+    border-color: #007bff;
+    font-weight: bold;
+}
+
