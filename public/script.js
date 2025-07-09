@@ -2828,10 +2828,12 @@ class PublicationOrganizer {
         // MODIFICATION : Ajout des listeners pour les nouveaux boutons
         this.switchToGalleriesBtn.addEventListener('click', () => this.activateTab('galleries'));
         this.switchToEditorBtn.addEventListener('click', () => {
-            if (this.currentGalleryId) {
+            if (this.selectedGalleryForPreviewId) {
+                this.handleLoadGallery(this.selectedGalleryForPreviewId);
+            } else if (this.currentGalleryId) {
                 this.activateTab('currentGallery');
             } else {
-                alert("Aucune galerie n'est chargée dans l'éditeur. Veuillez en sélectionner une dans la liste.");
+                alert("Aucune galerie n'est sélectionnée. Veuillez en sélectionner une dans la liste.");
             }
         });
 
@@ -2871,7 +2873,6 @@ class PublicationOrganizer {
         this.tabs.forEach(tab => {
             tab.addEventListener('click', () => {
                 this.activateTab(tab.dataset.tab); 
-                this.saveAppState(); 
             });
         });
     }
@@ -3087,6 +3088,16 @@ class PublicationOrganizer {
 
 
     activateTab(tabId) {
+        if (tabId === 'currentGallery' && !this.currentGalleryId && this.selectedGalleryForPreviewId) {
+            this.handleLoadGallery(this.selectedGalleryForPreviewId);
+            return; // handleLoadGallery will call activateTab again.
+        }
+
+        if (tabId === 'currentGallery' && !this.currentGalleryId && !this.selectedGalleryForPreviewId) {
+            alert("Aucune galerie n'est sélectionnée. Veuillez en sélectionner une dans l'onglet 'Galeries'.");
+            return; // Do not switch tab
+        }
+
         this.tabs.forEach(t => t.classList.remove('active'));
         this.tabContents.forEach(tc => tc.classList.remove('active'));
         
@@ -3129,7 +3140,8 @@ class PublicationOrganizer {
                  if (firstTabId === 'galleries') this.loadGalleriesList(); 
             }
         }
-        this.updateUIToNoGalleryState(); 
+        this.updateUIToNoGalleryState();
+        this.saveAppState();
     }
 
     async loadGalleriesList() {

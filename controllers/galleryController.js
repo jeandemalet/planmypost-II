@@ -9,6 +9,29 @@ const mongoose = require('mongoose');
 
 const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
 
+const createInitialJour = async (galleryId) => {
+    try {
+        const newJour = new Jour({
+            galleryId,
+            letter: 'A',
+            index: 0,
+            images: [],
+            descriptionText: '',
+            descriptionHashtags: ''
+        });
+        await newJour.save();
+
+        const gallery = await Gallery.findById(galleryId);
+        if (gallery) {
+            gallery.nextJourIndex = 1;
+            await gallery.save();
+        }
+    } catch (error) {
+        console.error(`Failed to create initial Jour 'A' for gallery ${galleryId}:`, error);
+        // We don't send a response here as this is an internal function
+    }
+};
+
 // Créer une nouvelle galerie
 exports.createGallery = async (req, res) => {
     try {
@@ -24,6 +47,9 @@ exports.createGallery = async (req, res) => {
             owner: req.userData.userId 
         });
         await newGallery.save();
+
+        await createInitialJour(newGallery._id);
+
         res.status(201).json(newGallery);
     } catch (error) {
         console.error("Error creating gallery:", error);
