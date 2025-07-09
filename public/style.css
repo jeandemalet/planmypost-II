@@ -299,10 +299,6 @@ button.small-cancel-btn:hover {
     color: #0056b3;
 }
 
-.gallery-name.current-loaded-gallery {
-    color: #28a745;
-    font-weight: 600;
-}
 .gallery-actions {
     display: flex;
     gap: 5px;
