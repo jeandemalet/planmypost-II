@@ -2898,21 +2898,21 @@ class PublicationOrganizer {
                                  (jourFrame.descriptionHashtags && jourFrame.descriptionHashtags.trim() !== '');
             const isScheduled = this.calendarPage ? this.calendarPage.isJourScheduled(jourFrame.galleryId, jourFrame.letter) : false;
 
-            const cropIcon = document.createElement('span');
-            cropIcon.className = 'status-icon';
-            cropIcon.textContent = '✂️';
+            const cropIcon = document.createElement('img');
+            cropIcon.className = 'status-icon crop-icon';
+            cropIcon.src = 'assets/crop.png';
             cropIcon.title = isCropped ? 'Recadré' : 'Non recadré';
             if (isCropped) cropIcon.classList.add('active');
             
-            const descIcon = document.createElement('span');
-            descIcon.className = 'status-icon';
-            descIcon.textContent = '📝';
+            const descIcon = document.createElement('img');
+            descIcon.className = 'status-icon desc-icon';
+            descIcon.src = 'assets/description.png';
             descIcon.title = hasDescription ? 'Description ajoutée' : 'Pas de description';
             if (hasDescription) descIcon.classList.add('active');
 
-            const scheduleIcon = document.createElement('span');
-            scheduleIcon.className = 'status-icon';
-            scheduleIcon.textContent = '🗓️';
+            const scheduleIcon = document.createElement('img');
+            scheduleIcon.className = 'status-icon schedule-icon';
+            scheduleIcon.src = 'assets/calendar.png';
             scheduleIcon.title = isScheduled ? 'Planifié' : 'Non planifié';
             if (isScheduled) scheduleIcon.classList.add('active');
 

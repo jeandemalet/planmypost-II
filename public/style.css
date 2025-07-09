@@ -1164,6 +1164,8 @@ button.small-cancel-btn:hover {
 }
 
 .status-icon {
+    width: 16px;
+    height: 16px;
     opacity: 0.2;
     filter: grayscale(100%);
     transition: opacity 0.2s, filter 0.2s;
@@ -1172,6 +1174,15 @@ button.small-cancel-btn:hover {
 .status-icon.active {
     opacity: 1;
     filter: grayscale(0%);
+}
+.status-icon.crop-icon.active {
+    filter: grayscale(0%) drop-shadow(1px 0px 0 red) drop-shadow(-1px 0px 0 red) drop-shadow(0px 1px 0 red) drop-shadow(0px -1px 0 red);
+}
+.status-icon.desc-icon.active {
+    filter: grayscale(0%) drop-shadow(1px 0px 0 orange) drop-shadow(-1px 0px 0 orange) drop-shadow(0px 1px 0 orange) drop-shadow(0px -1px 0 orange);
+}
+.status-icon.schedule-icon.active {
+    filter: grayscale(0%) drop-shadow(1px 0px 0 green) drop-shadow(-1px 0px 0 green) drop-shadow(0px 1px 0 green) drop-shadow(0px -1px 0 green);
 }
 
 #croppingJourList .jour-list-item.active-cropping-jour,
@@ -1694,4 +1705,11 @@ button.small-cancel-btn:hover {
 
 .cropper-controls button#cropDeleteBtn:hover {
     background-color: #ef767f;
+}
+
+.tab-icon {
+    width: 20px;
+    height: 20px;
+    margin-right: 8px;
+    vertical-align: middle;
 }
