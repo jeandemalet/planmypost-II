@@ -195,8 +195,6 @@ button:disabled .profile-action-icon {
     padding: 15px;
 }
 
-/* MODIFICATION : Le style de ce conteneur a été simplifié pour correspondre
-   aux autres panneaux latéraux (comme celui de l'onglet Description). */
 #galleriesListContainer {
     width: 280px;
     min-width: 250px;
@@ -304,6 +302,13 @@ button.small-cancel-btn:hover {
     gap: 5px;
 }
 
+.gallery-photo-count {
+    font-size: 0.8em;
+    color: #6c757d;
+    font-weight: 400;
+    margin-left: 8px;
+}
+
 .gallery-actions button {
     font-size: 0.85em;
     padding: 5px 8px;
@@ -320,7 +325,6 @@ button.small-cancel-btn:hover {
     border: 1px solid #dee2e6;
     border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
-    /* MODIFICATION : Ajout de la position relative pour les boutons absolus */
     position: relative;
 }
 #galleryPreviewPlaceholder {
@@ -356,12 +360,10 @@ button.small-cancel-btn:hover {
     align-content: start;
 }
 
-/* MODIFICATION : Positionnement des nouveaux boutons dans la zone de prévisualisation (supprimé pour corriger le positionnement) */
 #switchToEditorBtn .btn-icon {
     filter: brightness(0) invert(1);
 }
 
-/* MODIFICATION : Style pour les boutons ne contenant qu'une icône */
 .icon-only-btn {
     width: 44px;
     height: 44px;
@@ -374,7 +376,7 @@ button.small-cancel-btn:hover {
 .icon-only-btn img {
     width: 22px;
     height: 22px;
-    margin: 0; /* Important pour surcharger le margin-right de .btn-icon */
+    margin: 0;
 }
 
 
@@ -1653,7 +1655,7 @@ button.small-cancel-btn:hover {
     gap: 10px;
     padding: 10px 5px;
     margin-top: 10px;
-    background-color: #3a3a3a;
+    background-color: #ffffff;
     border-radius: 8px;
     overflow-x: auto;
     overflow-y: hidden;

@@ -1789,9 +1789,14 @@ class CroppingPage {
         }
         this.populateJourList();
 
-        const stillExists = this.currentSelectedJourFrame ? this.organizerApp.jourFrames.find(jf => jf.id === this.currentSelectedJourFrame.id) : null;
+        const stillExists =
+            this.currentSelectedJourFrame ? this.organizerApp.jourFrames.find(jf => jf.id === this.currentSelectedJourFrame.id) : null;
+        
         if (stillExists) {
             this.selectJour(stillExists, true);
+        } else if (this.organizerApp.jourFrames.length > 0) {
+            // MODIFICATION : S'il n'y a pas de jour sélectionné mais que la liste n'est pas vide, on sélectionne le premier.
+            this.selectJour(this.organizerApp.jourFrames[0]);
         } else {
             this.clearEditor();
         }
@@ -3181,11 +3186,16 @@ class PublicationOrganizer {
                 const nameSpan = document.createElement('span');
                 nameSpan.className = 'gallery-name';
                 nameSpan.textContent = gallery.name || `Galerie (ID: ...${gallery._id.slice(-6)})`;
-                if (gallery._id === this.currentGalleryId) {
-                    nameSpan.classList.add('current-loaded-gallery');
-                    nameSpan.title = "Galerie actuellement chargée dans l'éditeur";
+                
+                // --- MODIFICATION : Ajout du compteur d'images ---
+                if (typeof gallery.imageCount === 'number') {
+                    const countSpan = document.createElement('span');
+                    countSpan.className = 'gallery-photo-count';
+                    countSpan.textContent = `(${gallery.imageCount})`;
+                    nameSpan.appendChild(countSpan);
                 }
-                // MODIFICATION : Le clic sur le nom charge maintenant la galerie et la prévisualise
+                // --- FIN DE LA MODIFICATION ---
+
                 nameSpan.onclick = () => {
                     this.showGalleryPreview(gallery._id, gallery.name);
                 }; 
@@ -3200,7 +3210,6 @@ class PublicationOrganizer {
                 renameBtn.onclick = () => this.handleRenameGallery(gallery._id, gallery.name);
                 
                 const deleteBtn = document.createElement('button');
-                // MODIFICATION : Le texte est remplacé par une icône
                 deleteBtn.innerHTML = '<img src="assets/bin.png" alt="Supprimer" class="btn-icon">';
                 deleteBtn.classList.add('delete-gallery-btn');
                 deleteBtn.title = 'Supprimer cette galerie';
