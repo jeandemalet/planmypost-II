@@ -3033,6 +3033,7 @@ class PublicationOrganizer {
             this.addPhotosPlaceholderBtn.style.display = 'none';
             this.statsLabelText.textContent = "Aucune galerie chargée";
             if(this.currentGalleryUploadProgressContainer) this.currentGalleryUploadProgressContainer.style.display = 'none';
+            document.getElementById('currentGalleryNameDisplay').textContent = '';
         } else {
             this.updateAddPhotosPlaceholderVisibility(); 
         }
@@ -3458,6 +3459,7 @@ class PublicationOrganizer {
 
             const galleryState = data.galleryState || {};
             this.galleryCache[this.currentGalleryId] = galleryState.name || 'Galerie sans nom';
+            document.getElementById('currentGalleryNameDisplay').textContent = `Galerie : ${this.getCurrentGalleryName()}`;
             this.currentThumbSize = galleryState.currentThumbSize || { width: 150, height: 150 };
             this.sortOptionsSelect.value = galleryState.sortOption || 'date_desc';
             this.nextJourIndex = galleryState.nextJourIndex || 0;
