@@ -5,11 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Organisateur de Publications</title>
     <link rel="stylesheet" href="style.css">
-
-    <!-- ======================================================= -->
-    <!-- === MODIFICATION : Utilisation de la version locale === -->
-    <!-- ======================================================= -->
-    <!-- Ligne originale (supprimée) : <script src="https://cdn.jsdelivr.net/npm/smartcrop@2.0.5/smartcrop.js"></script> -->
     
     <!-- Nouvelle ligne pointant vers votre fichier local -->
     <script src="/lib/smartcrop.js"></script>
@@ -68,13 +63,16 @@
                             <button type="submit" id="confirmNewGalleryBtn" class="small-confirm-btn">OK</button>
                             <button type="button" id="cancelNewGalleryBtn" class="small-cancel-btn">X</button>
                         </form>
-                        <button id="clearGalleryImagesBtn" class="danger-btn" style="margin-top: 10px;">🗑️ Vider Galerie</button>
+                        <!-- MODIFICATION : Icône bin.png ajoutée et émoji supprimé -->
+                        <button id="clearGalleryImagesBtn" class="danger-btn" style="margin-top: 10px;">
+                            <img src="/assets/bin.png" alt="Icône poubelle" class="btn-icon"> Vider Galerie
+                        </button>
                     </div>
                 </div>
                 <div id="galleryPreviewArea">
                     <div id="galleryPreviewHeader" style="display:none;">
                         <h3 id="galleryPreviewName"></h3>
-                        <button id="openGalleryInEditorBtn">Ouvrir dans l'Éditeur</button>
+                        <!-- MODIFICATION : Le bouton "Ouvrir dans l'éditeur" a été supprimé d'ici -->
                     </div>
                     <!-- Barre de progression pour l'onglet galerie -->
                     <div id="galleriesUploadProgressContainer" class="upload-progress-area" style="display:none; margin-bottom: 10px;">

@@ -1,3 +1,4 @@
+
 // =================================================================
 // --- Contenu complet du fichier : public/script.js (Corrigé) ---
 // =================================================================
@@ -2853,11 +2854,15 @@ class PublicationOrganizer {
             this.newGalleryForm.style.display = 'none';
             this.newGalleryNameInput.value = '';
         });
-        this.openGalleryInEditorBtn.addEventListener('click', () => {
-            if (this.selectedGalleryForPreviewId) {
-                this.handleLoadGallery(this.selectedGalleryForPreviewId);
-            }
-        });
+        
+        // Listener for the now-removed openGalleryInEditorBtn, check for existence before adding
+        if(this.openGalleryInEditorBtn) {
+            this.openGalleryInEditorBtn.addEventListener('click', () => {
+                if (this.selectedGalleryForPreviewId) {
+                    this.handleLoadGallery(this.selectedGalleryForPreviewId);
+                }
+            });
+        }
 
 
         this.tabs.forEach(tab => {
@@ -3153,16 +3158,17 @@ class PublicationOrganizer {
                     nameSpan.classList.add('current-loaded-gallery');
                     nameSpan.title = "Galerie actuellement chargée dans l'éditeur";
                 }
-                nameSpan.onclick = () => this.showGalleryPreview(gallery._id, gallery.name); 
+                nameSpan.onclick = () => {
+                    this.showGalleryPreview(gallery._id, gallery.name);
+                    this.handleLoadGallery(gallery._id);
+                };
 
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'gallery-actions';
 
-                const loadBtn = document.createElement('button');
-                loadBtn.textContent = 'Charger';
-                loadBtn.title = "Charger cette galerie dans l'éditeur principal";
-                loadBtn.onclick = () => this.handleLoadGallery(gallery._id);
-
+                // MODIFICATION : Le bouton "Charger" est retiré d'ici.
+                // Le clic sur le nom de la galerie charge maintenant la galerie.
+                
                 const renameBtn = document.createElement('button');
                 renameBtn.textContent = 'Renommer';
                 renameBtn.onclick = () => this.handleRenameGallery(gallery._id, gallery.name);
@@ -3172,7 +3178,6 @@ class PublicationOrganizer {
                 deleteBtn.className = 'danger-btn-small';
                 deleteBtn.onclick = () => this.handleDeleteGallery(gallery._id, gallery.name);
 
-                actionsDiv.appendChild(loadBtn);
                 actionsDiv.appendChild(renameBtn);
                 actionsDiv.appendChild(deleteBtn);
                 li.appendChild(nameSpan);
