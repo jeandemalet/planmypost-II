@@ -1,5 +1,5 @@
 // =================================================================
-// --- Contenu complet du fichier : public/script.js (Corrigé et Robuste) ---
+// --- Contenu complet du fichier : public/script.js (Corrigé) ---
 // =================================================================
 
 // --- Constantes Globales et État ---
@@ -3188,26 +3188,33 @@ class PublicationOrganizer {
 
             this.galleryPreviewGridElement.innerHTML = '';
             if (galleryDetails.images && galleryDetails.images.length > 0) {
+                // ### DÉBUT DE LA MODIFICATION ###
                 galleryDetails.images.forEach(imgData => {
+                    // On utilise la classe 'grid-item' comme dans l'onglet "Tri" pour une apparence unifiée.
                     const itemDiv = document.createElement('div');
-                    itemDiv.className = 'grid-item preview-grid-item'; 
-                    itemDiv.style.width = `${PREVIEW_WIDTH}px`;
-                    itemDiv.style.height = `${PREVIEW_HEIGHT}px`;
+                    itemDiv.className = 'grid-item'; 
+
+                    // On applique une taille fixe pour que l'aperçu soit propre et rapide,
+                    // cette taille peut être ajustée dans le CSS de #galleryPreviewGrid si nécessaire.
+                    itemDiv.style.width = `150px`;
+                    itemDiv.style.height = `150px`;
 
                     const imgElement = document.createElement('img');
                     imgElement.src = `${BASE_API_URL}/api/uploads/${imgData.galleryId}/${Utils.getFilenameFromURL(imgData.thumbnailPath)}`;
                     imgElement.alt = imgData.originalFilename;
-                    imgElement.style.maxWidth = '100%';
-                    imgElement.style.maxHeight = '100%';
                     imgElement.style.objectFit = 'contain';
+                    imgElement.style.width = '100%';
+                    imgElement.style.height = '100%';
 
+                    // On utilise la même classe de bouton de suppression que la grille principale.
                     const deleteBtnPreview = document.createElement('button');
-                    deleteBtnPreview.className = 'grid-item-delete-btn preview-delete-btn'; 
+                    deleteBtnPreview.className = 'grid-item-delete-btn';
                     deleteBtnPreview.innerHTML = '&times;';
                     deleteBtnPreview.title = "Supprimer cette image de la galerie";
+                    // On force l'opacité à 1 pour que le bouton soit toujours visible dans l'aperçu.
+                    deleteBtnPreview.style.opacity = '1'; 
                     deleteBtnPreview.onclick = (e) => {
                         e.stopPropagation();
-                        
                         this.handleDeleteImageFromPreview(galleryId, imgData._id, imgData.originalFilename);
                     };
                     
@@ -3215,6 +3222,7 @@ class PublicationOrganizer {
                     itemDiv.appendChild(deleteBtnPreview); 
                     this.galleryPreviewGridElement.appendChild(itemDiv);
                 });
+                // ### FIN DE LA MODIFICATION ###
             } else {
                 const addPhotosBtn = document.createElement('button');
                 addPhotosBtn.innerHTML = '<img src="assets/add-button.png" alt="Icône ajouter" class="btn-icon"> Ajouter des Photos'; 
