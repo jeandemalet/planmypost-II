@@ -1175,15 +1175,6 @@ button.small-cancel-btn:hover {
     opacity: 1;
     filter: grayscale(0%);
 }
-.status-icon.crop-icon.active {
-    filter: grayscale(0%) drop-shadow(1px 0px 0 red) drop-shadow(-1px 0px 0 red) drop-shadow(0px 1px 0 red) drop-shadow(0px -1px 0 red);
-}
-.status-icon.desc-icon.active {
-    filter: grayscale(0%) drop-shadow(1px 0px 0 orange) drop-shadow(-1px 0px 0 orange) drop-shadow(0px 1px 0 orange) drop-shadow(0px -1px 0 orange);
-}
-.status-icon.schedule-icon.active {
-    filter: grayscale(0%) drop-shadow(1px 0px 0 green) drop-shadow(-1px 0px 0 green) drop-shadow(0px 1px 0 green) drop-shadow(0px -1px 0 green);
-}
 
 #croppingJourList .jour-list-item.active-cropping-jour,
 #descriptionJourList .jour-list-item.active-description-jour,
