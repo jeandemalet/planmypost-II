@@ -1,4 +1,3 @@
-
 // =================================================================
 // --- Contenu complet du fichier : public/script.js (Corrigé) ---
 // =================================================================
@@ -2739,6 +2738,8 @@ class PublicationOrganizer {
         this.scheduleContext = { schedule: {}, allUserJours: [] };
 
         this.imageSelectorInput = document.getElementById('imageSelector'); 
+        // MODIFICATION : Référence au nouveau bouton
+        this.switchToGalleriesBtn = document.getElementById('switchToGalleriesBtn');
         this.addNewImagesBtn = document.getElementById('addNewImagesBtn');
         this.addPhotosPlaceholderBtn = document.getElementById('addPhotosPlaceholderBtn');
         this.imageGridElement = document.getElementById('imageGrid');
@@ -2775,7 +2776,8 @@ class PublicationOrganizer {
         this.galleryPreviewNameElement = document.getElementById('galleryPreviewName');
         this.galleryPreviewGridElement = document.getElementById('galleryPreviewGrid');
         this.galleryPreviewPlaceholder = document.getElementById('galleryPreviewPlaceholder');
-        this.openGalleryInEditorBtn = document.getElementById('openGalleryInEditorBtn');
+        // MODIFICATION : Référence au nouveau bouton "Trier"
+        this.switchToEditorBtn = document.getElementById('switchToEditorBtn');
         this.selectedGalleryForPreviewId = null;
 
         this.tabs = document.querySelectorAll('.tab-button');
@@ -2802,7 +2804,8 @@ class PublicationOrganizer {
                 targetGalleryId = this.selectedGalleryForPreviewId;
                 if (!this.activeCallingButton) {
                     const previewAddBtn = this.galleryPreviewGridElement.querySelector('.add-photos-preview-btn');
-                    this.activeCallingButton = previewAddBtn || this.openGalleryInEditorBtn;
+                    // MODIFICATION : `openGalleryInEditorBtn` est supprimé, on ne le référence plus.
+                    this.activeCallingButton = previewAddBtn;
                 }
             } 
             else if (document.getElementById('currentGallery').classList.contains('active') && this.currentGalleryId) {
@@ -2822,6 +2825,16 @@ class PublicationOrganizer {
             }
         });
 
+        // MODIFICATION : Ajout des listeners pour les nouveaux boutons
+        this.switchToGalleriesBtn.addEventListener('click', () => this.activateTab('galleries'));
+        this.switchToEditorBtn.addEventListener('click', () => {
+            if (this.currentGalleryId) {
+                this.activateTab('currentGallery');
+            } else {
+                alert("Aucune galerie n'est chargée dans l'éditeur. Veuillez en sélectionner une dans la liste.");
+            }
+        });
+
         this.addNewImagesBtn.addEventListener('click', () => {
              if (!this.currentGalleryId) { alert("Veuillez d'abord charger ou créer une galerie."); return; }
              this.activeCallingButton = this.addNewImagesBtn; 
@@ -2836,7 +2849,7 @@ class PublicationOrganizer {
         this.zoomOutBtn.addEventListener('click', () => this.zoomOut());
         this.zoomInBtn.addEventListener('click', () => this.zoomIn());
         this.sortOptionsSelect.addEventListener('change', () => this.sortGridItemsAndReflow());
-                this.clearGalleryImagesBtn.addEventListener('click', () => this.clearAllGalleryImages());
+        this.clearGalleryImagesBtn.addEventListener('click', () => this.clearAllGalleryImages());
         this.clearGalleryImagesBtn.disabled = true; 
         this.addJourFrameBtn.addEventListener('click', () => this.addJourFrame());
         
@@ -2855,16 +2868,6 @@ class PublicationOrganizer {
             this.newGalleryNameInput.value = '';
         });
         
-        // Listener for the now-removed openGalleryInEditorBtn, check for existence before adding
-        if(this.openGalleryInEditorBtn) {
-            this.openGalleryInEditorBtn.addEventListener('click', () => {
-                if (this.selectedGalleryForPreviewId) {
-                    this.handleLoadGallery(this.selectedGalleryForPreviewId);
-                }
-            });
-        }
-
-
         this.tabs.forEach(tab => {
             tab.addEventListener('click', () => {
                 this.activateTab(tab.dataset.tab); 
@@ -3018,6 +3021,11 @@ class PublicationOrganizer {
             if (el.id !== 'imageSelector') el.disabled = noGalleryActive; 
         });
 
+        // MODIFICATION : Le bouton "Trier" doit aussi être désactivé s'il n'y a pas de galerie active
+        if (this.switchToEditorBtn) {
+            this.switchToEditorBtn.disabled = noGalleryActive;
+        }
+
         if (noGalleryActive) {
             this.imageGridElement.innerHTML = '<p style="text-align:center; margin-top:20px;">Chargez ou créez une galerie pour voir les images.</p>';
             this.jourFramesContainer.innerHTML = '<p style="text-align:center;">Chargez ou créez une galerie pour gérer les jours.</p>';
@@ -3158,26 +3166,26 @@ class PublicationOrganizer {
                     nameSpan.classList.add('current-loaded-gallery');
                     nameSpan.title = "Galerie actuellement chargée dans l'éditeur";
                 }
+                // MODIFICATION : Le clic sur le nom charge maintenant la galerie et la prévisualise
                 nameSpan.onclick = () => {
                     this.showGalleryPreview(gallery._id, gallery.name);
                     this.handleLoadGallery(gallery._id);
-                };
+                }; 
 
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'gallery-actions';
-
-                // MODIFICATION : Le bouton "Charger" est retiré d'ici.
-                // Le clic sur le nom de la galerie charge maintenant la galerie.
                 
                 const renameBtn = document.createElement('button');
                 renameBtn.textContent = 'Renommer';
                 renameBtn.onclick = () => this.handleRenameGallery(gallery._id, gallery.name);
                 
                 const deleteBtn = document.createElement('button');
-                deleteBtn.textContent = 'Supprimer';
-                deleteBtn.className = 'danger-btn-small';
+                // MODIFICATION : Le texte est remplacé par une icône
+                deleteBtn.innerHTML = '<img src="assets/bin.png" alt="Supprimer" class="btn-icon">';
+                deleteBtn.classList.add('delete-gallery-btn');
+                deleteBtn.title = 'Supprimer cette galerie';
                 deleteBtn.onclick = () => this.handleDeleteGallery(gallery._id, gallery.name);
-
+                
                 actionsDiv.appendChild(renameBtn);
                 actionsDiv.appendChild(deleteBtn);
                 li.appendChild(nameSpan);
@@ -3210,7 +3218,10 @@ class PublicationOrganizer {
                 item.classList.add('selected-for-preview');
             }
         });
+        
+        // MODIFICATION : Gestion de l'état des nouveaux boutons
         this.clearGalleryImagesBtn.disabled = false;
+        this.switchToEditorBtn.disabled = (galleryId !== this.currentGalleryId);
         
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryId}`);
@@ -3221,14 +3232,9 @@ class PublicationOrganizer {
 
             this.galleryPreviewGridElement.innerHTML = '';
             if (galleryDetails.images && galleryDetails.images.length > 0) {
-                // ### DÉBUT DE LA MODIFICATION ###
                 galleryDetails.images.forEach(imgData => {
-                    // On utilise la classe 'grid-item' comme dans l'onglet "Tri" pour une apparence unifiée.
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'grid-item'; 
-
-                    // On applique une taille fixe pour que l'aperçu soit propre et rapide,
-                    // cette taille peut être ajustée dans le CSS de #galleryPreviewGrid si nécessaire.
                     itemDiv.style.width = `150px`;
                     itemDiv.style.height = `150px`;
 
@@ -3239,12 +3245,10 @@ class PublicationOrganizer {
                     imgElement.style.width = '100%';
                     imgElement.style.height = '100%';
 
-                    // On utilise la même classe de bouton de suppression que la grille principale.
                     const deleteBtnPreview = document.createElement('button');
                     deleteBtnPreview.className = 'grid-item-delete-btn';
                     deleteBtnPreview.innerHTML = '&times;';
                     deleteBtnPreview.title = "Supprimer cette image de la galerie";
-                    // On force l'opacité à 1 pour que le bouton soit toujours visible dans l'aperçu.
                     deleteBtnPreview.style.opacity = '1'; 
                     deleteBtnPreview.onclick = (e) => {
                         e.stopPropagation();
@@ -3255,7 +3259,6 @@ class PublicationOrganizer {
                     itemDiv.appendChild(deleteBtnPreview); 
                     this.galleryPreviewGridElement.appendChild(itemDiv);
                 });
-                // ### FIN DE LA MODIFICATION ###
             } else {
                 const addPhotosBtn = document.createElement('button');
                 addPhotosBtn.innerHTML = '<img src="assets/add-button.png" alt="Icône ajouter" class="btn-icon"> Ajouter des Photos'; 
@@ -3325,6 +3328,8 @@ class PublicationOrganizer {
             item.classList.remove('selected-for-preview');
         });
         this.clearGalleryImagesBtn.disabled = true;
+        // MODIFICATION : Le bouton "Trier" doit aussi être désactivé
+        this.switchToEditorBtn.disabled = true;
     }
 
 
@@ -3393,6 +3398,10 @@ class PublicationOrganizer {
         if(this.currentGalleryUploadProgressContainer) this.currentGalleryUploadProgressContainer.style.display = 'none';
 
         await this.loadState(); 
+        // MODIFICATION : Après avoir chargé une nouvelle galerie, on met à jour le bouton "Trier"
+        if (this.selectedGalleryForPreviewId) {
+            this.switchToEditorBtn.disabled = (this.selectedGalleryForPreviewId !== this.currentGalleryId);
+        }
         this.activateTab('currentGallery'); 
         await this.loadGalleriesList(); 
         this.updateUIToNoGalleryState(); 
@@ -3625,8 +3634,8 @@ class PublicationOrganizer {
 
         if (callingButtonElement) callingButtonElement.disabled = true;
         this.imageSelectorInput.disabled = true;
-        if (isGalleryTabActive && this.openGalleryInEditorBtn) this.openGalleryInEditorBtn.disabled = true;
-        else if (!isGalleryTabActive) {
+        // MODIFICATION : `openGalleryInEditorBtn` est supprimé
+        if (!isGalleryTabActive) {
             if (this.addNewImagesBtn) this.addNewImagesBtn.disabled = true;
             if (this.addPhotosPlaceholderBtn) this.addPhotosPlaceholderBtn.disabled = true;
         }
@@ -3681,8 +3690,7 @@ class PublicationOrganizer {
                 progressBarInnerEl.style.backgroundColor = '#dc3545'; 
                 if (callingButtonElement) callingButtonElement.disabled = false;
                 this.imageSelectorInput.disabled = false;
-                if (isGalleryTabActive && this.openGalleryInEditorBtn) this.openGalleryInEditorBtn.disabled = false;
-                else if (!isGalleryTabActive) {
+                if (!isGalleryTabActive) {
                     if (this.addNewImagesBtn) this.addNewImagesBtn.disabled = false;
                     if (this.addPhotosPlaceholderBtn) this.addPhotosPlaceholderBtn.disabled = false;
                 }
@@ -3713,8 +3721,7 @@ class PublicationOrganizer {
         if (callingButtonElement) callingButtonElement.disabled = false;
         this.imageSelectorInput.disabled = false;
         this.imageSelectorInput.value = ""; 
-        if (isGalleryTabActive && this.openGalleryInEditorBtn) this.openGalleryInEditorBtn.disabled = false;
-        else if (!isGalleryTabActive) {
+        if (!isGalleryTabActive) {
             if (this.addNewImagesBtn) this.addNewImagesBtn.disabled = false;
             if (this.addPhotosPlaceholderBtn) this.addPhotosPlaceholderBtn.disabled = false;
         }
@@ -4259,19 +4266,9 @@ async function startApp() {
         if (!app) {
             app = new PublicationOrganizer();
             window.pubApp = app; 
-        }
-
-        let galleryIdToLoad = localStorage.getItem('publicationOrganizer_lastGalleryId');
+                }
         
-        if (galleryIdToLoad) {
-            const checkResponse = await fetch(`${BASE_API_URL}/api/galleries/${galleryIdToLoad}`);
-            if (!checkResponse.ok) {
-                console.warn(`La dernière galerie (${galleryIdToLoad}) n'est plus valide.`);
-                galleryIdToLoad = null;
-                localStorage.removeItem('publicationOrganizer_lastGalleryId');
-            }
-        }
-        
+        let galleryIdToLoad;
         if (!galleryIdToLoad) {
             const response = await fetch(`${BASE_API_URL}/api/galleries?limit=1&sort=lastAccessed`);
             if (response.ok) {

@@ -313,6 +313,8 @@ button.small-cancel-btn:hover {
     border: 1px solid #dee2e6;
     border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    /* MODIFICATION : Ajout de la position relative pour les boutons absolus */
+    position: relative;
 }
 #galleryPreviewPlaceholder {
     text-align: center;
@@ -333,18 +335,7 @@ button.small-cancel-btn:hover {
     font-size: 1.4em;
     color: #343a40;
 }
-#openGalleryInEditorBtn {
-    background-color: #007bff;
-    color: white;
-    border-radius: 6px;
-    padding: 8px 15px;
-    font-size: 0.95em;
-}
-#openGalleryInEditorBtn:hover {
-    background-color: #0069d9;
-}
 
-/* ### MODIFICATION: Harmonisation de la grille d'aperçu ### */
 #galleryPreviewGrid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
@@ -355,11 +346,41 @@ button.small-cancel-btn:hover {
     padding: 10px;
     background-color: #e9e9e9;
     border-radius: 8px;
-    align-content: start; /* <--- Ligne ajoutée pour corriger l'espacement vertical */
+    align-content: start;
 }
 
-/* ### SUPPRESSION: Les classes .preview-grid-item et .preview-delete-btn sont supprimées ### */
-/* Les éléments utilisent maintenant .grid-item et .grid-item-delete-btn directement. */
+/* MODIFICATION : Positionnement des nouveaux boutons dans la zone de prévisualisation */
+#clearGalleryImagesBtn {
+    position: absolute;
+    bottom: 20px;
+    left: 20px;
+    z-index: 10;
+}
+#switchToEditorBtn {
+    position: absolute;
+    bottom: 20px;
+    right: 20px;
+    z-index: 10;
+}
+#switchToEditorBtn .btn-icon {
+    filter: brightness(0) invert(1);
+}
+
+/* MODIFICATION : Style pour les boutons ne contenant qu'une icône */
+.icon-only-btn {
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+.icon-only-btn img {
+    width: 22px;
+    height: 22px;
+    margin: 0; /* Important pour surcharger le margin-right de .btn-icon */
+}
 
 
 .controls-bar {
@@ -541,7 +562,6 @@ button.small-cancel-btn:hover {
     display: none;
 }
 
-/* ### MODIFICATION: Déplacement de la croix de suppression ### */
 .grid-item-delete-btn {
     position: absolute;
     top: 2px;
@@ -1733,3 +1753,23 @@ button.small-cancel-btn:hover {
     font-weight: bold;
 }
 
+/* MODIFICATION : Style pour le bouton supprimer dans la liste des galeries */
+.gallery-actions .delete-gallery-btn {
+    background: none;
+    border: none;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+.gallery-actions .delete-gallery-btn:hover {
+    background-color: rgba(220, 53, 69, 0.1);
+}
+.gallery-actions .delete-gallery-btn .btn-icon {
+    margin: 0;
+    width: 16px;
+    height: 16px;
+}
