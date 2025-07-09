@@ -1231,7 +1231,8 @@ button.small-cancel-btn:hover {
     flex-direction: column;
     min-width: 0; /* Important pour le flexbox shrink */
 }
-#croppingEditorPanel, #descriptionEditorPanel {
+
+#croppingEditorPanel, #descriptionEditorContent {
     display: flex;
     flex-direction: column;
     flex-grow: 1;
