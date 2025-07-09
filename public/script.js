@@ -3181,7 +3181,6 @@ class PublicationOrganizer {
                 // MODIFICATION : Le clic sur le nom charge maintenant la galerie et la prévisualise
                 nameSpan.onclick = () => {
                     this.showGalleryPreview(gallery._id, gallery.name);
-                    this.handleLoadGallery(gallery._id);
                 }; 
 
                 const actionsDiv = document.createElement('div');
