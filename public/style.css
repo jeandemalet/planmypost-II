@@ -1,5 +1,5 @@
 /* ===============================
- Fichier: public\style.css (Corrigé)
+ Fichier: public/style.css (Corrigé)
 =============================== */
 
 body {
@@ -195,17 +195,16 @@ button:disabled .profile-action-icon {
     padding: 15px;
 }
 
+/* MODIFICATION : Le style de ce conteneur a été simplifié pour correspondre
+   aux autres panneaux latéraux (comme celui de l'onglet Description). */
 #galleriesListContainer {
-    width: 380px;
-    min-width: 320px;
-    background-color: #ffffff;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
+    width: 280px;
+    min-width: 250px;
+    border-right: 1px solid #ddd;
     padding: 15px;
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 180px); 
-    box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    height: calc(100vh - 180px);
 }
 
 .gallery-management-controls {
