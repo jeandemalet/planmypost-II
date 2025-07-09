@@ -540,7 +540,7 @@ button.small-cancel-btn:hover {
 .grid-item-delete-btn {
     position: absolute;
     top: 2px;
-    left: 2px; /* Changé de 'right' à 'left' */
+    right: 2px;
     background-color: rgba(220, 53, 69, 0.7);
     color: white;
     border: none;
