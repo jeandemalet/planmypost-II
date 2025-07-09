@@ -296,8 +296,12 @@ button.small-cancel-btn:hover {
     color: #28a745;
     font-weight: 600;
 }
+.gallery-actions {
+    display: flex;
+    gap: 5px;
+}
+
 .gallery-actions button {
-    margin-left: 5px;
     font-size: 0.85em;
     padding: 5px 8px;
     border-radius: 5px;
@@ -361,6 +365,7 @@ button.small-cancel-btn:hover {
     bottom: 20px;
     right: 20px;
     z-index: 10;
+    border-radius: 20px;
 }
 #switchToEditorBtn .btn-icon {
     filter: brightness(0) invert(1);
@@ -1769,6 +1774,26 @@ button.small-cancel-btn:hover {
     background-color: rgba(220, 53, 69, 0.1);
 }
 .gallery-actions .delete-gallery-btn .btn-icon {
+    margin: 0;
+    width: 16px;
+    height: 16px;
+}
+
+.gallery-actions .rename-gallery-btn {
+    background: none;
+    border: none;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+}
+.gallery-actions .rename-gallery-btn:hover {
+    background-color: rgba(0, 123, 255, 0.1);
+}
+.gallery-actions .rename-gallery-btn .btn-icon {
     margin: 0;
     width: 16px;
     height: 16px;

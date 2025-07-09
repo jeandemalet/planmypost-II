@@ -3176,7 +3176,9 @@ class PublicationOrganizer {
                 actionsDiv.className = 'gallery-actions';
                 
                 const renameBtn = document.createElement('button');
-                renameBtn.textContent = 'Renommer';
+                renameBtn.innerHTML = '<img src="assets/description.png" alt="Renommer" class="btn-icon">';
+                renameBtn.classList.add('rename-gallery-btn');
+                renameBtn.title = 'Renommer cette galerie';
                 renameBtn.onclick = () => this.handleRenameGallery(gallery._id, gallery.name);
                 
                 const deleteBtn = document.createElement('button');
