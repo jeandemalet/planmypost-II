@@ -1673,3 +1673,25 @@ button.small-cancel-btn:hover {
     vertical-align: middle;
     margin-right: 8px;
 }
+
+/* --- STYLES POUR LES BOUTONS ICÔNES DU CROPPER --- */
+.cropper-controls button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px;
+    width: 44px;
+    height: 44px;
+}
+
+.cropper-controls button img {
+    width: 24px;
+    height: 24px;
+    object-fit: contain;
+}
+
+
+
+.cropper-controls button#cropDeleteBtn:hover {
+    background-color: #ef767f;
+}

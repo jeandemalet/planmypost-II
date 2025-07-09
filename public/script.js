@@ -731,7 +731,7 @@ class CroppingManager {
         this.aspectRatioSelect = document.getElementById('cropAspectRatio');
         this.whiteBarsBtn = document.getElementById('cropAddWhiteBarsBtn');
         this.splitLineBtn = document.getElementById('cropSplitLineBtn'); 
-        this.ignoreBtn = document.getElementById('cropIgnoreBtn');
+        this.deleteBtn = document.getElementById('cropDeleteBtn');
         this.finishBtn = document.getElementById('cropFinishBtn');
 
         this.imagesToCrop = []; 
@@ -765,11 +765,33 @@ class CroppingManager {
         this.finishBtn.onclick = () => this.finishAndApply();
         this.prevBtn.onclick = () => this.prevImage(); 
         this.nextBtn.onclick = () => this.nextImage(false); 
-        this.ignoreBtn.onclick = () => {
-            const currentImgInfo = this.imagesToCrop[this.currentImageIndex];
-            this.infoLabel.textContent = `Image ${currentImgInfo?.originalReferenceId || ''} ignorée.`;
-            this.ignoreSaveForThisImage = true;
-            this.nextImage(true); 
+        this.deleteBtn.onclick = () => {
+            if (this.currentImageIndex < 0 || this.currentImageIndex >= this.imagesToCrop.length) {
+                return; // No image selected
+            }
+
+            const imageToDelete = this.imagesToCrop[this.currentImageIndex];
+            const imageIdToDelete = imageToDelete.currentImageId;
+            const originalGridItem = this.organizer.gridItemsDict[imageToDelete.originalReferenceId];
+            const displayName = originalGridItem ? originalGridItem.basename : `Image ID ${imageToDelete.originalReferenceId}`;
+
+            // 1. Remove from the JourFrame, which handles DOM and data array
+            if (this.currentJourFrameInstance) {
+                this.currentJourFrameInstance.removeImageById(imageIdToDelete);
+            }
+
+            // 2. Remove from the cropper's internal list
+            this.imagesToCrop.splice(this.currentImageIndex, 1);
+            
+            // 3. Refresh the thumbnail strip
+            this.croppingPage._populateThumbnailStrip(this.currentJourFrameInstance);
+
+
+            // 4. Load the next image (or finish if it was the last one)
+            // No need to increment index, as splice shifts the array.
+            // If it was the last image, currentImageIndex will now be out of bounds, which loadCurrentImage handles.
+            this.infoLabel.textContent = `Image ${displayName} supprimée du jour.`;
+            this.loadCurrentImage();
         };
         this.flipBtn.onclick = () => this.toggleFlip();
         this.aspectRatioSelect.onchange = (e) => this.onRatioChanged(e.target.value);
@@ -950,7 +972,7 @@ class CroppingManager {
         this.canvasElement.style.cursor = 'crosshair'; 
         this.splitModeState = 0; 
         this.showSplitLineCount = 0;
-        this.splitLineBtn.textContent = "Mode Split";
+        this.splitLineBtn.title = "Diviser l'image pour un carrousel";
         this.splitLineBtn.classList.remove('active-crop-btn');
         this.aspectRatioSelect.disabled = false;
         this.whiteBarsBtn.disabled = false;
@@ -1336,7 +1358,7 @@ class CroppingManager {
         if (this.splitModeState > 0 && newRatioName !== '6:4split' && newRatioName !== '9:4doublesplit') { 
             this.splitModeState = 0;
             this.showSplitLineCount = 0;
-            this.splitLineBtn.textContent = "Mode Split";
+            this.splitLineBtn.title = "Diviser l'image pour un carrousel";
             this.splitLineBtn.classList.remove('active-crop-btn');
             this.aspectRatioSelect.disabled = false; 
             this.whiteBarsBtn.disabled = false; 
@@ -1377,7 +1399,7 @@ class CroppingManager {
             this.whiteBarsBtn.disabled = true; 
             this.showSplitLineCount = 1;
             this.setDefaultMaximizedCropRectForSplit(); 
-            this.splitLineBtn.textContent = "Split (2 imgs)";
+            this.splitLineBtn.title = "Diviser en 2 images";
             this.splitLineBtn.classList.add('active-crop-btn');
         } else if (this.splitModeState === 2) { 
             this.currentAspectRatioName = '9:4doublesplit'; 
@@ -1385,13 +1407,13 @@ class CroppingManager {
             this.whiteBarsBtn.disabled = true; 
             this.showSplitLineCount = 2;
             this.setDefaultMaximizedCropRectForDoubleSplit(); 
-            this.splitLineBtn.textContent = "Split (3 imgs)";
+            this.splitLineBtn.title = "Diviser en 3 images";
             this.splitLineBtn.classList.add('active-crop-btn'); 
         } else { 
             this.aspectRatioSelect.disabled = false;
             this.whiteBarsBtn.disabled = false;
             this.showSplitLineCount = 0;
-            this.splitLineBtn.textContent = "Mode Split";
+            this.splitLineBtn.title = "Diviser l'image pour un carrousel";
             this.splitLineBtn.classList.remove('active-crop-btn');
             const currentSelectedRatio = this.aspectRatioSelect.value || '3:4'; 
             this.onRatioChanged(currentSelectedRatio); 
@@ -1429,7 +1451,7 @@ class CroppingManager {
             if (this.splitModeState > 0) {
                 this.splitModeState = 0;
                 this.splitLineBtn.classList.remove('active-crop-btn');
-                this.splitLineBtn.textContent = "Mode Split";
+                this.splitLineBtn.title = "Diviser l'image pour un carrousel";
                 this.showSplitLineCount = 0;
             }
             this.saveMode = 'white_bars';
