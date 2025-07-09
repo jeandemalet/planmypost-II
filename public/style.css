@@ -1231,14 +1231,10 @@ button.small-cancel-btn:hover {
     flex-direction: column;
     min-width: 0; /* Important pour le flexbox shrink */
 }
-#croppingEditorContainer h3, #descriptionEditorPanel h3 {
-    margin-top: 0;
-    margin-bottom: 15px;
-    color: #333;
-}
 #croppingEditorPanel, #descriptionEditorPanel {
     display: flex;
     flex-direction: column;
+    flex-grow: 1;
 }
 
 
@@ -1675,14 +1671,8 @@ button.small-cancel-btn:hover {
     transition: border-color 0.2s, transform 0.2s;
 }
 
-.crop-strip-thumb:hover {
-    border-color: #aaa;
-    transform: scale(1.05);
-}
-
 .crop-strip-thumb.active-crop-thumb {
     border-color: #E0FF00; /* Jaune fluo pour la sélection */
-    transform: scale(1.1);
     box-shadow: 0 0 10px rgba(224, 255, 0, 0.5);
 }
 
