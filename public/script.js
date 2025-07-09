@@ -2741,12 +2741,13 @@ class PublicationOrganizer {
         // MODIFICATION : Référence au nouveau bouton
         this.switchToGalleriesBtn = document.getElementById('switchToGalleriesBtn');
         this.addNewImagesBtn = document.getElementById('addNewImagesBtn');
+        this.addPhotosToPreviewGalleryBtn = document.getElementById('addPhotosToPreviewGalleryBtn');
         this.addPhotosPlaceholderBtn = document.getElementById('addPhotosPlaceholderBtn');
         this.imageGridElement = document.getElementById('imageGrid');
         this.zoomOutBtn = document.getElementById('zoomOutBtn');
         this.zoomInBtn = document.getElementById('zoomInBtn');
         this.sortOptionsSelect = document.getElementById('sortOptions');
-        this.clearGalleryImagesBtn = document.getElementById('clearGalleryImagesBtn');
+        this.clearPreviewGalleryImagesBtn = document.getElementById('clearPreviewGalleryImagesBtn');
         
         this.statsArea = document.getElementById('statsArea');
         this.statsLabelText = document.getElementById('statsLabelText');
@@ -2842,6 +2843,12 @@ class PublicationOrganizer {
              this.activeCallingButton = this.addNewImagesBtn; 
              this.imageSelectorInput.click()
         });
+
+        this.addPhotosToPreviewGalleryBtn.addEventListener('click', () => {
+            if (!this.selectedGalleryForPreviewId) { alert("Veuillez sélectionner une galerie pour y ajouter des images."); return; }
+            this.activeCallingButton = this.addPhotosToPreviewGalleryBtn;
+            this.imageSelectorInput.click();
+        });
         this.addPhotosPlaceholderBtn.addEventListener('click', () => {
              if (!this.currentGalleryId) { alert("Veuillez d'abord charger ou créer une galerie."); return; }
              this.activeCallingButton = this.addPhotosPlaceholderBtn; 
@@ -2851,8 +2858,7 @@ class PublicationOrganizer {
         this.zoomOutBtn.addEventListener('click', () => this.zoomOut());
         this.zoomInBtn.addEventListener('click', () => this.zoomIn());
         this.sortOptionsSelect.addEventListener('change', () => this.sortGridItemsAndReflow());
-        this.clearGalleryImagesBtn.addEventListener('click', () => this.clearAllGalleryImages());
-        this.clearGalleryImagesBtn.disabled = true; 
+        this.clearPreviewGalleryImagesBtn.addEventListener('click', () => this.clearAllGalleryImages()); 
         this.addJourFrameBtn.addEventListener('click', () => this.addJourFrame());
         
         const downloadAllBtn = document.getElementById('downloadAllScheduledBtn');
@@ -3234,9 +3240,12 @@ class PublicationOrganizer {
         });
         
         // MODIFICATION : Gestion de l'état des nouveaux boutons
-        this.clearGalleryImagesBtn.disabled = false;
+        this.clearPreviewGalleryImagesBtn.disabled = false;
+        this.clearPreviewGalleryImagesBtn.style.display = 'block';
         this.switchToEditorBtn.style.display = 'block';
         this.switchToEditorBtn.disabled = false;
+        this.addPhotosToPreviewGalleryBtn.style.display = 'block';
+        this.addPhotosToPreviewGalleryBtn.disabled = false;
         
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryId}`);
@@ -3342,9 +3351,11 @@ class PublicationOrganizer {
         this.galleriesListElement.querySelectorAll('.gallery-list-item.selected-for-preview').forEach(item => {
             item.classList.remove('selected-for-preview');
         });
-        this.clearGalleryImagesBtn.disabled = true;
+        this.clearPreviewGalleryImagesBtn.disabled = true;
+        this.clearPreviewGalleryImagesBtn.style.display = 'none';
         // MODIFICATION : Le bouton "Trier" doit aussi être désactivé
         this.switchToEditorBtn.style.display = 'none';
+        this.addPhotosToPreviewGalleryBtn.style.display = 'none';
     }
 
 

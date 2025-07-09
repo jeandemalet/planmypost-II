@@ -73,6 +73,17 @@
                 <div id="galleryPreviewArea">
                     <div id="galleryPreviewHeader" style="display:none;">
                         <h3 id="galleryPreviewName"></h3>
+                        <div style="display: flex !important; gap: 10px; margin-left: auto !important;">
+                            <button id="addPhotosToPreviewGalleryBtn" class="add-btn-green">
+                                <img src="/assets/add-button.png" alt="" class="btn-icon"> Ajouter des photos
+                            </button>
+                            <button id="clearPreviewGalleryImagesBtn" class="icon-only-btn danger-btn" title="Vider la galerie sélectionnée">
+                                <img src="assets/bin.png" alt="Vider la galerie">
+                            </button>
+                            <button id="switchToEditorBtn" class="primary-action" title="Trier la galerie active">
+                                <img src="assets/tri.png" alt="Trier" class="btn-icon"> Trier
+                            </button>
+                        </div>
                     </div>
                     <!-- Barre de progression pour l'onglet galerie -->
                     <div id="galleriesUploadProgressContainer" class="upload-progress-area" style="display:none; margin-bottom: 10px;">
@@ -84,12 +95,8 @@
                     <div id="galleryPreviewGrid"></div>
                      <p id="galleryPreviewPlaceholder">Sélectionnez une galerie pour voir un aperçu ou la charger.</p>
                      <!-- MODIFICATION : Boutons "Vider" et "Trier" ajoutés ici -->
-                     <button id="clearGalleryImagesBtn" class="icon-only-btn danger-btn" title="Vider la galerie sélectionnée">
-                        <img src="assets/bin.png" alt="Vider la galerie">
-                    </button>
-                    <button id="switchToEditorBtn" class="primary-action" title="Trier la galerie active">
-                        <img src="assets/tri.png" alt="Trier" class="btn-icon"> Trier
-                    </button>
+                     
+                    
                 </div>
             </div>
         </div>
