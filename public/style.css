@@ -1666,3 +1666,10 @@ button.small-cancel-btn:hover {
     transform: scale(1.1);
     box-shadow: 0 0 10px rgba(224, 255, 0, 0.5);
 }
+
+.schedule-icon {
+    width: 20px;
+    height: 20px;
+    vertical-align: middle;
+    margin-right: 8px;
+}
