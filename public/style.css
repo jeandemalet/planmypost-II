@@ -117,12 +117,12 @@ button:disabled .profile-action-icon {
     background-color: #0056b3;
 }
 .secondary-action {
-    background-color: #6c757d;
+    background-color: #007bff;
     color: white;
-    border-color: #6c757d;
+    border-color: #007bff;
 }
 .secondary-action:hover {
-    background-color: #5a6268;
+    background-color: #0056b3;
 }
 
 
