@@ -2835,7 +2835,8 @@ class PublicationOrganizer {
         this.zoomOutBtn.addEventListener('click', () => this.zoomOut());
         this.zoomInBtn.addEventListener('click', () => this.zoomIn());
         this.sortOptionsSelect.addEventListener('change', () => this.sortGridItemsAndReflow());
-        this.clearGalleryImagesBtn.addEventListener('click', () => this.clearAllGalleryImages()); 
+                this.clearGalleryImagesBtn.addEventListener('click', () => this.clearAllGalleryImages());
+        this.clearGalleryImagesBtn.disabled = true; 
         this.addJourFrameBtn.addEventListener('click', () => this.addJourFrame());
         
         const downloadAllBtn = document.getElementById('downloadAllScheduledBtn');
@@ -3179,6 +3180,10 @@ class PublicationOrganizer {
                 this.galleriesListElement.appendChild(li);
             });
 
+            if (!this.selectedGalleryForPreviewId && galleries.length > 0) {
+                this.showGalleryPreview(galleries[0]._id, galleries[0].name);
+            }
+
         } catch (error) {
             console.error("Erreur lors du chargement de la liste des galeries:", error);
             this.galleriesListElement.innerHTML = `<li>Erreur de chargement: ${error.message}</li>`;
@@ -3200,6 +3205,7 @@ class PublicationOrganizer {
                 item.classList.add('selected-for-preview');
             }
         });
+        this.clearGalleryImagesBtn.disabled = false;
         
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryId}`);
@@ -3313,6 +3319,7 @@ class PublicationOrganizer {
         this.galleriesListElement.querySelectorAll('.gallery-list-item.selected-for-preview').forEach(item => {
             item.classList.remove('selected-for-preview');
         });
+        this.clearGalleryImagesBtn.disabled = true;
     }
 
 
@@ -3841,16 +3848,19 @@ class PublicationOrganizer {
     }
 
     async clearAllGalleryImages() {
-        if (!this.currentGalleryId) {
-            alert("Aucune galerie active à vider.");
+        const galleryIdToClear = this.selectedGalleryForPreviewId;
+        if (!galleryIdToClear) {
+            alert("Aucune galerie sélectionnée à vider.");
             return;
         }
-        if (!confirm("ÊTES-VOUS SÛR de vouloir supprimer TOUTES les images de cette galerie ?\nCette action est irréversible et affectera aussi les Jours et le Calendrier.")) {
+        const galleryNameToConfirm = this.galleryCache[galleryIdToClear] || galleryIdToClear;
+
+        if (!confirm(`ÊTES-VOUS SÛR de vouloir supprimer TOUTES les images de la galerie "${galleryNameToConfirm}" ?\nCette action est irréversible et affectera aussi les Jours et le Calendrier si cette galerie est chargée.`)) {
             return;
         }
 
         try {
-            const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/images`, { 
+            const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryIdToClear}/images`, { 
                 method: 'DELETE'
             });
             if (!response.ok) {
@@ -3859,25 +3869,26 @@ class PublicationOrganizer {
             }
             console.log(await response.text()); 
 
-            this.imageGridElement.innerHTML = '';
-            this.gridItems = [];
-            this.gridItemsDict = {};
+            this.showGalleryPreview(galleryIdToClear, galleryNameToConfirm);
 
-            this.jourFrames.forEach(jf => {
-                jf.imagesData = []; 
-                jf.syncDataArrayFromDOM(); 
-            });
+            if (this.currentGalleryId === galleryIdToClear) {
+                this.imageGridElement.innerHTML = '';
+                this.gridItems = [];
+                this.gridItemsDict = {};
 
-            this.updateGridUsage(); 
-            this.updateStatsLabel(); 
-            this.updateAddPhotosPlaceholderVisibility();
-            
-            if (this.calendarPage && document.getElementById('calendar').classList.contains('active')) {
-                this.scheduleContext.schedule = {}; // Vider les données
-                this.calendarPage.buildCalendarUI();
-            }
-            if (this.selectedGalleryForPreviewId === this.currentGalleryId) {
-                this.showGalleryPreview(this.currentGalleryId, this.galleryCache[this.currentGalleryId] || "Galerie");
+                this.jourFrames.forEach(jf => {
+                    jf.imagesData = []; 
+                    jf.syncDataArrayFromDOM(); 
+                });
+
+                this.updateGridUsage(); 
+                this.updateStatsLabel(); 
+                this.updateAddPhotosPlaceholderVisibility();
+                
+                if (this.calendarPage && document.getElementById('calendar').classList.contains('active')) {
+                    this.scheduleContext.schedule = {}; // Vider les données
+                    this.calendarPage.buildCalendarUI();
+                }
             }
 
         } catch (error) {
