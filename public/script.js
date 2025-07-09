@@ -3234,7 +3234,8 @@ class PublicationOrganizer {
         
         // MODIFICATION : Gestion de l'état des nouveaux boutons
         this.clearGalleryImagesBtn.disabled = false;
-        this.switchToEditorBtn.disabled = (galleryId !== this.currentGalleryId);
+        this.switchToEditorBtn.style.display = 'block';
+        this.switchToEditorBtn.disabled = false;
         
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryId}`);
@@ -3342,7 +3343,7 @@ class PublicationOrganizer {
         });
         this.clearGalleryImagesBtn.disabled = true;
         // MODIFICATION : Le bouton "Trier" doit aussi être désactivé
-        this.switchToEditorBtn.disabled = true;
+        this.switchToEditorBtn.style.display = 'none';
     }
 
 
