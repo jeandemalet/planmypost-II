@@ -546,7 +546,6 @@ class JourFrameBackend {
 
     async save() {
         if (!this.id || !app.currentGalleryId) {
-            console.error("Cannot save Jour: Missing Jour ID or Gallery ID.");
             return false;
         }
         const imagesToSave = this.imagesData.map((imgData, idx) => ({ imageId: imgData.imageId, order: idx }));
@@ -665,11 +664,8 @@ class AutoCropper {
             horizontal: document.querySelectorAll('input[name="horizontal_treatment"]')
         };
         this.isRunning = false;
-
         this.debouncedSaveSettings = Utils.debounce(() => this.saveSettings(), 1000);
-
         this.runBtn.addEventListener('click', () => this.run());
-
         Object.values(this.radioGroups).forEach(nodeList => {
             nodeList.forEach(radio => {
                 radio.addEventListener('change', () => this.debouncedSaveSettings());
@@ -680,14 +676,11 @@ class AutoCropper {
     async saveSettings() {
         const jourFrame = this.croppingPage.currentSelectedJourFrame;
         if (!jourFrame || this.isRunning) return;
-
         const settings = {
             vertical: document.querySelector('input[name="vertical_treatment"]:checked').value,
             horizontal: document.querySelector('input[name="horizontal_treatment"]:checked').value
         };
-
         jourFrame.autoCropSettings = settings;
-
         try {
             await fetch(`${BASE_API_URL}/api/galleries/${jourFrame.galleryId}/jours/${jourFrame.id}`, {
                 method: 'PUT',
@@ -702,10 +695,8 @@ class AutoCropper {
     loadSettingsForJour(jourFrame) {
         if (!jourFrame) return;
         const settings = jourFrame.autoCropSettings || { vertical: 'none', horizontal: 'none' };
-        
         const vertRadio = document.querySelector(`input[name="vertical_treatment"][value="${settings.vertical}"]`);
         if (vertRadio) vertRadio.checked = true;
-
         const horizRadio = document.querySelector(`input[name="horizontal_treatment"][value="${settings.horizontal}"]`);
         if (horizRadio) horizRadio.checked = true;
     }
@@ -721,11 +712,7 @@ class AutoCropper {
             return;
         }
         if (this.isRunning) return;
-
-        if (!confirm(`Lancer le recadrage automatique pour le Jour ${jourFrame.letter} ?\nLes images non-recadrées dans ce jour seront remplacées. Cette action ne peut pas être annulée.`)) {
-            return;
-        }
-
+        
         this.isRunning = true;
         this.runBtn.disabled = true;
         this.progressElement.style.display = 'block';
@@ -741,25 +728,18 @@ class AutoCropper {
 
         for (let i = 0; i < imagesToProcess.length; i++) {
             const imgData = imagesToProcess[i];
-            
             if (imgData.isCropped) continue;
-
             this.progressElement.textContent = `Traitement ${i + 1}/${imagesToProcess.length}...`;
-
             const originalGridItem = this.organizerApp.gridItemsDict[imgData.originalReferencePath];
             if (!originalGridItem) {
-                console.warn(`Image originale ${imgData.originalReferencePath} non trouvée pour l'auto-crop.`);
+                console.warn(`Image originale ${imgData.originalReferencePath} non trouvée.`);
                 continue;
             }
-
             try {
                 const image = await Utils.loadImage(originalGridItem.imagePath);
                 const isVertical = image.naturalHeight > image.naturalWidth * 1.02;
                 const setting = isVertical ? settings.vertical : settings.horizontal;
-
-                if (setting === 'none') {
-                    continue;
-                }
+                if (setting === 'none') continue;
 
                 let dataURL = null;
                 let cropInfo = '';
@@ -807,26 +787,22 @@ class AutoCropper {
                         body: JSON.stringify({ imageDataUrl: dataURL, cropInfo, filenameSuffix })
                     });
                     if (!response.ok) throw new Error(await response.text());
-                    
                     const newImageDoc = await response.json();
                     if (!this.organizerApp.gridItemsDict[newImageDoc._id]) {
                         const newGridItem = new GridItemBackend(newImageDoc, this.organizerApp.currentThumbSize, this.organizerApp);
                         this.organizerApp.gridItems.push(newGridItem);
                         this.organizerApp.gridItemsDict[newImageDoc._id] = newGridItem;
                     }
-                    
                     modifiedDataMap[imgData.imageId] = newImageDoc;
                 }
             } catch (err) {
-                console.error(`Erreur lors du traitement auto de l'image ${originalGridItem.basename}:`, err);
+                console.error(`Erreur auto-crop pour ${originalGridItem.basename}:`, err);
                 this.progressElement.textContent = `Erreur sur l'image ${i + 1}.`;
                 await new Promise(resolve => setTimeout(resolve, 1500));
             }
         }
-        
         jourFrame.updateImagesFromCropper(modifiedDataMap);
         this.organizerApp.refreshSidePanels();
-
         this.progressElement.textContent = 'Terminé !';
         setTimeout(() => {
             this.progressElement.style.display = 'none';
@@ -1008,9 +984,7 @@ class CroppingManager {
         this.prevBtn.onclick = () => this.prevImage(); 
         this.nextBtn.onclick = () => this.nextImage(false); 
         this.deleteBtn.onclick = () => {
-            if (this.currentImageIndex < 0 || this.currentImageIndex >= this.imagesToCrop.length) {
-                return;
-            }
+            if (this.currentImageIndex < 0 || this.currentImageIndex >= this.imagesToCrop.length) { return; }
             const imageToDelete = this.imagesToCrop[this.currentImageIndex];
             const imageIdToDelete = imageToDelete.currentImageId;
             const originalGridItem = this.organizer.gridItemsDict[imageToDelete.originalReferenceId];
@@ -1043,7 +1017,6 @@ class CroppingManager {
 
     _handleResize() {
         if (!this.editorPanel.style.display || this.editorPanel.style.display === 'none' || !this.currentImageObject) return;
-
         let relativeCrop = null;
         if (this.cropRectDisplay) {
             const oldImageDims = this.getImageDisplayDimensions();
@@ -1056,9 +1029,7 @@ class CroppingManager {
                 };
             }
         }
-
         this.setCanvasDimensions();
-
         if (relativeCrop) {
             const newImageDims = this.getImageDisplayDimensions();
             this.cropRectDisplay = {
@@ -1071,7 +1042,6 @@ class CroppingManager {
             this.initializeCropWithSmartCrop();
             return;
         }
-        
         this.redrawCanvasOnly();
         this.debouncedUpdatePreview();
     }
@@ -1083,14 +1053,11 @@ class CroppingManager {
             this.debouncedUpdatePreview();
             return;
         }
-
         try {
             const aspectRatioName = this.aspectRatioSelect.value;
             this.currentAspectRatioName = aspectRatioName;
-
             const imageDims = { width: this.currentImageObject.naturalWidth, height: this.currentImageObject.naturalHeight };
             let cropOptionsForSmartcrop;
-
             if (aspectRatioName === 'free') {
                 const size = Math.min(imageDims.width, imageDims.height);
                 cropOptionsForSmartcrop = { width: size, height: size };
@@ -1104,11 +1071,9 @@ class CroppingManager {
                     cropOptionsForSmartcrop = { width: imageDims.width, height: imageDims.width / targetRatio };
                 }
             }
-
             const result = await smartcrop.crop(this.currentImageObject, cropOptionsForSmartcrop);
             const bestCrop = result.topCrop;
             const { displayX, displayY, imageScale } = this.getImageDisplayDimensions();
-
             if (imageScale > 0) {
                 this.cropRectDisplay = {
                     x: displayX + (bestCrop.x * imageScale),
@@ -1129,9 +1094,7 @@ class CroppingManager {
         }
     }
 
-    redrawCanvasOnly() {
-        this._internalRedraw(false); 
-    }
+    redrawCanvasOnly() { this._internalRedraw(false); }
     
     _internalRedraw(updatePreviewAlso = false) { 
         this.ctx.fillStyle = CROPPER_BACKGROUND_GRAY; 
@@ -1146,14 +1109,11 @@ class CroppingManager {
             const finalScale = Math.min(scaleToFitCanvasX, scaleToFitCanvasY) * 0.95; 
             const displayWBFWidth = origFinalWidth * finalScale, displayWBFHeight = origFinalHeight * finalScale;
             const displayWBFX = (canvasWidth - displayWBFWidth) / 2, displayWBFY = (canvasHeight - displayWBFHeight) / 2;
-            
             this.ctx.fillStyle = 'white'; 
             this.ctx.fillRect(displayWBFX, displayWBFY, displayWBFWidth, displayWBFHeight);
-            
             const imgRenderWidth = (this.currentImageObject.naturalWidth || this.currentImageObject.width) * finalScale;
             const imgRenderHeight = (this.currentImageObject.naturalHeight || this.currentImageObject.height) * finalScale;
             const imgRenderX = displayWBFX + (origPasteX * finalScale), imgRenderY = displayWBFY + (origPasteY * finalScale);
-            
             this.ctx.save();
             if (this.flippedH) { this.ctx.translate(imgRenderX + imgRenderWidth, imgRenderY); this.ctx.scale(-1, 1); this.ctx.drawImage(this.currentImageObject, 0, 0, imgRenderWidth, imgRenderHeight); }
             else { this.ctx.drawImage(this.currentImageObject, imgRenderX, imgRenderY, imgRenderWidth, imgRenderHeight); }
@@ -1164,11 +1124,9 @@ class CroppingManager {
             if (this.flippedH) { this.ctx.translate(this.canvasElement.width, 0); this.ctx.scale(-1, 1); const adjustedDisplayX = this.canvasElement.width - displayX - displayWidth; this.ctx.drawImage(this.currentImageObject, adjustedDisplayX, displayY, displayWidth, displayHeight); }
             else { this.ctx.drawImage(this.currentImageObject, displayX, displayY, displayWidth, displayHeight); }
             this.ctx.restore();
-
             this.ctx.strokeStyle = 'rgba(0,0,0,0.3)'; 
             this.ctx.lineWidth = 1;
             this.ctx.strokeRect(displayX -0.5, displayY -0.5, displayWidth+1, displayHeight+1);
-
             if (this.cropRectDisplay) { 
                 this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'; 
                 this.ctx.lineWidth = 2;
@@ -1176,11 +1134,9 @@ class CroppingManager {
                 this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)'; 
                 this.ctx.lineWidth = 0.5; 
                 this.ctx.strokeRect(this.cropRectDisplay.x -0.5, this.cropRectDisplay.y -0.5, this.cropRectDisplay.width +1, this.cropRectDisplay.height+1);
-                
                 const {x,y,width,height} = this.cropRectDisplay;
                 const hRadius = this.handleSize / 2;
                 const handlePoints = [ [x,y], [x+width/2,y], [x+width,y], [x+width,y+height/2], [x+width,y+height], [x+width/2,y+height], [x,y+height], [x,y+height/2] ];
-                
                 handlePoints.forEach(([hx,hy]) => {
                     this.ctx.beginPath();
                     this.ctx.arc(hx, hy, hRadius, 0, 2 * Math.PI, false);
@@ -1190,7 +1146,6 @@ class CroppingManager {
                     this.ctx.strokeStyle = 'rgba(0,0,0,0.6)'; 
                     this.ctx.stroke();
                 });
-                
                 if (this.showSplitLineCount > 0 && width > 0) { 
                     this.ctx.beginPath(); 
                     this.ctx.setLineDash([5, 3]); 
@@ -1216,16 +1171,10 @@ class CroppingManager {
         }
     }
 
-
     async onDocumentKeyDown(event) { 
-        if (this.editorPanel.style.display === 'none' || !this.currentImageObject) {
-            return; 
-        }
+        if (this.editorPanel.style.display === 'none' || !this.currentImageObject) { return; }
         const activeElement = document.activeElement;
-        if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'SELECT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable)) {
-            return;
-        }
-    
+        if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'SELECT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable)) { return; }
         let handled = false;
         if (event.key === "ArrowLeft") {
             await this.prevImage(); 
@@ -1234,10 +1183,7 @@ class CroppingManager {
             await this.nextImage(false); 
             handled = true;
         }
-    
-        if (handled) {
-            event.preventDefault(); 
-        }
+        if (handled) event.preventDefault(); 
     }
     
     setCanvasDimensions() {
@@ -1252,9 +1198,7 @@ class CroppingManager {
         this.currentImageIndex = -1;
         this.modifiedDataMap = {};
         this.saveMode = 'crop'; 
-
         this.croppingPage.showEditor();
-        
         this.setCanvasDimensions(); 
         this.isDragging = false; 
         this.dragMode = null;    
@@ -1266,10 +1210,8 @@ class CroppingManager {
         this.aspectRatioSelect.disabled = false;
         this.whiteBarsBtn.disabled = false;
         this.whiteBarsBtn.classList.remove('active-crop-btn');
-        
         this.aspectRatioSelect.value = '3:4'; 
         this.currentAspectRatioName = '3:4';   
-
         await this.nextImage(true); 
     }
     
@@ -1277,7 +1219,6 @@ class CroppingManager {
         if (this.currentImageIndex >= 0 && this.currentImageIndex < this.imagesToCrop.length && !this.ignoreSaveForThisImage) {
             await this.applyAndSaveCurrentImage();
         }
-
         if (this.currentJourFrameInstance) {
             this.currentJourFrameInstance.updateImagesFromCropper(this.modifiedDataMap);
         }
@@ -1289,7 +1230,6 @@ class CroppingManager {
         this.isDragging = false;
         this.dragMode = null;
         this.canvasElement.style.cursor = 'default'; 
-        
         this.croppingPage.clearEditor();
         this.organizer.refreshSidePanels();
     }
@@ -1298,11 +1238,9 @@ class CroppingManager {
         if (index === this.currentImageIndex || index < 0 || index >= this.imagesToCrop.length) {
             return;
         }
-
         if (this.currentImageIndex >= 0) {
             await this.applyAndSaveCurrentImage();
         }
-        
         this.currentImageIndex = index;
         await this.loadCurrentImage();
     }
@@ -1314,7 +1252,6 @@ class CroppingManager {
         this.isDragging = false;
         this.dragMode = null;
         this.canvasElement.style.cursor = 'crosshair';
-
         if (this.currentImageIndex < 0 || this.currentImageIndex >= this.imagesToCrop.length) {
             this.currentImageObject = null;
             this.ctx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
@@ -1323,26 +1260,20 @@ class CroppingManager {
             if (this.imagesToCrop.length > 0) this.finishBtn.focus();
             return;
         }
-
         const imgInfo = this.imagesToCrop[this.currentImageIndex];
         const originalGridItem = this.organizer.gridItemsDict[imgInfo.originalReferenceId];
         const displayName = originalGridItem ? originalGridItem.basename : `Image ID ${imgInfo.originalReferenceId}`;
         this.infoLabel.textContent = `Chargement ${this.currentImageIndex + 1}/${this.imagesToCrop.length}: ${displayName}...`;
-
         try {
             this.currentImageObject = await Utils.loadImage(imgInfo.baseImageToCropFromDataURL);
-            
             let defaultRatio;
             const imgWidth = this.currentImageObject.naturalWidth || this.currentImageObject.width;
             const imgHeight = this.currentImageObject.naturalHeight || this.currentImageObject.height;
-
             if (imgWidth > imgHeight * 1.05) { defaultRatio = '3:2'; } 
             else if (imgHeight > imgWidth * 1.05) { defaultRatio = '3:4'; }
             else { defaultRatio = '1:1'; }
             this.aspectRatioSelect.value = defaultRatio;
-            
             await this.initializeCropWithSmartCrop();
-
         } catch (e) {
             console.error(`Erreur chargement: ${displayName}:`, e);
             this.infoLabel.textContent = `Erreur chargement: ${displayName}`;
@@ -1350,11 +1281,9 @@ class CroppingManager {
             this.updatePreview(null, null);
             return;
         }
-        
         this.aspectRatioSelect.disabled = this.splitModeState > 0 || this.saveMode === 'white_bars';
         this.whiteBarsBtn.disabled = this.splitModeState > 0;
         this.splitLineBtn.disabled = this.saveMode === 'white_bars';
-
         this.infoLabel.textContent = `Image ${this.currentImageIndex + 1}/${this.imagesToCrop.length}: ${displayName}`;
         this.croppingPage._updateThumbnailStripHighlight(this.currentImageIndex);
     }
@@ -1372,18 +1301,10 @@ class CroppingManager {
         const { displayX, displayY, displayWidth, displayHeight } = this.getImageDisplayDimensions();
         const targetRatioVal = 6 / 4; 
         let newW, newH;
-
-        if (displayWidth / displayHeight > targetRatioVal) { 
-            newH = displayHeight;
-            newW = newH * targetRatioVal;
-        } else { 
-            newW = displayWidth;
-            newH = newW / targetRatioVal;
-        }
-        
+        if (displayWidth / displayHeight > targetRatioVal) { newH = displayHeight; newW = newH * targetRatioVal; } 
+        else { newW = displayWidth; newH = newW / targetRatioVal; }
         const newCropX = displayX + (displayWidth - newW) / 2;
         const newCropY = displayY + (displayHeight - newH) / 2;
-
         this.cropRectDisplay = { x: newCropX, y: newCropY, width: newW, height: newH };
     }
     
@@ -1392,21 +1313,12 @@ class CroppingManager {
         const { displayX, displayY, displayWidth, displayHeight } = this.getImageDisplayDimensions();
         const targetRatioVal = 9 / 4; 
         let newW, newH;
-
-        if (displayWidth / displayHeight > targetRatioVal) { 
-            newH = displayHeight;
-            newW = newH * targetRatioVal;
-        } else { 
-            newW = displayWidth;
-            newH = newW / targetRatioVal;
-        }
-        
+        if (displayWidth / displayHeight > targetRatioVal) { newH = displayHeight; newW = newH * targetRatioVal; } 
+        else { newW = displayWidth; newH = newW / targetRatioVal; }
         const newCropX = displayX + (displayWidth - newW) / 2;
         const newCropY = displayY + (displayHeight - newH) / 2;
-
         this.cropRectDisplay = { x: newCropX, y: newCropY, width: newW, height: newH };
     }
-
 
     getImageDisplayDimensions() { 
         if (!this.currentImageObject || !this.canvasElement.width || !this.canvasElement.height) {
@@ -1416,7 +1328,6 @@ class CroppingManager {
         const imgWidth = this.currentImageObject.naturalWidth || this.currentImageObject.width;
         const imgHeight = this.currentImageObject.naturalHeight || this.currentImageObject.height;
         if (imgWidth === 0 || imgHeight === 0) return { displayX:0, displayY:0, displayWidth:0, displayHeight:0, imageScale: 1};
-
         const scaleX = canvasWidth / imgWidth, scaleY = canvasHeight / imgHeight;
         const imageScale = Math.min(scaleX, scaleY);
         const displayWidth = imgWidth * imageScale, displayHeight = imgHeight * imageScale;
@@ -1426,10 +1337,8 @@ class CroppingManager {
     
     adjustCropRectToAspectRatio() { 
         if (!this.cropRectDisplay || !this.currentImageObject || this.saveMode !== 'crop') return;
-        
         const { displayX, displayY, displayWidth, displayHeight } = this.getImageDisplayDimensions();
         let targetRatioVal;
-
         if (this.currentAspectRatioName === 'free') { 
             this.cropRectDisplay.x = Math.max(displayX, this.cropRectDisplay.x);
             this.cropRectDisplay.y = Math.max(displayY, this.cropRectDisplay.y);
@@ -1440,43 +1349,24 @@ class CroppingManager {
         else if (this.currentAspectRatioName === '6:4split') targetRatioVal = 6 / 4; 
         else if (this.currentAspectRatioName === '9:4doublesplit') targetRatioVal = 9 / 4; 
         else { const parts = this.currentAspectRatioName.split(':').map(Number); targetRatioVal = parts[0] / parts[1]; }
-
         let newWidth = this.cropRectDisplay.width;
         let newHeight = this.cropRectDisplay.height;
         const centerX = this.cropRectDisplay.x + newWidth / 2;
         const centerY = this.cropRectDisplay.y + newHeight / 2;
-
-        if (newWidth / newHeight > targetRatioVal) { 
-            newWidth = newHeight * targetRatioVal;
-        } else { 
-            newHeight = newWidth / targetRatioVal;
-        }
-        if (newWidth > displayWidth) {
-            newWidth = displayWidth;
-            newHeight = newWidth / targetRatioVal;
-        }
-        if (newHeight > displayHeight) {
-            newHeight = displayHeight;
-            newWidth = newHeight * targetRatioVal;
-        }
-        
+        if (newWidth / newHeight > targetRatioVal) { newWidth = newHeight * targetRatioVal; } 
+        else { newHeight = newWidth / targetRatioVal; }
+        if (newWidth > displayWidth) { newWidth = displayWidth; newHeight = newWidth / targetRatioVal; }
+        if (newHeight > displayHeight) { newHeight = displayHeight; newWidth = newHeight * targetRatioVal; }
         let newX = centerX - newWidth / 2;
         let newY = centerY - newHeight / 2;
-
         newX = Math.max(displayX, Math.min(newX, displayX + displayWidth - newWidth));
         newY = Math.max(displayY, Math.min(newY, displayY + displayHeight - newHeight));
-        
         newWidth = Math.min(newWidth, displayX + displayWidth - newX);
         newHeight = Math.min(newHeight, displayY + displayHeight - newY);
-
         if (Math.abs(newWidth / newHeight - targetRatioVal) > 0.001) {
-             if (newWidth / targetRatioVal <= displayHeight - newY) { 
-                newHeight = newWidth / targetRatioVal;
-            } else { 
-                newWidth = newHeight * targetRatioVal;
-            }
+             if (newWidth / targetRatioVal <= displayHeight - newY) { newHeight = newWidth / targetRatioVal; } 
+             else { newWidth = newHeight * targetRatioVal; }
         }
-
         this.cropRectDisplay.x = newX; 
         this.cropRectDisplay.y = newY;
         this.cropRectDisplay.width = newWidth; 
@@ -1491,7 +1381,6 @@ class CroppingManager {
         if (!this.currentImageObject) return;
         
         const tempCanvas = document.createElement('canvas'), tempCtx = tempCanvas.getContext('2d');
-        
         if (this.saveMode === 'white_bars') {
             const { finalWidth, finalHeight, pasteX, pasteY } = this.calculateWhiteBarDimensions();
             if (!finalWidth || !finalHeight) return;
@@ -1501,54 +1390,46 @@ class CroppingManager {
         } else if (this.saveMode === 'crop' && this.cropRectDisplay) {
             const { sx, sy, sWidth, sHeight } = this.getCropSourceCoordinates();
             if (sWidth <=0 || sHeight <=0) return;
-
-            if (this.splitModeState === 1) { // 2 images
+            if (this.splitModeState === 1) {
                 this.previewContainer.classList.add('split-active'); 
                 const sWidthLeft = Math.floor(sWidth / 2);
                 const sWidthRight = sWidth - sWidthLeft; 
-
                 tempCanvas.width = sWidthLeft; tempCanvas.height = sHeight;
                 if (tempCanvas.width > 0 && tempCanvas.height > 0) {
                     this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0, 0, sWidthLeft, sHeight, sx, sy, sWidthLeft, sHeight);
                     this.previewLeft.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH / 2 - 4, PREVIEW_HEIGHT, 'lightgrey'); 
                     this.previewLeft.style.display = 'inline-block';
-                } else { this.previewLeft.style.display = 'none'; }
-                
+                }
                 tempCanvas.width = sWidthRight; tempCanvas.height = sHeight; 
                 if (tempCanvas.width > 0 && tempCanvas.height > 0) {
                     tempCtx.clearRect(0,0,tempCanvas.width, tempCanvas.height);
                     this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0, 0, sWidthRight, sHeight, sx + sWidthLeft, sy, sWidthRight, sHeight);
                     this.previewRight.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH / 2 - 4, PREVIEW_HEIGHT, 'lightgrey');
                     this.previewRight.style.display = 'inline-block';
-                } else { this.previewRight.style.display = 'none'; }
-
-            } else if (this.splitModeState === 2) { // 3 images
+                }
+            } else if (this.splitModeState === 2) {
                 this.previewContainer.classList.add('double-split-active');
                 const sWidthThird = Math.floor(sWidth / 3);
-                const sWidthLeft = sWidthThird;
-                const sWidthMid = sWidthThird;
+                const sWidthLeft = sWidthThird, sWidthMid = sWidthThird;
                 const sWidthRight = sWidth - sWidthLeft - sWidthMid;
-
                 tempCanvas.width = sWidthLeft; tempCanvas.height = sHeight;
                 if (sWidthLeft > 0) {
                     this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0,0, sWidthLeft, sHeight, sx, sy, sWidthLeft, sHeight);
                     this.previewLeft.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH / 3 - 6, PREVIEW_HEIGHT, 'lightgrey');
                     this.previewLeft.style.display = 'inline-block';
-                } else { this.previewLeft.style.display = 'none'; }
-                
+                }
                 tempCanvas.width = sWidthMid; tempCanvas.height = sHeight; tempCtx.clearRect(0,0,tempCanvas.width,tempCanvas.height);
                 if (sWidthMid > 0) {
                     this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0,0, sWidthMid, sHeight, sx + sWidthLeft, sy, sWidthMid, sHeight);
                     this.previewCenter.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH / 3 - 6, PREVIEW_HEIGHT, 'lightgrey');
                     this.previewCenter.style.display = 'inline-block';
-                } else { this.previewCenter.style.display = 'none'; }
-                
+                }
                 tempCanvas.width = sWidthRight; tempCanvas.height = sHeight; tempCtx.clearRect(0,0,tempCanvas.width,tempCanvas.height);
                 if (sWidthRight > 0) {
                     this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0,0, sWidthRight, sHeight, sx + sWidthLeft + sWidthMid, sy, sWidthRight, sHeight);
                     this.previewRight.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH / 3 - 6, PREVIEW_HEIGHT, 'lightgrey');
                     this.previewRight.style.display = 'inline-block';
-                } else { this.previewRight.style.display = 'none'; }
+                }
             } else { 
                 tempCanvas.width = sWidth; tempCanvas.height = sHeight; 
                 this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0,0, sWidth, sHeight, sx, sy, sWidth, sHeight);
@@ -1590,24 +1471,19 @@ class CroppingManager {
             this.aspectRatioSelect.disabled = false; 
             this.whiteBarsBtn.disabled = false; 
         }
-    
         this.currentAspectRatioName = newRatioName;
-        
         this.whiteBarsBtn.disabled = (this.splitModeState > 0); 
         if(this.whiteBarsBtn.disabled) this.whiteBarsBtn.classList.remove('active-crop-btn');
-    
         if (this.saveMode === 'white_bars') { 
             this.saveMode = 'crop'; 
             this.aspectRatioSelect.disabled = (this.splitModeState > 0); 
             this.whiteBarsBtn.classList.remove('active-crop-btn');
         }
-        
         if (this.saveMode === 'crop' && this.currentImageObject) {
             const { displayX, displayY, displayWidth, displayHeight } = this.getImageDisplayDimensions();
             this.cropRectDisplay = { x: displayX, y: displayY, width: displayWidth, height: displayHeight };
             this.adjustCropRectToAspectRatio();
         }
-        
         this.redrawCanvasOnly();
         this.debouncedUpdatePreview();
     }
@@ -1747,8 +1623,7 @@ class CroppingManager {
                     }
                 } else if (this.splitModeState === 2) { 
                     const sWidthThird = Math.floor(sWidth / 3);
-                    const sWidthLeft = sWidthThird;
-                    const sWidthMid = sWidthThird;
+                    const sWidthLeft = sWidthThird, sWidthMid = sWidthThird;
                     const sWidthRight = sWidth - sWidthLeft - sWidthMid;
                     if (sWidthLeft > 0) {
                         saveCanvas.width = sWidthLeft; saveCanvas.height = sHeight; saveCtx.clearRect(0,0,saveCanvas.width,saveCanvas.height);
@@ -1772,13 +1647,10 @@ class CroppingManager {
                     cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: `recadre_${suffix}`, filenameSuffix: `rec_${suffix}` });
                 }
             }
-
             if (cropOperationsPayloads.length > 0) {
                 const backendResults = [];
                 for (const opPayload of cropOperationsPayloads) {
-                    if (!opPayload.imageDataUrl || !opPayload.imageDataUrl.startsWith('data:image/jpeg;base64,')) {
-                        continue; 
-                    }
+                    if (!opPayload.imageDataUrl || !opPayload.imageDataUrl.startsWith('data:image/jpeg;base64,')) { continue; }
                     const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryIdForAPI}/images/${originalImageId}/crop`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1867,19 +1739,12 @@ class CroppingManager {
 
     onDocumentMouseMoveDrag(event) {
         if (!this.isDragging || this.saveMode !== 'crop' || !this.cropRectDisplay || !this.currentImageObject) return;
-    
         const mousePos = this.getMousePos(event);
         const dx = mousePos.x - this.dragStart.x;
         const dy = mousePos.y - this.dragStart.y;
-    
         const { displayX, displayY, displayWidth, displayHeight } = this.getImageDisplayDimensions();
         const minDim = this.handleSize * 1.5; 
-    
-        let newX = this.dragStart.cropX;
-        let newY = this.dragStart.cropY;
-        let newW = this.dragStart.cropW;
-        let newH = this.dragStart.cropH;
-    
+        let newX = this.dragStart.cropX, newY = this.dragStart.cropY, newW = this.dragStart.cropW, newH = this.dragStart.cropH;
         if (this.dragMode === 'move') {
             newX = Math.max(displayX, Math.min(this.dragStart.cropX + dx, displayX + displayWidth - newW));
             newY = Math.max(displayY, Math.min(this.dragStart.cropY + dy, displayY + displayHeight - newH));
@@ -1904,59 +1769,40 @@ class CroppingManager {
                     newY = tempNewY;
                 }
             }
-    
             newX = Math.max(displayX, Math.min(newX, displayX + displayWidth - minDim));
             newY = Math.max(displayY, Math.min(newY, displayY + displayHeight - minDim));
             newW = Math.min(newW, displayX + displayWidth - newX);
             newH = Math.min(newH, displayY + displayHeight - newY);
-    
             if (this.dragMode.includes('w')) newX = Math.min(newX, this.dragStart.cropX + this.dragStart.cropW - minDim);
             if (this.dragMode.includes('n')) newY = Math.min(newY, this.dragStart.cropY + this.dragStart.cropH - minDim);
-
-
             if (this.currentAspectRatioName !== 'free') {
                 let targetRatio;
                 if (this.currentAspectRatioName === '6:4split') targetRatio = 6/4; 
                 else if (this.currentAspectRatioName === '9:4doublesplit') targetRatio = 9/4; 
                 else { const parts = this.currentAspectRatioName.split(':').map(Number); targetRatio = parts[0] / parts[1]; }
-    
-                if (this.dragMode.includes('e') || this.dragMode.includes('w')) { 
-                    newH = newW / targetRatio;
-                } else if (this.dragMode.includes('s') || this.dragMode.includes('n')) { 
-                    newW = newH * targetRatio;
-                } else { 
-                     if (Math.abs(dx) > Math.abs(dy)) newH = newW / targetRatio;
-                     else newW = newH * targetRatio;
-                }
-    
+                if (this.dragMode.includes('e') || this.dragMode.includes('w')) { newH = newW / targetRatio; } 
+                else if (this.dragMode.includes('s') || this.dragMode.includes('n')) { newW = newH * targetRatio; } 
+                else { if (Math.abs(dx) > Math.abs(dy)) newH = newW / targetRatio; else newW = newH * targetRatio; }
                 if (this.dragMode.includes('n')) newY = this.dragStart.cropY + this.dragStart.cropH - newH;
                 if (this.dragMode.includes('w')) newX = this.dragStart.cropX + this.dragStart.cropW - newW;
-    
                 newX = Math.max(displayX, Math.min(newX, displayX + displayWidth - newW));
                 newY = Math.max(displayY, Math.min(newY, displayY + displayHeight - newH));
                 newW = Math.min(newW, displayX + displayWidth - newX); 
                 newH = Math.min(newH, displayY + displayHeight - newY); 
-                
                 if (Math.abs(newW / newH - targetRatio) > 0.01) { 
-                    if (newW / targetRatio <= displayHeight - newY && newW / targetRatio >= minDim) {
-                        newH = newW / targetRatio;
-                    } else if (newH * targetRatio <= displayWidth - newX && newH * targetRatio >= minDim) {
-                        newW = newH * targetRatio;
-                    }
+                    if (newW / targetRatio <= displayHeight - newY && newW / targetRatio >= minDim) { newH = newW / targetRatio; } 
+                    else if (newH * targetRatio <= displayWidth - newX && newH * targetRatio >= minDim) { newW = newH * targetRatio; }
                 }
             }
-
             newX = Math.max(displayX, Math.min(newX, displayX + displayWidth - minDim));
             newY = Math.max(displayY, Math.min(newY, displayY + displayHeight - minDim));
             newW = Math.max(minDim, Math.min(newW, displayX + displayWidth - newX));
             newH = Math.max(minDim, Math.min(newH, displayY + displayHeight - newY));
         }
-    
         this.cropRectDisplay.x = Math.round(newX);
         this.cropRectDisplay.y = Math.round(newY);
         this.cropRectDisplay.width = Math.round(Math.max(minDim, newW));
         this.cropRectDisplay.height = Math.round(Math.max(minDim, newH));
-    
         this.redrawCanvasOnly(); 
     }
     
@@ -1984,11 +1830,8 @@ class DescriptionManager {
         this.descriptionTextElement = document.getElementById('descriptionText');
         this.descriptionHashtagsElement = document.getElementById('descriptionHashtags');
         this.imagesPreviewBanner = document.getElementById('descriptionImagesPreview');
-        
         this.currentSelectedJourFrame = null;
-
         this.debouncedSave = Utils.debounce(() => this.saveCurrentDescription(), 1500);
-
         this._initListeners();
     }
 
@@ -2006,9 +1849,7 @@ class DescriptionManager {
             const li = e.target.closest('li');
             if (li && li.dataset.jourId) {
                 const jourFrame = this.organizerApp.jourFrames.find(jf => jf.id === li.dataset.jourId);
-                if (jourFrame) {
-                    this.selectJour(jourFrame);
-                }
+                if (jourFrame) this.selectJour(jourFrame);
             }
         });
     }
@@ -2038,11 +1879,7 @@ class DescriptionManager {
     }
 
     populateJourList() {
-        this.organizerApp._populateSharedJourList(
-            this.jourListElement,
-            this.currentSelectedJourFrame ? this.currentSelectedJourFrame.id : null,
-            'description'
-        );
+        this.organizerApp._populateSharedJourList(this.jourListElement, this.currentSelectedJourFrame ? this.currentSelectedJourFrame.id : null, 'description');
     }
 
     selectJour(jourFrame) {
@@ -2103,7 +1940,6 @@ class DescriptionManager {
         jourToUpdate.descriptionHashtags = this.descriptionHashtagsElement.value;
         
         const success = await jourToUpdate.save(); 
-        
         if (success) {
             this.organizerApp.refreshSidePanels();
         }
@@ -2114,29 +1950,23 @@ class CalendarPage {
     constructor(parentElement, organizerApp) {
         this.parentElement = parentElement;
         this.organizerApp = organizerApp;
-        
         this.currentDate = new Date(); 
         this.calendarGridElement = this.parentElement.querySelector('#calendarGrid');
         this.monthYearLabelElement = this.parentElement.querySelector('#monthYearLabel');
         this.jourListElement = this.parentElement.querySelector('#calendarJourList');
         this.unscheduledJoursListElement = this.parentElement.querySelector('#unscheduledJoursList');
-        
         this.contextPreviewModal = document.getElementById('calendarContextPreviewModal');
         this.contextPreviewTitle = document.getElementById('calendarContextTitle');
         this.contextPreviewImages = document.getElementById('calendarContextImages');
-
         this.runAutoScheduleBtn = document.getElementById('runAutoScheduleBtn');
         this.autoScheduleInfo = document.getElementById('auto-schedule-info');
-
         this.dragData = {}; 
-
         this._initListeners();
         this.debouncedChangeMonth = Utils.debounce(this.changeMonth.bind(this), 100); 
     }
 
     _initListeners() {
         this.parentElement.querySelector('#todayBtn').addEventListener('click', () => this.goToToday());
-        
         this.calendarGridElement.addEventListener('wheel', (event) => {
             event.preventDefault(); 
             if (event.deltaY < 0) { 
@@ -2145,30 +1975,22 @@ class CalendarPage {
                 this.debouncedChangeMonth(1);
             }
         }, { passive: false });
-
         this.contextPreviewModal.addEventListener('mouseleave', (e) => {
             setTimeout(() => {
                  if (!this.contextPreviewModal.matches(':hover')) this._hideContextPreview();
             }, 100);
         });
-
         document.addEventListener('click', (e) => {
-            if (this.contextPreviewModal.style.display === 'block' && 
-                !this.contextPreviewModal.contains(e.target) &&
-                !e.target.closest('.scheduled-item')) { 
-                    this._hideContextPreview();
+            if (this.contextPreviewModal.style.display === 'block' && !this.contextPreviewModal.contains(e.target) && !e.target.closest('.scheduled-item')) { 
+                this._hideContextPreview();
             }
         });
         document.addEventListener('keydown', (e) => {
             if (e.key === 'Escape') {
-                if (this.contextPreviewModal.style.display === 'block') {
-                    this._hideContextPreview();
-                }
+                if (this.contextPreviewModal.style.display === 'block') this._hideContextPreview();
             }
         });
-
         this.runAutoScheduleBtn.addEventListener('click', () => this.runAutoSchedule());
-        
         const reorganizeAllBtn = document.getElementById('reorganizeAllBtn');
         if (reorganizeAllBtn) {
             reorganizeAllBtn.addEventListener('click', () => this.reorganizeAll());
@@ -2204,21 +2026,17 @@ class CalendarPage {
     buildCalendarUI() {
         this.calendarGridElement.innerHTML = ''; 
         if (!app.currentGalleryId) { 
-            this.calendarGridElement.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 20px;">Chargez ou créez une galerie pour voir le calendrier.</p>';
+            this.calendarGridElement.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 20px;">Chargez une galerie pour voir le calendrier.</p>';
             this.monthYearLabelElement.textContent = "Calendrier";
             this.populateJourList();
             this.buildUnscheduledJoursList();
             return;
         }
-
         this.populateJourList();
         this.buildUnscheduledJoursList();
-
         const year = this.currentDate.getFullYear();
         const month = this.currentDate.getMonth(); 
-
         this.monthYearLabelElement.textContent = `${this.currentDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`;
-
         const daysOfWeekFr = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
         daysOfWeekFr.forEach(dayName => {
             const headerCell = document.createElement('div');
@@ -2226,31 +2044,23 @@ class CalendarPage {
             headerCell.textContent = dayName;
             this.calendarGridElement.appendChild(headerCell);
         });
-
         const firstDayOfMonth = new Date(year, month, 1);
         const lastDayOfMonth = new Date(year, month + 1, 0);
-        
         let dayOfWeekOfFirst = firstDayOfMonth.getDay(); 
         if (dayOfWeekOfFirst === 0) dayOfWeekOfFirst = 7; 
-        
         const daysInPrevMonth = (dayOfWeekOfFirst - 1);
-
         const today = new Date();
         today.setHours(0,0,0,0); 
-
         for (let i = 0; i < daysInPrevMonth; i++) {
             const prevMonthDay = new Date(year, month, 1 - (daysInPrevMonth - i));
             this.createDayCell(prevMonthDay, true, false, prevMonthDay < today);
         }
-
         for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
             const currentDateInLoop = new Date(year, month, day);
             this.createDayCell(currentDateInLoop, false, currentDateInLoop.getTime() === today.getTime(), currentDateInLoop < today && currentDateInLoop.getTime() !== today.getTime());
         }
-        
         const totalCellsSoFar = daysInPrevMonth + lastDayOfMonth.getDate();
         const remainingCells = (7 - (totalCellsSoFar % 7)) % 7; 
-        
         for (let i = 1; i <= remainingCells; i++) {
             const nextMonthDay = new Date(year, month + 1, i);
             this.createDayCell(nextMonthDay, true, false, nextMonthDay < today);
@@ -2267,36 +2077,28 @@ class CalendarPage {
         if (isOtherMonth) dayCell.classList.add('other-month');
         if (isToday) dayCell.classList.add('today');
         if (isPast) dayCell.classList.add('past-day');
-
         const dayNumber = document.createElement('span');
         dayNumber.className = 'day-number';
         dayNumber.textContent = dateObj.getDate();
         dayCell.appendChild(dayNumber);
-        
         const dateKey = this.formatDateKey(dateObj);
         dayCell.dataset.dateKey = dateKey;
-        
         const scheduleData = this.organizerApp.scheduleContext.schedule;
         const allUserJours = this.organizerApp.scheduleContext.allUserJours;
-
         if (scheduleData[dateKey]) {
             const itemsOnDay = scheduleData[dateKey];
             const sortedLetters = Object.keys(itemsOnDay).sort();
-
             sortedLetters.forEach(letter => {
                 const itemData = itemsOnDay[letter]; 
                 const pubItemElement = document.createElement('div');
                 pubItemElement.className = 'scheduled-item';
                 pubItemElement.draggable = true;
-                
                 const colorIndex = letter.charCodeAt(0) - 'A'.charCodeAt(0);
                 pubItemElement.style.borderColor = JOUR_COLORS[colorIndex % JOUR_COLORS.length];
-                
                 const textSpan = document.createElement('span'); 
                 textSpan.className = 'scheduled-item-text';
                 textSpan.textContent = itemData.label || `Jour ${letter}`;
                 pubItemElement.appendChild(textSpan);
-
                 const thumbContainer = document.createElement('div');
                 thumbContainer.className = 'scheduled-item-thumb-container';
                 const thumbDiv = document.createElement('div');
@@ -2304,10 +2106,8 @@ class CalendarPage {
                 this.loadCalendarThumb(thumbDiv, letter, itemData.galleryId);
                 thumbContainer.appendChild(thumbDiv);
                 pubItemElement.appendChild(thumbContainer);
-                
                 const actionsContainer = document.createElement('div');
                 actionsContainer.className = 'scheduled-item-actions';
-
                 const downloadBtn = document.createElement('button');
                 downloadBtn.className = 'scheduled-item-download-btn';
                 downloadBtn.innerHTML = '💾';
@@ -2320,7 +2120,6 @@ class CalendarPage {
                     };
                     actionsContainer.appendChild(downloadBtn);
                 }
-
                 const deleteBtn = document.createElement('button');
                 deleteBtn.className = 'scheduled-item-delete-btn';
                 deleteBtn.innerHTML = '&times;';
@@ -2331,7 +2130,6 @@ class CalendarPage {
                 };
                 actionsContainer.appendChild(deleteBtn);
                 pubItemElement.appendChild(actionsContainer);
-
                 if (itemData.galleryName && itemData.galleryId !== this.organizerApp.currentGalleryId) {
                     const galleryNameSpan = document.createElement('span');
                     galleryNameSpan.className = 'scheduled-item-gallery-name';
@@ -2339,11 +2137,9 @@ class CalendarPage {
                     galleryNameSpan.title = itemData.galleryName;
                     pubItemElement.appendChild(galleryNameSpan);
                 }
-                
                 pubItemElement.dataset.jourLetter = letter;
                 pubItemElement.dataset.dateStr = dateKey;
                 pubItemElement.dataset.galleryId = itemData.galleryId; 
-
                 pubItemElement.addEventListener('dragstart', (e) => this._onDragStart(e, {
                     type: 'calendar',
                     date: dateKey,
@@ -2351,11 +2147,9 @@ class CalendarPage {
                     galleryId: itemData.galleryId,
                     data: itemData
                 }, pubItemElement));
-                
                 dayCell.appendChild(pubItemElement);
             });
         }
-        
         dayCell.addEventListener('dragover', (e) => {
              e.preventDefault();
              dayCell.classList.add('drag-over-day');
@@ -2367,18 +2161,14 @@ class CalendarPage {
             dayCell.classList.remove('drag-over-day');
             this._onDrop(e, dateKey);
         });
-
         this.calendarGridElement.appendChild(dayCell);
     }
     
     buildUnscheduledJoursList() {
         if (!this.unscheduledJoursListElement) return;
-
         this.unscheduledJoursListElement.innerHTML = '';
-        
         const scheduleData = this.organizerApp.scheduleContext.schedule;
         const allUserJours = this.organizerApp.scheduleContext.allUserJours;
-
         const scheduledSet = new Set();
         for (const date in scheduleData) {
             for (const letter in scheduleData[date]) {
@@ -2386,30 +2176,22 @@ class CalendarPage {
                 scheduledSet.add(`${item.galleryId}-${letter}`);
             }
         }
-
-        const unscheduled = allUserJours.filter(jour => {
-            return !scheduledSet.has(`${jour.galleryId}-${jour.letter}`);
-        });
-
+        const unscheduled = allUserJours.filter(jour => !scheduledSet.has(`${jour.galleryId}-${jour.letter}`));
         if (unscheduled.length === 0) {
             this.unscheduledJoursListElement.innerHTML = '<p class="sidebar-info">Tous les jours sont planifiés !</p>';
             return;
         }
-
         unscheduled.forEach(jour => {
             const itemElement = document.createElement('div');
             itemElement.className = 'unscheduled-jour-item';
             itemElement.draggable = true;
-
             const contentDiv = document.createElement('div');
             contentDiv.className = 'unscheduled-jour-item-content';
-
             const letterSpan = document.createElement('span');
             letterSpan.className = 'unscheduled-jour-item-letter';
             letterSpan.textContent = jour.letter;
             const colorIndex = jour.letter.charCodeAt(0) - 'A'.charCodeAt(0);
             letterSpan.style.backgroundColor = JOUR_COLORS[colorIndex % JOUR_COLORS.length];
-            
             const thumbDiv = document.createElement('div');
             thumbDiv.className = 'unscheduled-jour-item-thumb';
             const jourFrame = this.organizerApp.jourFrames.find(jf => jf.galleryId === jour.galleryId && jf.letter === jour.letter);
@@ -2418,21 +2200,14 @@ class CalendarPage {
             } else {
                 thumbDiv.textContent = '...';
             }
-
             const gallerySpan = document.createElement('span');
             gallerySpan.className = 'unscheduled-jour-item-gallery';
             gallerySpan.textContent = jour.galleryName;
-
             contentDiv.appendChild(letterSpan);
             contentDiv.appendChild(thumbDiv);
             contentDiv.appendChild(gallerySpan);
             itemElement.appendChild(contentDiv);
-
-            itemElement.addEventListener('dragstart', e => this._onDragStart(e, {
-                type: 'unscheduled',
-                ...jour
-            }, itemElement));
-
+            itemElement.addEventListener('dragstart', e => this._onDragStart(e, { type: 'unscheduled', ...jour }, itemElement));
             this.unscheduledJoursListElement.appendChild(itemElement);
         });
     }
@@ -2454,21 +2229,11 @@ class CalendarPage {
         this.dragData = dragPayload;
         event.dataTransfer.setData("application/json", JSON.stringify(dragPayload)); 
         event.dataTransfer.effectAllowed = "move";
-
         setTimeout(() => {
-            if (dragPayload.type === 'calendar') {
-                itemElement.classList.add('dragging-schedule-item');
-            } else {
-                itemElement.classList.add('dragging-from-list');
-            }
+            itemElement.classList.add(dragPayload.type === 'calendar' ? 'dragging-schedule-item' : 'dragging-from-list');
         }, 0); 
-    
         const onDragEnd = () => {
-            if (dragPayload.type === 'calendar') {
-                itemElement.classList.remove('dragging-schedule-item');
-            } else {
-                itemElement.classList.remove('dragging-from-list');
-            }
+            itemElement.classList.remove('dragging-schedule-item', 'dragging-from-list');
             document.removeEventListener('dragend', onDragEnd);
         };
         document.addEventListener('dragend', onDragEnd, { once: true });
@@ -2476,83 +2241,33 @@ class CalendarPage {
 
     _onDrop(event, targetDateKey) {
         event.preventDefault();
-        
         const draggingElement = document.querySelector('.dragging-schedule-item, .dragging-from-list');
         if (draggingElement) {
             draggingElement.classList.remove('dragging-schedule-item', 'dragging-from-list');
         }
-
         try {
             const droppedData = JSON.parse(event.dataTransfer.getData("application/json"));
             const scheduleData = this.organizerApp.scheduleContext.schedule;
-            
             if (droppedData.type === 'unscheduled') {
-                this.addOrUpdatePublicationForDate(
-                    new Date(targetDateKey + 'T00:00:00'),
-                    droppedData.letter,
-                    droppedData.galleryId,
-                    droppedData.galleryName
-                );
+                this.addOrUpdatePublicationForDate(new Date(targetDateKey + 'T00:00:00'), droppedData.letter, droppedData.galleryId, droppedData.galleryName);
             } else if (droppedData.type === 'calendar') {
                 const { date: sourceDateStr, letter: sourceLetter, data: sourceData } = droppedData;
-    
-                if (sourceDateStr === targetDateKey) { 
-                    this.buildCalendarUI(); 
-                    return;
-                }
-    
+                if (sourceDateStr === targetDateKey) { this.buildCalendarUI(); return; }
                 delete scheduleData[sourceDateStr][sourceLetter];
                 if (Object.keys(scheduleData[sourceDateStr]).length === 0) {
                     delete scheduleData[sourceDateStr];
                 }
-    
                 if (!scheduleData[targetDateKey]) {
                     scheduleData[targetDateKey] = {};
                 }
                 scheduleData[targetDateKey][sourceLetter] = sourceData;
-    
                 this.saveSchedule(); 
             }
-
         } catch (e) {
             console.error("Erreur lors du drop sur le calendrier:", e);
         } finally {
             this.dragData = {};
         }
-    }
-
-    async _showContextPreview(event, jourLetter, dateStr, galleryIdForJour) { 
-        this.contextPreviewImages.innerHTML = ''; 
-        this.contextPreviewTitle.textContent = `Aperçu Jour ${jourLetter} (${new Date(dateStr + 'T00:00:00').toLocaleDateString('fr-FR')})`;
-        
-        let imagesToPreviewURLs = [];
-        if (galleryIdForJour === this.organizerApp.currentGalleryId) {
-            const jourFrame = this.organizerApp.jourFrames.find(jf => jf.letter === jourLetter);
-            if (jourFrame) {
-                imagesToPreviewURLs = jourFrame.imagesData.map(imgData => imgData.dataURL);
-            }
-        } else {
-            this.contextPreviewImages.innerHTML = '<p>Aperçu non disponible pour les galeries non chargées.</p>';
-        }
-        
-        if (imagesToPreviewURLs.length > 0) {
-            for (const thumbUrl of imagesToPreviewURLs) {
-                const imgElement = document.createElement('img');
-                imgElement.src = thumbUrl; 
-                imgElement.style.maxWidth = `${CALENDAR_HOVER_THUMB_SIZE.width}px`;
-                imgElement.style.maxHeight = `${CALENDAR_HOVER_THUMB_SIZE.height}px`;
-                this.contextPreviewImages.appendChild(imgElement);
-            }
-        }
-
-        this.contextPreviewModal.style.display = 'block';
-        const modalRect = this.contextPreviewModal.getBoundingClientRect();
-        let x = event.clientX + 15;
-        let y = event.clientY + 10;
-        if (x + modalRect.width > window.innerWidth) x = Math.max(5, window.innerWidth - modalRect.width - 5);
-        if (y + modalRect.height > window.innerHeight) y = Math.max(5, window.innerHeight - modalRect.height - 5);
-        this.contextPreviewModal.style.left = `${x}px`;
-        this.contextPreviewModal.style.top = `${y}px`;
     }
 
     _hideContextPreview() {
@@ -2564,17 +2279,12 @@ class CalendarPage {
             alert("Erreur: Impossible de déterminer la galerie ou l'ID du jour pour l'exportation.");
             return;
         }
-
         const exportUrl = `${BASE_API_URL}/api/galleries/${galleryId}/jours/${jourId}/export`;
-        console.log(`Préparation du téléchargement pour le Jour ${jourLetter}...`);
-
         try {
             const response = await fetch(exportUrl);
             if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Erreur HTTP ${response.status}: ${errorText}`);
+                throw new Error(`Erreur HTTP ${response.status}: ${await response.text()}`);
             }
-
             const blob = await response.blob();
             let filename = `Jour${jourLetter}.zip`;
             const contentDisposition = response.headers.get('content-disposition');
@@ -2584,9 +2294,7 @@ class CalendarPage {
                     filename = filenameMatch[1];
                 }
             }
-
             Utils.downloadDataURL(window.URL.createObjectURL(blob), filename);
-
         } catch (error) {
             console.error(`Erreur lors de l'exportation du Jour ${jourLetter}:`, error);
             alert(`Erreur d'exportation: ${error.message}`);
@@ -2605,10 +2313,7 @@ class CalendarPage {
     }
 
     async saveSchedule() { 
-        if (!app.currentGalleryId) {
-            console.warn("Cannot save schedule: No current gallery ID.");
-            return;
-        }
+        if (!app.currentGalleryId) return;
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/schedule`, {
                 method: 'PUT',
@@ -2618,10 +2323,8 @@ class CalendarPage {
             if (!response.ok) {
                 throw new Error(`Failed to save schedule: ${response.statusText}`);
             }
-            console.log("Schedule saved successfully for user.");
             this.organizerApp.refreshSidePanels();
             this.buildCalendarUI();
-            
         } catch (e) {
             console.error("Error saving schedule data to backend:", e);
             alert("Erreur lors de la sauvegarde de la programmation."); 
@@ -2631,18 +2334,13 @@ class CalendarPage {
     addOrUpdatePublicationForDate(dateObj, jourLetter, galleryId, galleryName) { 
         const dateStr = this.formatDateKey(dateObj);
         const scheduleData = this.organizerApp.scheduleContext.schedule;
-
         if (!scheduleData[dateStr]) {
             scheduleData[dateStr] = {};
         }
         if (scheduleData[dateStr][jourLetter] && scheduleData[dateStr][jourLetter].galleryId === galleryId) {
             return;
         }
-        scheduleData[dateStr][jourLetter] = {
-            label: `Jour ${jourLetter}`, 
-            galleryId: galleryId,
-            galleryName: galleryName
-        }; 
+        scheduleData[dateStr][jourLetter] = { label: `Jour ${jourLetter}`, galleryId: galleryId, galleryName: galleryName }; 
         this.saveSchedule(); 
     }
 
@@ -2661,39 +2359,30 @@ class CalendarPage {
     runAutoSchedule() {
         this.autoScheduleInfo.textContent = "Calcul en cours...";
         this.runAutoScheduleBtn.disabled = true;
-
         try {
             const mode = document.querySelector('input[name="autoScheduleMode"]:checked').value;
             const postsPerDay = parseInt(document.getElementById('autoSchedulePerDay').value) || 1;
             const everyXDays = parseInt(document.getElementById('autoScheduleEveryXDays').value) || 1;
-
             if (postsPerDay <= 0 || everyXDays <= 0) {
                 throw new Error("Les valeurs de publication doivent être supérieures à zéro.");
             }
-            
             const scheduleData = this.organizerApp.scheduleContext.schedule;
             const allUserJours = this.organizerApp.scheduleContext.allUserJours;
-
             const scheduledJourIdentifiers = new Set();
             Object.values(scheduleData).forEach(day => {
                 Object.values(day).forEach(item => {
                     const letter = item.label ? item.label.split(' ')[1] : Object.keys(day).find(k => day[k] === item);
-                    if(letter) {
-                       scheduledJourIdentifiers.add(`${item.galleryId}-${letter}`);
-                    }
+                    if(letter) scheduledJourIdentifiers.add(`${item.galleryId}-${letter}`);
                 });
             });
-
             let unpublishedJours = allUserJours.filter(jour => 
                 !scheduledJourIdentifiers.has(`${jour.galleryId}-${jour.letter}`) && this.organizerApp.isJourReadyForPublishing(jour.galleryId, jour.letter)
             );
-
             if (unpublishedJours.length === 0) {
                 this.autoScheduleInfo.textContent = "Tous les jours publiables sont déjà planifiés !";
                 setTimeout(() => this.autoScheduleInfo.textContent = "", 3000);
                 return;
             }
-
             if (mode === 'chrono') {
                 unpublishedJours.sort((a, b) => {
                     const galleryCompare = a.galleryName.localeCompare(b.galleryName);
@@ -2705,39 +2394,30 @@ class CalendarPage {
                     (acc[jour.galleryId] = acc[jour.galleryId] || []).push(jour);
                     return acc;
                 }, {});
-                
                 for (const galleryId in groupedByGallery) {
                     groupedByGallery[galleryId].sort((a, b) => a.letter.localeCompare(b.letter));
                 }
-                
                 const interlaced = [];
                 const galleryQueues = Object.values(groupedByGallery);
                 let maxLen = Math.max(...galleryQueues.map(q => q.length));
-
                 for (let i = 0; i < maxLen; i++) {
                     for (const queue of galleryQueues) {
-                        if (queue[i]) {
-                            interlaced.push(queue[i]);
-                        }
+                        if (queue[i]) interlaced.push(queue[i]);
                     }
                 }
                 unpublishedJours = interlaced;
-
             } else if (mode === 'random') {
                 for (let i = unpublishedJours.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
                     [unpublishedJours[i], unpublishedJours[j]] = [unpublishedJours[j], unpublishedJours[i]];
                 }
             }
-            
             let currentDate = new Date();
             currentDate.setHours(0, 0, 0, 0); 
             let joursPlaced = 0;
-
             while (unpublishedJours.length > 0) {
                 const dateKey = this.formatDateKey(currentDate);
                 let postsOnThisDay = scheduleData[dateKey] ? Object.keys(scheduleData[dateKey]).length : 0;
-                
                 while(postsOnThisDay < postsPerDay && unpublishedJours.length > 0) {
                     const jourToPlace = unpublishedJours.shift();
                     if (!scheduleData[dateKey]) {
@@ -2751,17 +2431,14 @@ class CalendarPage {
                     postsOnThisDay++;
                     joursPlaced++;
                 }
-
                 if (postsOnThisDay > 0 || everyXDays > 1) {
                      currentDate.setDate(currentDate.getDate() + everyXDays);
                 } else {
                      currentDate.setDate(currentDate.getDate() + 1);
                 }
             }
-
             this.autoScheduleInfo.textContent = `${joursPlaced} jour(s) planifié(s).`;
             this.saveSchedule();
-
         } catch (error) {
             console.error("Erreur de planification auto:", error);
             this.autoScheduleInfo.textContent = `Erreur: ${error.message}`;

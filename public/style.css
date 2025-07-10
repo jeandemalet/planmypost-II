@@ -1330,24 +1330,13 @@ button.small-cancel-btn:hover {
     justify-content: center;
 }
 #runAutoCropBtn {
-    width: 50px;
-    height: 50px;
-    border-radius: 50%;
-    padding: 0;
+    padding: 10px 20px;
+    font-size: 1em;
+    font-weight: 600;
     background-color: #28a745;
-    border: 2px solid #fff;
-    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-    transition: transform 0.2s ease-out, background-color 0.2s;
 }
 #runAutoCropBtn:hover:not(:disabled) {
-    transform: scale(1.1);
     background-color: #218838;
-}
-#runAutoCropBtn .btn-icon {
-    width: 24px;
-    height: 24px;
-    margin-right: 0;
-    filter: invert(1);
 }
 .auto-crop-progress {
     margin-top: 15px;
@@ -1355,7 +1344,6 @@ button.small-cancel-btn:hover {
     text-align: center;
     color: var(--text-secondary);
 }
-
 
 /* --- Zone de Recadrage --- */
 .cropper-main-area {
