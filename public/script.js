@@ -896,10 +896,19 @@ class CroppingPage {
         }
     }
 
-    toggleAllPhotosView(forceState) {
+    async toggleAllPhotosView(forceState) {
         this.isAllPhotosViewActive = typeof forceState === 'boolean' ? forceState : !this.isAllPhotosViewActive;
 
         if (this.isAllPhotosViewActive) {
+            // Si un recadrage manuel est en cours, on l'applique avant de changer de vue
+            if (this.croppingManager && this.croppingManager.currentImageIndex > -1 && !this.croppingManager.ignoreSaveForThisImage) {
+                await this.croppingManager.applyAndSaveCurrentImage();
+                if (this.croppingManager.currentJourFrameInstance) {
+                    this.croppingManager.currentJourFrameInstance.updateImagesFromCropper(this.croppingManager.modifiedDataMap);
+                    this.croppingManager.modifiedDataMap = {}; // On vide la map après l'avoir appliquée
+                }
+            }
+
             this.currentSelectedJourFrame = null;
             this.populateJourList();
             this.renderAllPhotosGroupedView();
@@ -932,76 +941,60 @@ class CroppingPage {
         container.innerHTML = '';
         const app = this.organizerApp;
 
-        // Ensemble de toutes les images utilisées dans les jours B, C, D...
-        const usedInOtherJours = new Set();
-        app.jourFrames.forEach(jf => {
-            if (jf.letter !== 'A') {
-                jf.imagesData.forEach(imgData => usedInOtherJours.add(imgData.imageId));
-            }
-        });
-
-        // 1. Gérer le Jour A
-        const jourAFrame = app.jourFrames.find(jf => jf.letter === 'A');
-        if (jourAFrame) {
-            const groupDiv = document.createElement('div');
-            groupDiv.className = 'jour-group-container';
-            const header = document.createElement('h4');
-            header.className = 'jour-group-header';
-            header.textContent = `Jour ${jourAFrame.letter}`;
-            groupDiv.appendChild(header);
-            const gridDiv = document.createElement('div');
-            gridDiv.className = 'jour-group-grid';
-
-            // Toutes les photos originales qui ne sont PAS dans les autres jours
-            const photosForJourA = app.gridItems.filter(item => 
-                !item.isCroppedVersion && !usedInOtherJours.has(item.id)
-            );
-            
-            photosForJourA.forEach(gridItem => {
-                const itemDiv = document.createElement('div');
-                itemDiv.className = 'grouped-view-item';
-                itemDiv.title = gridItem.basename;
-                
-                const img = document.createElement('img');
-                img.src = gridItem.thumbnailPath;
-                img.alt = gridItem.basename;
-                
-                itemDiv.appendChild(img);
-                gridDiv.appendChild(itemDiv);
-            });
-
-            groupDiv.appendChild(gridDiv);
-            container.appendChild(groupDiv);
+        if (!app.jourFrames || app.jourFrames.length === 0) {
+            container.innerHTML = '<p class="sidebar-info" style="text-align: center; padding: 20px;">Aucun jour à afficher. Créez des jours dans l\'onglet "Tri".</p>';
+            return;
         }
 
-        // 2. Gérer les Jours B, C, D...
-        app.jourFrames.forEach(jourFrame => {
-            if (jourFrame.letter === 'A' || jourFrame.imagesData.length === 0) return; // On a déjà traité A et on ignore les jours vides
+        // --- Helper function pour créer un élément d'image dans la vue groupée ---
+        const createItemDiv = (gridItem) => {
+            const itemDiv = document.createElement('div');
+            itemDiv.className = 'grouped-view-item';
+            itemDiv.title = gridItem.basename;
+            const img = document.createElement('img');
+            // La clé est ici : on utilise le thumbnailPath du GridItem, qui peut être
+            // soit l'original, soit la version recadrée.
+            img.src = gridItem.thumbnailPath;
+            img.alt = gridItem.basename;
+            itemDiv.appendChild(img);
+            return itemDiv;
+        };
 
+        // --- Boucle sur tous les jours (de A à Z) ---
+        // Cette nouvelle logique est plus simple et reflète directement le contenu de chaque jour.
+        app.jourFrames.forEach(jourFrame => {
             const groupDiv = document.createElement('div');
             groupDiv.className = 'jour-group-container';
+
             const header = document.createElement('h4');
             header.className = 'jour-group-header';
             header.textContent = `Jour ${jourFrame.letter}`;
             groupDiv.appendChild(header);
+
             const gridDiv = document.createElement('div');
             gridDiv.className = 'jour-group-grid';
-            
-            jourFrame.imagesData.forEach(imgData => {
-                const gridItem = app.gridItemsDict[imgData.imageId];
-                if (gridItem) {
-                    const itemDiv = document.createElement('div');
-                    itemDiv.className = 'grouped-view-item';
-                    itemDiv.title = gridItem.basename;
-                    
-                    const img = document.createElement('img');
-                    img.src = gridItem.thumbnailPath;
-                    img.alt = gridItem.basename;
-                    
-                    itemDiv.appendChild(img);
-                    gridDiv.appendChild(itemDiv);
-                }
-            });
+
+            if (jourFrame.imagesData.length === 0) {
+                // Afficher un message si le jour est vide.
+                gridDiv.innerHTML = '<p class="jour-group-empty-text">Ce jour est vide.</p>';
+            } else {
+                // Itérer sur les images ACTUELLES du jour.
+                // Si une image a été splittée, imagesData contiendra 2 éléments, créant 2 blocs.
+                // Si une image a des barres blanches, imagesData contiendra la nouvelle image, qui sera affichée.
+                // Si une image n'a pas été touchée, on affiche l'original.
+                jourFrame.imagesData.forEach(imgData => {
+                    const gridItem = app.gridItemsDict[imgData.imageId];
+                    if (gridItem) {
+                        gridDiv.appendChild(createItemDiv(gridItem));
+                    } else {
+                        console.warn(`Impossible de trouver l'image avec l'ID: ${imgData.imageId} pour le Jour ${jourFrame.letter} dans la vue groupée.`);
+                        const errorDiv = document.createElement('div');
+                        errorDiv.className = 'grouped-view-item-error';
+                        errorDiv.textContent = 'Erreur';
+                        gridDiv.appendChild(errorDiv);
+                    }
+                });
+            }
             groupDiv.appendChild(gridDiv);
             container.appendChild(groupDiv);
         });
@@ -1076,7 +1069,6 @@ class CroppingPage {
         }
     }
 }
-
 
 class CroppingManager {
     constructor(organizer, croppingPage) {
