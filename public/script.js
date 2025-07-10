@@ -1263,7 +1263,7 @@ class CroppingManager {
         const imgInfo = this.imagesToCrop[this.currentImageIndex];
         const originalGridItem = this.organizer.gridItemsDict[imgInfo.originalReferenceId];
         const displayName = originalGridItem ? originalGridItem.basename : `Image ID ${imgInfo.originalReferenceId}`;
-        this.infoLabel.textContent = `Chargement ${this.currentImageIndex + 1}/${this.imagesToCrop.length}: ${displayName}...`;
+        this.infoLabel.textContent = `Chargement ${displayName}...`;
         try {
             this.currentImageObject = await Utils.loadImage(imgInfo.baseImageToCropFromDataURL);
             let defaultRatio;
@@ -1284,7 +1284,7 @@ class CroppingManager {
         this.aspectRatioSelect.disabled = this.splitModeState > 0 || this.saveMode === 'white_bars';
         this.whiteBarsBtn.disabled = this.splitModeState > 0;
         this.splitLineBtn.disabled = this.saveMode === 'white_bars';
-        this.infoLabel.textContent = `Image ${this.currentImageIndex + 1}/${this.imagesToCrop.length}: ${displayName}`;
+        this.infoLabel.textContent = `${displayName}`;
         this.croppingPage._updateThumbnailStripHighlight(this.currentImageIndex);
     }
     

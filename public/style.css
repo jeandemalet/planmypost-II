@@ -1483,9 +1483,14 @@ button.small-cancel-btn:hover {
 
 
 #cropperInfoLabel {
-    margin-top: 10px;
-    font-size: 0.9em;
-    color: #555;
+    font-weight: normal;
+    font-size: 0.9em; /* Taille réduite */
+    color: var(--text-primary);
+    padding: 8px 12px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 250px; /* Limite la largeur pour éviter les débordements */
 }
 
 .jour-frame-canvas-wrapper.drag-over {
