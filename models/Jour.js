@@ -1,4 +1,3 @@
-
 // ===============================
 //  Fichier: models\Jour.js
 // ===============================
@@ -38,6 +37,21 @@ const JourSchema = new mongoose.Schema({
         max: 25 // Correspond à A-Z
     },
     images: [JourImageSchema], // Tableau ordonné des images de ce jour
+    
+    // NOUVEAU : Paramètres pour le recadrage automatique
+    autoCropSettings: {
+        vertical: {
+            type: String,
+            enum: ['auto', 'whitebars', 'none'],
+            default: 'none'
+        },
+        horizontal: {
+            type: String,
+            enum: ['whitebars', 'none'],
+            default: 'none'
+        }
+    },
+
     descriptionText: { // MODIFIÉ: Ajout du champ pour le texte de la description
         type: String,
         default: ''

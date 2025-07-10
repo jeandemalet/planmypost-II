@@ -168,6 +168,57 @@
                     <h4>Jours de la Galerie</h4>
                     <ul id="croppingJourList">
                     </ul>
+                    <!-- ======================================================= -->
+                    <!-- === NOUVELLE SECTION: RECADRAGE AUTOMATIQUE === -->
+                    <!-- ======================================================= -->
+                    <div class="auto-crop-frame">
+                        <fieldset>
+                            <legend>Recadrage automatique</legend>
+                            
+                            <div class="auto-crop-setting">
+                                <span class="setting-label">Photos verticales</span>
+                                <div class="setting-options">
+                                    <input type="radio" id="v-auto" name="vertical_treatment" value="auto">
+                                    <label for="v-auto" class="auto-crop-button">
+                                        <img src="assets/AI.png" alt="Icône Recadrage IA" class="auto-crop-icon">
+                                        <span class="auto-crop-label-text">Recadrage auto</span>
+                                    </label>
+                                    
+                                    <input type="radio" id="v-bars" name="vertical_treatment" value="whitebars">
+                                    <label for="v-bars" class="auto-crop-button">
+                                        <img src="assets/barres-blanches.png" alt="Icône Barres Blanches" class="auto-crop-icon">
+                                        <span class="auto-crop-label-text">Barres blanches</span>
+                                    </label>
+                                    
+                                    <input type="radio" id="v-none" name="vertical_treatment" value="none" checked>
+                                    <label for="v-none" class="auto-crop-button">
+                                        <img src="assets/nerienfaire.png" alt="Icône Ne rien faire" class="auto-crop-icon">
+                                        <span class="auto-crop-label-text">Ne rien faire</span>
+                                    </label>
+                                </div>
+                            </div>
+            
+                            <div class="auto-crop-setting">
+                                 <span class="setting-label">Photos horizontales</span>
+                                 <div class="setting-options">
+                                    <input type="radio" id="h-bars" name="horizontal_treatment" value="whitebars" checked>
+                                    <label for="h-bars" class="auto-crop-button">
+                                        <img src="assets/barres-blanches.png" alt="Icône Barres Blanches" class="auto-crop-icon">
+                                        <span class="auto-crop-label-text">Barres blanches</span>
+                                    </label>
+                                    
+                                    <input type="radio" id="h-none" name="horizontal_treatment" value="none">
+                                    <label for="h-none" class="auto-crop-button">
+                                        <img src="assets/nerienfaire.png" alt="Icône Ne rien faire" class="auto-crop-icon">
+                                        <span class="auto-crop-label-text">Ne rien faire</span>
+                                    </label>
+                                 </div>
+                            </div>
+                        </fieldset>
+                    </div>
+                    <!-- ======================================================= -->
+                    <!-- === FIN DE LA NOUVELLE SECTION === -->
+                    <!-- ======================================================= -->
                 </div>
                 <div id="croppingEditorContainer">
                     <h3 id="croppingEditorTitle">Sélectionnez un jour à recadrer</h3>
