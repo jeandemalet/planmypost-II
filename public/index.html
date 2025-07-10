@@ -141,8 +141,12 @@
             </div>
         </div>
 
+        <!-- =============================== -->
+        <!--      ONGLET DE RECADRAGE        -->
+        <!-- =============================== -->
         <div id="cropping" class="tab-content">
             <div class="cropping-layout">
+                <!-- COLONNE DE GAUCHE : LISTE DES JOURS -->
                 <div id="croppingJourListPanel">
                     <h4>Jours de la Galerie</h4>
                     <button id="toggleCroppingViewBtn" class="secondary-action" style="width: 100%; margin-bottom: 10px;">
@@ -152,6 +156,8 @@
                     <ul id="croppingJourList">
                     </ul>
                 </div>
+
+                <!-- COLONNE CENTRALE : CONTENU PRINCIPAL (VUE D'ENSEMBLE OU ÉDITEUR) -->
                 <div id="croppingEditorContainer">
                     <h3 id="croppingEditorTitle">Sélectionnez un jour à recadrer</h3>
                     
@@ -171,57 +177,7 @@
                                     <img id="cropperPreviewCenter" alt="Aperçu Milieu">
                                     <img id="cropperPreviewRight" alt="Aperçu Droit">
                                 </div>
-                                <div class="auto-crop-frame">
-                                    <fieldset>
-                                        <legend>Recadrage automatique</legend>
-                                        
-                                        <div class="auto-crop-setting">
-                                            <span class="setting-label">Photos verticales</span>
-                                            <div class="setting-options">
-                                                <input type="radio" id="v-auto" name="vertical_treatment" value="auto">
-                                                <label for="v-auto" class="auto-crop-button">
-                                                    <img src="assets/AI.png" alt="Icône Recadrage IA" class="auto-crop-icon">
-                                                    <span class="auto-crop-label-text">Recadrage auto</span>
-                                                </label>
-                                                
-                                                <input type="radio" id="v-bars" name="vertical_treatment" value="whitebars">
-                                                <label for="v-bars" class="auto-crop-button">
-                                                    <img src="assets/barres-blanches.png" alt="Icône Barres Blanches" class="auto-crop-icon">
-                                                    <span class="auto-crop-label-text">Barres blanches</span>
-                                                </label>
-                                                
-                                                <input type="radio" id="v-none" name="vertical_treatment" value="none" checked>
-                                                <label for="v-none" class="auto-crop-button">
-                                                    <img src="assets/nerienfaire.png" alt="Icône Ne rien faire" class="auto-crop-icon">
-                                                    <span class="auto-crop-label-text">Ne rien faire</span>
-                                                </label>
-                                            </div>
-                                        </div>
-                        
-                                        <div class="auto-crop-setting">
-                                             <span class="setting-label">Photos horizontales</span>
-                                             <div class="setting-options">
-                                                <input type="radio" id="h-bars" name="horizontal_treatment" value="whitebars" checked>
-                                                <label for="h-bars" class="auto-crop-button">
-                                                    <img src="assets/barres-blanches.png" alt="Icône Barres Blanches" class="auto-crop-icon">
-                                                    <span class="auto-crop-label-text">Barres blanches</span>
-                                                </label>
-                                                
-                                                <input type="radio" id="h-none" name="horizontal_treatment" value="none">
-                                                <label for="h-none" class="auto-crop-button">
-                                                    <img src="assets/nerienfaire.png" alt="Icône Ne rien faire" class="auto-crop-icon">
-                                                    <span class="auto-crop-label-text">Ne rien faire</span>
-                                                </label>
-                                             </div>
-                                        </div>
-                                        <div class="auto-crop-actions">
-                                            <button id="runAutoCropBtn" class="primary-action" title="Lancer le recadrage automatique pour ce Jour">
-                                                Lancer l'automatisation
-                                            </button>
-                                        </div>
-                                        <div id="autoCropProgress" class="auto-crop-progress" style="display: none;"></div>
-                                    </fieldset>
-                                </div>
+                                <!-- LE BLOC DE RECADRAGE AUTO A ÉTÉ DÉPLACÉ D'ICI... -->
                             </div>
                         </div>
                         <div class="cropper-controls">
@@ -244,6 +200,62 @@
                         <div id="croppingThumbnailStrip" class="cropping-thumbnail-strip"></div>
                     </div>
                     <p id="croppingEditorPlaceholder">Aucun jour sélectionné.</p>
+                </div>
+
+                <!-- COLONNE DE DROITE : BARRE LATÉRALE POUR LE RECADRAGE AUTO -->
+                <div id="autoCropSidebar" class="cropping-sidebar-right">
+                    <!-- ...VERS ICI. -->
+                    <div class="auto-crop-frame">
+                        <fieldset>
+                            <legend>Recadrage automatique</legend>
+                            
+                            <div class="auto-crop-setting">
+                                <span class="setting-label">Photos verticales</span>
+                                <div class="setting-options">
+                                    <input type="radio" id="v-auto" name="vertical_treatment" value="auto">
+                                    <label for="v-auto" class="auto-crop-button">
+                                        <img src="assets/AI.png" alt="Icône Recadrage IA" class="auto-crop-icon">
+                                        <span class="auto-crop-label-text">Recadrage auto</span>
+                                    </label>
+                                    
+                                    <input type="radio" id="v-bars" name="vertical_treatment" value="whitebars">
+                                    <label for="v-bars" class="auto-crop-button">
+                                        <img src="assets/barres-blanches.png" alt="Icône Barres Blanches" class="auto-crop-icon">
+                                        <span class="auto-crop-label-text">Barres blanches</span>
+                                    </label>
+                                    
+                                    <input type="radio" id="v-none" name="vertical_treatment" value="none" checked>
+                                    <label for="v-none" class="auto-crop-button">
+                                        <img src="assets/nerienfaire.png" alt="Icône Ne rien faire" class="auto-crop-icon">
+                                        <span class="auto-crop-label-text">Ne rien faire</span>
+                                    </label>
+                                </div>
+                            </div>
+            
+                            <div class="auto-crop-setting">
+                                 <span class="setting-label">Photos horizontales</span>
+                                 <div class="setting-options">
+                                    <input type="radio" id="h-bars" name="horizontal_treatment" value="whitebars" checked>
+                                    <label for="h-bars" class="auto-crop-button">
+                                        <img src="assets/barres-blanches.png" alt="Icône Barres Blanches" class="auto-crop-icon">
+                                        <span class="auto-crop-label-text">Barres blanches</span>
+                                    </label>
+                                    
+                                    <input type="radio" id="h-none" name="horizontal_treatment" value="none">
+                                    <label for="h-none" class="auto-crop-button">
+                                        <img src="assets/nerienfaire.png" alt="Icône Ne rien faire" class="auto-crop-icon">
+                                        <span class="auto-crop-label-text">Ne rien faire</span>
+                                    </label>
+                                 </div>
+                            </div>
+                            <div class="auto-crop-actions">
+                                <button id="runAutoCropBtn" class="primary-action" title="Lancer le recadrage automatique pour ce Jour">
+                                    Lancer l'automatisation
+                                </button>
+                            </div>
+                            <div id="autoCropProgress" class="auto-crop-progress" style="display: none;"></div>
+                        </fieldset>
+                    </div>
                 </div>
             </div>
         </div>

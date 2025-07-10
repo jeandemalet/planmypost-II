@@ -1,3 +1,8 @@
+
+/* ===============================
+ Fichier: public/script.js (Corrigé)
+=============================== */
+
 const BASE_API_URL = '';
 const JOUR_COLORS = ["red", "blue", "green", "purple", "orange", "brown", "magenta", "gold", "cyan", "darkgreen", "pink", "navy", "gray", "darkorange"];
 const CALENDAR_THUMB_SIZE = { width: 30, height: 30 };
@@ -828,7 +833,11 @@ class CroppingPage {
         this.toggleViewBtn = document.getElementById('toggleCroppingViewBtn');
         this.toggleViewBtnText = document.getElementById('toggleCroppingViewBtnText');
         this.allPhotosGroupedViewContainer = document.getElementById('allPhotosGroupedViewContainer');
-        this.isAllPhotosViewActive = false;
+        
+        // --- MODIFICATIONS ---
+        this.autoCropSidebar = document.getElementById('autoCropSidebar');
+        this.isAllPhotosViewActive = true; // La vue d'ensemble est maintenant active par défaut
+        // --- FIN DES MODIFICATIONS ---
 
         this._initListeners();
     }
@@ -846,19 +855,24 @@ class CroppingPage {
         }
         this.populateJourList();
         
+        // --- MODIFICATIONS ---
+        // Logique pour afficher la vue correcte lorsque l'onglet est activé
         if (this.isAllPhotosViewActive) {
-            this.renderAllPhotosGroupedView();
-            return;
-        }
-
-        const stillExists = this.currentSelectedJourFrame ? this.organizerApp.jourFrames.find(jf => jf.id === this.currentSelectedJourFrame.id) : null;
-        if (stillExists) {
-            this.selectJour(stillExists, true);
-        } else if (this.organizerApp.jourFrames.length > 0) {
-            this.selectJour(this.organizerApp.jourFrames[0]);
+            this.toggleAllPhotosView(true); // Forcer l'affichage de la vue "Tout voir"
         } else {
-            this.clearEditor();
+            // Si on était en mode éditeur, on essaie de restaurer cet état
+            const stillExists = this.currentSelectedJourFrame ? this.organizerApp.jourFrames.find(jf => jf.id === this.currentSelectedJourFrame.id) : null;
+            if (stillExists) {
+                this.selectJour(stillExists, true);
+            } else if (this.organizerApp.jourFrames.length > 0) {
+                // Si le jour sélectionné n'existe plus, on sélectionne le premier
+                this.selectJour(this.organizerApp.jourFrames[0]);
+            } else {
+                // S'il n'y a pas de jours, on efface l'éditeur
+                this.clearEditor();
+            }
         }
+        // --- FIN DES MODIFICATIONS ---
     }
 
     populateJourList() {
@@ -870,17 +884,23 @@ class CroppingPage {
         if (!li || !li.dataset.jourId) return;
         const jourFrame = this.organizerApp.jourFrames.find(jf => jf.id === li.dataset.jourId);
         if (jourFrame) {
+            // --- MODIFICATIONS ---
+            // Un clic sur un jour dans la liste doit toujours amener à l'éditeur de ce jour
             if (this.isAllPhotosViewActive) {
-                this.toggleAllPhotosView(false);
+                this.toggleAllPhotosView(false); // Basculer vers la vue éditeur
             }
             this.selectJour(jourFrame);
+            // --- FIN DES MODIFICATIONS ---
         }
     }
 
     selectJour(jourFrame, preventStart = false) {
+        // --- MODIFICATIONS ---
+        // S'assurer qu'on n'est pas en vue d'ensemble quand un jour est sélectionné
         if (this.isAllPhotosViewActive) {
             this.toggleAllPhotosView(false);
         }
+        // --- FIN DES MODIFICATIONS ---
         
         if (this.currentSelectedJourFrame === jourFrame && this.editorPanelElement.style.display !== 'none' && !preventStart) {
             return; 
@@ -918,6 +938,9 @@ class CroppingPage {
             this.editorPanelElement.style.display = 'none';
             this.editorPlaceholderElement.style.display = 'none';
             this.allPhotosGroupedViewContainer.style.display = 'block';
+            // --- MODIFICATIONS ---
+            this.autoCropSidebar.style.display = 'block'; // Afficher la barre latérale
+            // --- FIN DES MODIFICATIONS ---
 
         } else {
             this.allPhotosGroupedViewContainer.style.display = 'none';
@@ -925,6 +948,9 @@ class CroppingPage {
             this.toggleViewBtnText.textContent = 'Tout voir';
             this.toggleViewBtn.style.backgroundColor = '';
             this.toggleViewBtn.style.borderColor = '';
+            // --- MODIFICATIONS ---
+            this.autoCropSidebar.style.display = 'none'; // Masquer la barre latérale
+            // --- FIN DES MODIFICATIONS ---
 
             const firstJour = this.organizerApp.jourFrames[0];
             if (firstJour) {
@@ -1052,12 +1078,18 @@ class CroppingPage {
         this.editorPanelElement.style.display = 'flex';
         this.editorPlaceholderElement.style.display = 'none';
         this.allPhotosGroupedViewContainer.style.display = 'none';
+        // --- MODIFICATIONS ---
+        this.autoCropSidebar.style.display = 'none'; // S'assurer que la barre latérale est masquée en mode éditeur
+        // --- FIN DES MODIFICATIONS ---
     }
 
     clearEditor() {
         this.editorPanelElement.style.display = 'none';
         this.editorPlaceholderElement.style.display = 'block';
         this.allPhotosGroupedViewContainer.style.display = 'none';
+        // --- MODIFICATIONS ---
+        this.autoCropSidebar.style.display = 'none'; // S'assurer que la barre latérale est masquée quand l'éditeur est vidé
+        // --- FIN DES MODIFICATIONS ---
         this.editorTitleElement.textContent = "Sélectionnez un jour à recadrer";
         this.thumbnailStripElement.innerHTML = '';
         if (this.currentSelectedJourFrame) {
@@ -3641,8 +3673,7 @@ class PublicationOrganizer {
                 case 'date_asc': case 'date_desc':
                     valA = a.datetimeOriginalTs !== null ? a.datetimeOriginalTs : a.fileModTimeTs;
                     valB = b.datetimeOriginalTs !== null ? b.datetimeOriginalTs : b.fileModTimeTs;
-                    if (valA === null && valB === null) return 0;
-                    if (valA === null) return sortValue.endsWith('_asc') ? 1 : -1; 
+                                        if (valA === null) return sortValue.endsWith('_asc') ? 1 : -1; 
                     if (valB === null) return sortValue.endsWith('_asc') ? -1 : 1; 
                     const dateComparison = valA - valB;
                     return sortValue.endsWith('_asc') ? dateComparison : -dateComparison;
