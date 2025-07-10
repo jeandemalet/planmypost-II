@@ -113,9 +113,9 @@ exports.getGalleryDetails = async (req, res) => {
         // ======================= CORRECTION CI-DESSOUS =======================
         // On supprime le filtre `{ isCroppedVersion: { $ne: true } }` pour
         // charger TOUTES les images (originales ET recadrées).
-        const images = await Image.find({ galleryId: galleryId })
-                                  .sort({ uploadDate: 1 }); 
-        // ======================= FIN DE LA CORRECTION =======================
+        // Ligne corrigée
+        const images = await Image.find({ galleryId: galleryId, isCroppedVersion: { $ne: true } })
+                                .sort({ uploadDate: 1 }); 
 
         const jours = await Jour.find({ galleryId: galleryId })
                               .populate('images.imageId') 
