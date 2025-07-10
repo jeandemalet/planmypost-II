@@ -5,15 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Organisateur de Publications</title>
     <link rel="stylesheet" href="style.css">
-
-    <!-- ======================================================= -->
-    <!-- === MODIFICATION : Utilisation de la version locale === -->
-    <!-- ======================================================= -->
-    <!-- Ligne originale (supprimée) : <script src="https://cdn.jsdelivr.net/npm/smartcrop@2.0.5/smartcrop.js"></script> -->
-    
-    <!-- Nouvelle ligne pointant vers votre fichier local -->
     <script src="/lib/smartcrop.js"></script>
-    
     <script src="exif.js"></script>
 </head>
 <body>
@@ -22,7 +14,6 @@
     </div>
 
     <div class="app-container">
-        <!-- MODIFICATION : La div .tabs a été déplacée à l'intérieur du header -->
         <header class="app-header">
             <div id="logoPlaceholder">
                 <img src="/assets/logo.png" alt="Organisateur de Publications Logo" id="appLogo">
@@ -52,10 +43,7 @@
             </nav>
         </header>
 
-        <!-- La div .tabs n'est plus ici -->
-
-        <div id="galleries" class="tab-content"> 
-            
+        <div id="galleries" class="tab-content">
             <div class="galleries-layout">
                 <div id="galleriesListContainer">
                     <ul id="galleriesList"></ul>
@@ -85,7 +73,6 @@
                             </button>
                         </div>
                     </div>
-                    <!-- Barre de progression pour l'onglet galerie -->
                     <div id="galleriesUploadProgressContainer" class="upload-progress-area" style="display:none; margin-bottom: 10px;">
                         <span id="galleriesUploadProgressText" class="upload-progress-text-label"></span>
                         <div class="upload-progress-bar-outer">
@@ -94,17 +81,12 @@
                     </div>
                     <div id="galleryPreviewGrid"></div>
                      <p id="galleryPreviewPlaceholder">Sélectionnez une galerie pour voir un aperçu ou la charger.</p>
-                     <!-- MODIFICATION : Boutons "Vider" et "Trier" ajoutés ici -->
-                     
-                    
                 </div>
             </div>
         </div>
 
-
         <div id="currentGallery" class="tab-content">
             <div class="controls-bar">
-                <!-- MODIFICATION : Bouton "Changer de galerie" ajouté -->
                 <span id="currentGalleryNameDisplay" style="margin-right: 10px; font-weight: bold;"></span>
                 <button id="switchToGalleriesBtn" class="secondary-action">
                     <img src="/assets/gallery.png" alt="" class="btn-icon"> Changer de galerie
@@ -128,7 +110,6 @@
                     </select>
                 </div>
                 
-                <!-- Barre de progression pour l'onglet currentGallery -->
                 <div id="currentGalleryUploadProgressContainer" class="upload-progress-area" style="display:none; flex-grow:1; margin: 0 10px; max-width: 300px;">
                     <span id="currentGalleryUploadProgressText" class="upload-progress-text-label"></span>
                     <div class="upload-progress-bar-outer" style="height:12px;">
@@ -155,22 +136,17 @@
                         <button id="addJourFrameBtn">
                              <img src="assets/add-button.png" alt="" class="btn-icon"> Ajouter Jour
                         </button>
-                        
                     </div>
                 </div>
             </div>
         </div>
 
         <div id="cropping" class="tab-content">
-            
             <div class="cropping-layout">
                 <div id="croppingJourListPanel">
                     <h4>Jours de la Galerie</h4>
                     <ul id="croppingJourList">
                     </ul>
-                    <!-- ======================================================= -->
-                    <!-- === NOUVELLE SECTION: RECADRAGE AUTOMATIQUE === -->
-                    <!-- ======================================================= -->
                     <div class="auto-crop-frame">
                         <fieldset>
                             <legend>Recadrage automatique</legend>
@@ -214,11 +190,14 @@
                                     </label>
                                  </div>
                             </div>
+                            <div class="auto-crop-actions">
+                                <button id="runAutoCropBtn" class="primary-action icon-only" title="Lancer le recadrage automatique pour ce Jour">
+                                    <img src="assets/play.png" alt="Lancer" class="btn-icon">
+                                </button>
+                            </div>
+                            <div id="autoCropProgress" class="auto-crop-progress" style="display: none;"></div>
                         </fieldset>
                     </div>
-                    <!-- ======================================================= -->
-                    <!-- === FIN DE LA NOUVELLE SECTION === -->
-                    <!-- ======================================================= -->
                 </div>
                 <div id="croppingEditorContainer">
                     <h3 id="croppingEditorTitle">Sélectionnez un jour à recadrer</h3>
@@ -250,10 +229,7 @@
                             <button id="cropDeleteBtn" title="Supprimer et passer à la suivante"><img src="assets/bin.png" alt="Supprimer"></button>
                             <button id="cropFinishBtn" class="primary-action" title="Terminer et appliquer les recadrages"><img src="assets/confirm.png" alt="Terminer et Appliquer"></button>
                         </div>
-
-                        <!-- NOUVEL ÉLÉMENT : Bande de vignettes pour le recadrage -->
                         <div id="croppingThumbnailStrip" class="cropping-thumbnail-strip"></div>
-                        
                         <div id="cropperInfoLabel"></div>
                     </div>
                     <p id="croppingEditorPlaceholder">Aucun jour sélectionné.</p>
@@ -262,10 +238,8 @@
         </div>
 
         <div id="description" class="tab-content">
-            
             <div class="description-layout">
                 <div id="descriptionJourListPanel">
-                    
                     <ul id="descriptionJourList">
                     </ul>
                 </div>
@@ -279,7 +253,6 @@
                             <label for="descriptionHashtags">Hashtags (séparés par des espaces ou des virgules):</label>
                             <textarea id="descriptionHashtags" rows="3" placeholder="#exemple #hashtag ..."></textarea>
                         </div>
-                        
                     </div>
                     <p id="descriptionEditorPlaceholder">Aucun jour sélectionné.</p>
                 </div>
@@ -289,7 +262,6 @@
         <div id="calendar" class="tab-content">
             <div class="calendar-layout">
                 <div id="calendarJourListPanel">
-                    
                     <ul id="calendarJourList">
                     </ul>
                 </div>
@@ -326,13 +298,11 @@
                                 <span>jour(s)</span>
                             </div>
                         </div>
-                                                                        <button id="runAutoScheduleBtn" class="primary-action icon-only" title="Lancer la Planification"><img src="/assets/play.png" alt="Lancer la Planification" class="btn-icon"></button>
+                        <button id="runAutoScheduleBtn" class="primary-action icon-only" title="Lancer la Planification"><img src="/assets/play.png" alt="Lancer la Planification" class="btn-icon"></button>
                         <p id="auto-schedule-info" class="sidebar-info"></p>
                     </div>
-
                     <div id="unscheduledJoursContainer" class="sidebar-section">
                         <h4>Jours à Planifier</h4>
-                        
                         <div id="unscheduledJoursList">
                         </div>
                         <button id="reorganizeAllBtn" class="secondary-action" style="margin-top: 10px;">Tout Réorganiser</button>
@@ -345,9 +315,7 @@
                 <div id="calendarContextImages"></div>
             </div>
         </div>
-
     </div>
-
     <script src="script.js"></script>
 </body>
 </html>

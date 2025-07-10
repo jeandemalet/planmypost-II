@@ -25,6 +25,7 @@ class Utils {
     static async loadImage(urlOrFile) {
         return new Promise((resolve, reject) => {
             const img = new Image();
+            img.crossOrigin = "Anonymous"; // Essentiel pour charger des images depuis une autre origine sur le canvas
             img.onload = () => resolve(img);
             img.onerror = (err) => {
                 console.error("Utils.loadImage error:", err, "Source:", typeof urlOrFile === 'string' ? urlOrFile : urlOrFile.name);
@@ -283,6 +284,7 @@ class JourFrameBackend {
         this.galleryId = jourData.galleryId;
         this.index = jourData.index;
         this.letter = jourData.letter;
+        this.autoCropSettings = jourData.autoCropSettings || { vertical: 'none', horizontal: 'none' };
         this.maxImages = 20;
         this.imagesData = [];
         this.descriptionText = jourData.descriptionText || '';
@@ -711,6 +713,350 @@ class JourFrameBackend {
     }
 }
 
+// =================================================================
+// --- NOUVELLE CLASSE: AutoCropper ---
+// =================================================================
+class AutoCropper {
+    constructor(organizerApp, croppingPage) {
+        this.organizerApp = organizerApp;
+        this.croppingPage = croppingPage;
+        this.runBtn = document.getElementById('runAutoCropBtn');
+        this.progressElement = document.getElementById('autoCropProgress');
+        this.radioGroups = {
+            vertical: document.querySelectorAll('input[name="vertical_treatment"]'),
+            horizontal: document.querySelectorAll('input[name="horizontal_treatment"]')
+        };
+        this.isRunning = false;
+
+        this.debouncedSaveSettings = Utils.debounce(() => this.saveSettings(), 1000);
+
+        this.runBtn.addEventListener('click', () => this.run());
+
+        // --- CORRECTION DE LA BOUCLE ---
+        // L'erreur venait du fait que nous tentions d'ajouter un listener à la NodeList elle-même.
+        // La bonne approche est d'itérer sur chaque NodeList (vertical et horizontal), PUIS
+        // d'itérer sur chaque radio à l'intérieur pour attacher l'écouteur.
+        Object.values(this.radioGroups).forEach(nodeList => {
+            nodeList.forEach(radio => {
+                radio.addEventListener('change', () => this.debouncedSaveSettings());
+            });
+        });
+    }
+
+    async saveSettings() {
+        const jourFrame = this.croppingPage.currentSelectedJourFrame;
+        if (!jourFrame || this.isRunning) return;
+
+        const settings = {
+            vertical: document.querySelector('input[name="vertical_treatment"]:checked').value,
+            horizontal: document.querySelector('input[name="horizontal_treatment"]:checked').value
+        };
+
+        jourFrame.autoCropSettings = settings;
+
+        try {
+            await fetch(`${BASE_API_URL}/api/galleries/${jourFrame.galleryId}/jours/${jourFrame.id}`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ autoCropSettings: settings })
+            });
+        } catch (error) {
+            console.error('Failed to save auto-crop settings:', error);
+        }
+    }
+
+    loadSettingsForJour(jourFrame) {
+        if (!jourFrame) return;
+        const settings = jourFrame.autoCropSettings || { vertical: 'none', horizontal: 'none' };
+        
+        const vertRadio = document.querySelector(`input[name="vertical_treatment"][value="${settings.vertical}"]`);
+        if (vertRadio) vertRadio.checked = true;
+
+        const horizRadio = document.querySelector(`input[name="horizontal_treatment"][value="${settings.horizontal}"]`);
+        if (horizRadio) horizRadio.checked = true;
+    }
+
+    async run() {
+        const jourFrame = this.croppingPage.currentSelectedJourFrame;
+        if (!jourFrame) {
+            alert("Veuillez sélectionner un Jour à traiter.");
+            return;
+        }
+        if (jourFrame.imagesData.length === 0) {
+            alert("Ce Jour ne contient aucune image.");
+            return;
+        }
+        if (this.isRunning) return;
+
+        if (!confirm(`Lancer le recadrage automatique pour le Jour ${jourFrame.letter} ?\nLes images non-recadrées dans ce jour seront remplacées. Cette action ne peut pas être annulée.`)) {
+            return;
+        }
+
+        this.isRunning = true;
+        this.runBtn.disabled = true;
+        this.progressElement.style.display = 'block';
+        this.progressElement.textContent = 'Initialisation...';
+
+        const settings = {
+            vertical: document.querySelector('input[name="vertical_treatment"]:checked').value,
+            horizontal: document.querySelector('input[name="horizontal_treatment"]:checked').value
+        };
+        
+        const modifiedDataMap = {};
+        const imagesToProcess = [...jourFrame.imagesData];
+
+        for (let i = 0; i < imagesToProcess.length; i++) {
+            const imgData = imagesToProcess[i];
+            
+            if (imgData.isCropped) continue; // On ne traite pas les images déjà recadrées
+
+            this.progressElement.textContent = `Traitement ${i + 1}/${imagesToProcess.length}...`;
+
+            const originalGridItem = this.organizerApp.gridItemsDict[imgData.originalReferencePath];
+            if (!originalGridItem) {
+                console.warn(`Image originale ${imgData.originalReferencePath} non trouvée pour l'auto-crop.`);
+                continue;
+            }
+
+            try {
+                const image = await Utils.loadImage(originalGridItem.imagePath);
+                const isVertical = image.naturalHeight > image.naturalWidth * 1.02; // Marge pour les carrés
+                const setting = isVertical ? settings.vertical : settings.horizontal;
+
+                if (setting === 'none') {
+                    continue;
+                }
+
+                let dataURL = null;
+                let cropInfo = '';
+                let filenameSuffix = '';
+                
+                if (setting === 'auto' && isVertical) {
+                    const result = await smartcrop.crop(image, { width: image.naturalWidth, height: image.naturalWidth * 4/3 });
+                    const bestCrop = result.topCrop;
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = bestCrop.width;
+                    tempCanvas.height = bestCrop.height;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCtx.drawImage(image, bestCrop.x, bestCrop.y, bestCrop.width, bestCrop.height, 0, 0, bestCrop.width, bestCrop.height);
+                    dataURL = tempCanvas.toDataURL('image/jpeg', 0.92);
+                    cropInfo = 'recadrage_auto_3x4';
+                    filenameSuffix = 'auto_3x4';
+                } else if (setting === 'whitebars') {
+                    const targetRatio = 3 / 4;
+                    let finalWidth, finalHeight, pasteX, pasteY;
+                    if (image.naturalWidth / image.naturalHeight > targetRatio) {
+                        finalWidth = image.naturalWidth;
+                        finalHeight = Math.round(image.naturalWidth / targetRatio);
+                    } else {
+                        finalHeight = image.naturalHeight;
+                        finalWidth = Math.round(image.naturalHeight * targetRatio);
+                    }
+                    pasteX = Math.round((finalWidth - image.naturalWidth) / 2);
+                    pasteY = Math.round((finalHeight - image.naturalHeight) / 2);
+
+                    const tempCanvas = document.createElement('canvas');
+                    tempCanvas.width = finalWidth; tempCanvas.height = finalHeight;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCtx.fillStyle = 'white';
+                    tempCtx.fillRect(0, 0, finalWidth, finalHeight);
+                    tempCtx.drawImage(image, pasteX, pasteY);
+                    dataURL = tempCanvas.toDataURL('image/jpeg', 0.92);
+                    cropInfo = 'barres_blanches_3x4';
+                    filenameSuffix = 'barres_3x4';
+                }
+
+                if (dataURL) {
+                    const response = await fetch(`${BASE_API_URL}/api/galleries/${jourFrame.galleryId}/images/${originalGridItem.id}/crop`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ imageDataUrl: dataURL, cropInfo, filenameSuffix })
+                    });
+                    if (!response.ok) throw new Error(await response.text());
+                    
+                    const newImageDoc = await response.json();
+                    if (!this.organizerApp.gridItemsDict[newImageDoc._id]) {
+                        const newGridItem = new GridItemBackend(newImageDoc, this.organizerApp.currentThumbSize, this.organizerApp);
+                        this.organizerApp.gridItems.push(newGridItem);
+                        this.organizerApp.gridItemsDict[newImageDoc._id] = newGridItem;
+                    }
+                    
+                    modifiedDataMap[imgData.imageId] = newImageDoc;
+                }
+            } catch (err) {
+                console.error(`Erreur lors du traitement auto de l'image ${originalGridItem.basename}:`, err);
+                this.progressElement.textContent = `Erreur sur l'image ${i + 1}.`;
+                await new Promise(resolve => setTimeout(resolve, 1500)); // Pause to show error
+            }
+        }
+        
+        jourFrame.updateImagesFromCropper(modifiedDataMap);
+        this.organizerApp.refreshSidePanels();
+
+        this.progressElement.textContent = 'Terminé !';
+        setTimeout(() => {
+            this.progressElement.style.display = 'none';
+            this.runBtn.disabled = false;
+            this.isRunning = false;
+        }, 2000);
+    }
+}
+
+
+// =================================================================
+// --- CLASSE CroppingPage ---
+// =================================================================
+class CroppingPage {
+    constructor(organizerApp) {
+        this.organizerApp = organizerApp;
+        this.jourListElement = document.getElementById('croppingJourList');
+        this.editorContainerElement = document.getElementById('croppingEditorContainer');
+        this.editorPanelElement = document.getElementById('croppingEditorPanel');
+        this.editorPlaceholderElement = document.getElementById('croppingEditorPlaceholder');
+        this.editorTitleElement = document.getElementById('croppingEditorTitle');
+        this.thumbnailStripElement = document.getElementById('croppingThumbnailStrip');
+        
+        this.currentSelectedJourFrame = null;
+        this.croppingManager = new CroppingManager(this.organizerApp, this);
+        this.autoCropper = new AutoCropper(this.organizerApp, this);
+
+        this.jourListElement.addEventListener('click', (e) => this.onJourClick(e));
+    }
+
+    show() {
+        if (!this.organizerApp.currentGalleryId) {
+            this.jourListElement.innerHTML = '<li>Chargez une galerie pour voir ses jours.</li>';
+            this.clearEditor();
+            return;
+        }
+        this.populateJourList();
+
+        const stillExists =
+            this.currentSelectedJourFrame ? this.organizerApp.jourFrames.find(jf => jf.id === this.currentSelectedJourFrame.id) : null;
+        
+        if (stillExists) {
+            this.selectJour(stillExists, true);
+        } else if (this.organizerApp.jourFrames.length > 0) {
+            this.selectJour(this.organizerApp.jourFrames[0]);
+        } else {
+            this.clearEditor();
+        }
+    }
+
+    populateJourList() {
+        this.organizerApp._populateSharedJourList(
+            this.jourListElement, 
+            this.currentSelectedJourFrame ? this.currentSelectedJourFrame.id : null, 
+            'cropping'
+        );
+    }
+
+    onJourClick(event) {
+        const li = event.target.closest('li');
+        if (!li || !li.dataset.jourId) return;
+
+        const jourFrame = this.organizerApp.jourFrames.find(jf => jf.id === li.dataset.jourId);
+        if (jourFrame) {
+            this.selectJour(jourFrame);
+        }
+    }
+
+    selectJour(jourFrame, preventStart = false) {
+        if (this.currentSelectedJourFrame === jourFrame && this.editorPanelElement.style.display !== 'none' && !preventStart) {
+            return; 
+        }
+
+        this.currentSelectedJourFrame = jourFrame;
+        
+        this.populateJourList();
+        this.autoCropper.loadSettingsForJour(jourFrame);
+
+        if (!preventStart) {
+            this.startCroppingForJour(jourFrame);
+        } else {
+            this.editorTitleElement.textContent = `Recadrage pour Jour ${jourFrame.letter}`;
+        }
+    }
+
+    startCroppingForJour(jourFrame) {
+        if (!jourFrame.imagesData || jourFrame.imagesData.length === 0) {
+            this.clearEditor();
+            this.editorTitleElement.textContent = `Jour ${jourFrame.letter}`;
+            this.editorPlaceholderElement.textContent = `Le Jour ${jourFrame.letter} est vide et ne peut pas être recadré.`;
+            return;
+        }
+        
+        this.editorTitleElement.textContent = `Recadrage pour Jour ${jourFrame.letter}`;
+        
+        this._populateThumbnailStrip(jourFrame);
+
+        const imageInfosForCropper = jourFrame.imagesData.map(imgData => {
+            const originalImageInGrid = this.organizerApp.gridItemsDict[imgData.originalReferencePath];
+            const baseImageToCropFromDataURL = originalImageInGrid ? originalImageInGrid.imagePath : imgData.dataURL;
+            
+            return {
+                pathForCropper: imgData.imageId, 
+                dataURL: imgData.dataURL, 
+                originalReferenceId: imgData.originalReferencePath, 
+                baseImageToCropFromDataURL, 
+                currentImageId: imgData.imageId 
+            };
+        });
+        
+        this.croppingManager.startCropping(imageInfosForCropper, jourFrame);
+    }
+    
+    _populateThumbnailStrip(jourFrame) {
+        this.thumbnailStripElement.innerHTML = '';
+        jourFrame.imagesData.forEach((imgData, index) => {
+            const thumbDiv = document.createElement('div');
+            thumbDiv.className = 'crop-strip-thumb';
+            thumbDiv.style.backgroundImage = `url(${imgData.dataURL})`;
+            thumbDiv.dataset.index = index;
+            
+            thumbDiv.addEventListener('click', () => {
+                this.croppingManager.goToImage(index);
+            });
+
+            this.thumbnailStripElement.appendChild(thumbDiv);
+        });
+    }
+
+    _updateThumbnailStripHighlight(activeIndex) {
+        const thumbs = this.thumbnailStripElement.querySelectorAll('.crop-strip-thumb');
+        thumbs.forEach((thumb, index) => {
+            if (index === activeIndex) {
+                thumb.classList.add('active-crop-thumb');
+                thumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            } else {
+                thumb.classList.remove('active-crop-thumb');
+            }
+        });
+    }
+
+    showEditor() {
+        this.editorPanelElement.style.display = 'flex';
+        this.editorPlaceholderElement.style.display = 'none';
+    }
+
+    clearEditor() {
+        this.editorPanelElement.style.display = 'none';
+        this.editorPlaceholderElement.style.display = 'block';
+        this.editorTitleElement.textContent = "Sélectionnez un jour à recadrer";
+        this.thumbnailStripElement.innerHTML = '';
+
+        if (this.currentSelectedJourFrame) {
+             this.currentSelectedJourFrame = null;
+             this.populateJourList();
+        }
+    }
+}
+
+// ... (Le reste du fichier, CroppingManager, DescriptionManager, CalendarPage, PublicationOrganizer, et la logique d'initialisation restent inchangés) ...
+
+// =================================================================
+// --- CLASSE CroppingManager ---
+// =================================================================
 class CroppingManager {
     constructor(organizer, croppingPage) {
         this.organizer = organizer;
@@ -1765,152 +2111,6 @@ class CroppingManager {
     }
 }
 
-class CroppingPage {
-    constructor(organizerApp) {
-        this.organizerApp = organizerApp;
-        this.jourListElement = document.getElementById('croppingJourList');
-        this.editorContainerElement = document.getElementById('croppingEditorContainer');
-        this.editorPanelElement = document.getElementById('croppingEditorPanel');
-        this.editorPlaceholderElement = document.getElementById('croppingEditorPlaceholder');
-        this.editorTitleElement = document.getElementById('croppingEditorTitle');
-        this.thumbnailStripElement = document.getElementById('croppingThumbnailStrip');
-        
-        this.currentSelectedJourFrame = null;
-        this.croppingManager = new CroppingManager(this.organizerApp, this);
-
-        this.jourListElement.addEventListener('click', (e) => this.onJourClick(e));
-    }
-
-    show() {
-        if (!this.organizerApp.currentGalleryId) {
-            this.jourListElement.innerHTML = '<li>Chargez une galerie pour voir ses jours.</li>';
-            this.clearEditor();
-            return;
-        }
-        this.populateJourList();
-
-        const stillExists =
-            this.currentSelectedJourFrame ? this.organizerApp.jourFrames.find(jf => jf.id === this.currentSelectedJourFrame.id) : null;
-        
-        if (stillExists) {
-            this.selectJour(stillExists, true);
-        } else if (this.organizerApp.jourFrames.length > 0) {
-            // MODIFICATION : S'il n'y a pas de jour sélectionné mais que la liste n'est pas vide, on sélectionne le premier.
-            this.selectJour(this.organizerApp.jourFrames[0]);
-        } else {
-            this.clearEditor();
-        }
-    }
-
-    populateJourList() {
-        this.organizerApp._populateSharedJourList(
-            this.jourListElement, 
-            this.currentSelectedJourFrame ? this.currentSelectedJourFrame.id : null, 
-            'cropping'
-        );
-    }
-
-    onJourClick(event) {
-        const li = event.target.closest('li');
-        if (!li || !li.dataset.jourId) return;
-
-        const jourFrame = this.organizerApp.jourFrames.find(jf => jf.id === li.dataset.jourId);
-        if (jourFrame) {
-            this.selectJour(jourFrame);
-        }
-    }
-
-    selectJour(jourFrame, preventStart = false) {
-        if (this.currentSelectedJourFrame === jourFrame && this.editorPanelElement.style.display !== 'none') {
-            return; 
-        }
-
-        this.currentSelectedJourFrame = jourFrame;
-        
-        this.populateJourList(); // Met à jour la surbrillance
-
-        if (!preventStart) {
-            this.startCroppingForJour(jourFrame);
-        } else {
-            this.editorTitleElement.textContent = `Recadrage pour Jour ${jourFrame.letter}`;
-        }
-    }
-
-    startCroppingForJour(jourFrame) {
-        if (!jourFrame.imagesData || jourFrame.imagesData.length === 0) {
-            this.clearEditor();
-            this.editorTitleElement.textContent = `Jour ${jourFrame.letter}`;
-            this.editorPlaceholderElement.textContent = `Le Jour ${jourFrame.letter} est vide et ne peut pas être recadré.`;
-            return;
-        }
-        
-        this.editorTitleElement.textContent = `Recadrage pour Jour ${jourFrame.letter}`;
-        
-        this._populateThumbnailStrip(jourFrame);
-
-        const imageInfosForCropper = jourFrame.imagesData.map(imgData => {
-            const originalImageInGrid = this.organizerApp.gridItemsDict[imgData.originalReferencePath];
-            const baseImageToCropFromDataURL = originalImageInGrid ? originalImageInGrid.imagePath : imgData.dataURL;
-            
-            return {
-                pathForCropper: imgData.imageId, 
-                dataURL: imgData.dataURL, 
-                originalReferenceId: imgData.originalReferencePath, 
-                baseImageToCropFromDataURL, 
-                currentImageId: imgData.imageId 
-            };
-        });
-        
-        this.croppingManager.startCropping(imageInfosForCropper, jourFrame);
-    }
-    
-    _populateThumbnailStrip(jourFrame) {
-        this.thumbnailStripElement.innerHTML = '';
-        jourFrame.imagesData.forEach((imgData, index) => {
-            const thumbDiv = document.createElement('div');
-            thumbDiv.className = 'crop-strip-thumb';
-            thumbDiv.style.backgroundImage = `url(${imgData.dataURL})`;
-            thumbDiv.dataset.index = index;
-            
-            thumbDiv.addEventListener('click', () => {
-                this.croppingManager.goToImage(index);
-            });
-
-            this.thumbnailStripElement.appendChild(thumbDiv);
-        });
-    }
-
-    _updateThumbnailStripHighlight(activeIndex) {
-        const thumbs = this.thumbnailStripElement.querySelectorAll('.crop-strip-thumb');
-        thumbs.forEach((thumb, index) => {
-            if (index === activeIndex) {
-                thumb.classList.add('active-crop-thumb');
-                thumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
-            } else {
-                thumb.classList.remove('active-crop-thumb');
-            }
-        });
-    }
-
-    showEditor() {
-        this.editorPanelElement.style.display = 'flex';
-        this.editorPlaceholderElement.style.display = 'none';
-    }
-
-    clearEditor() {
-        this.editorPanelElement.style.display = 'none';
-        this.editorPlaceholderElement.style.display = 'block';
-        this.editorTitleElement.textContent = "Sélectionnez un jour à recadrer";
-        this.thumbnailStripElement.innerHTML = '';
-
-        if (this.currentSelectedJourFrame) {
-             this.currentSelectedJourFrame = null;
-             this.populateJourList();
-        }
-    }
-}
-
-
 // =================================================================
 // --- CLASSE DescriptionManager ---
 // =================================================================
@@ -2743,7 +2943,6 @@ class PublicationOrganizer {
         this.scheduleContext = { schedule: {}, allUserJours: [] };
 
         this.imageSelectorInput = document.getElementById('imageSelector'); 
-        // MODIFICATION : Référence au nouveau bouton
         this.switchToGalleriesBtn = document.getElementById('switchToGalleriesBtn');
         this.addNewImagesBtn = document.getElementById('addNewImagesBtn');
         this.addPhotosToPreviewGalleryBtn = document.getElementById('addPhotosToPreviewGalleryBtn');
@@ -2782,7 +2981,6 @@ class PublicationOrganizer {
         this.galleryPreviewNameElement = document.getElementById('galleryPreviewName');
         this.galleryPreviewGridElement = document.getElementById('galleryPreviewGrid');
         this.galleryPreviewPlaceholder = document.getElementById('galleryPreviewPlaceholder');
-        // MODIFICATION : Référence au nouveau bouton "Trier"
         this.switchToEditorBtn = document.getElementById('switchToEditorBtn');
         this.selectedGalleryForPreviewId = null;
 
@@ -2810,7 +3008,6 @@ class PublicationOrganizer {
                 targetGalleryId = this.selectedGalleryForPreviewId;
                 if (!this.activeCallingButton) {
                     const previewAddBtn = this.galleryPreviewGridElement.querySelector('.add-photos-preview-btn');
-                    // MODIFICATION : `openGalleryInEditorBtn` est supprimé, on ne le référence plus.
                     this.activeCallingButton = previewAddBtn;
                 }
             } 
@@ -2831,7 +3028,6 @@ class PublicationOrganizer {
             }
         });
 
-        // MODIFICATION : Ajout des listeners pour les nouveaux boutons
         this.switchToGalleriesBtn.addEventListener('click', () => this.activateTab('galleries'));
         this.switchToEditorBtn.addEventListener('click', () => {
             if (this.selectedGalleryForPreviewId) {
@@ -3033,7 +3229,6 @@ class PublicationOrganizer {
             if (el.id !== 'imageSelector') el.disabled = noGalleryActive; 
         });
 
-        // MODIFICATION : Le bouton "Trier" doit aussi être désactivé s'il n'y a pas de galerie active
         if (this.switchToEditorBtn) {
             this.switchToEditorBtn.disabled = noGalleryActive;
         }
@@ -3187,14 +3382,12 @@ class PublicationOrganizer {
                 nameSpan.className = 'gallery-name';
                 nameSpan.textContent = gallery.name || `Galerie (ID: ...${gallery._id.slice(-6)})`;
                 
-                // --- MODIFICATION : Ajout du compteur d'images ---
                 if (typeof gallery.imageCount === 'number') {
                     const countSpan = document.createElement('span');
                     countSpan.className = 'gallery-photo-count';
                     countSpan.textContent = `(${gallery.imageCount})`;
                     nameSpan.appendChild(countSpan);
                 }
-                // --- FIN DE LA MODIFICATION ---
 
                 nameSpan.onclick = () => {
                     this.showGalleryPreview(gallery._id, gallery.name);
@@ -3248,7 +3441,6 @@ class PublicationOrganizer {
             }
         });
         
-        // MODIFICATION : Gestion de l'état des nouveaux boutons
         this.clearPreviewGalleryImagesBtn.disabled = false;
         this.clearPreviewGalleryImagesBtn.style.display = 'block';
         this.switchToEditorBtn.style.display = 'block';
@@ -3362,7 +3554,6 @@ class PublicationOrganizer {
         });
         this.clearPreviewGalleryImagesBtn.disabled = true;
         this.clearPreviewGalleryImagesBtn.style.display = 'none';
-        // MODIFICATION : Le bouton "Trier" doit aussi être désactivé
         this.switchToEditorBtn.style.display = 'none';
         this.addPhotosToPreviewGalleryBtn.style.display = 'none';
     }
@@ -3433,7 +3624,6 @@ class PublicationOrganizer {
         if(this.currentGalleryUploadProgressContainer) this.currentGalleryUploadProgressContainer.style.display = 'none';
 
         await this.loadState(); 
-        // MODIFICATION : Après avoir chargé une nouvelle galerie, on met à jour le bouton "Trier"
         if (this.selectedGalleryForPreviewId) {
             this.switchToEditorBtn.disabled = (this.selectedGalleryForPreviewId !== this.currentGalleryId);
         }
@@ -3670,7 +3860,6 @@ class PublicationOrganizer {
 
         if (callingButtonElement) callingButtonElement.disabled = true;
         this.imageSelectorInput.disabled = true;
-        // MODIFICATION : `openGalleryInEditorBtn` est supprimé
         if (!isGalleryTabActive) {
             if (this.addNewImagesBtn) this.addNewImagesBtn.disabled = true;
             if (this.addPhotosPlaceholderBtn) this.addPhotosPlaceholderBtn.disabled = true;

@@ -481,6 +481,7 @@ button.small-cancel-btn:hover {
     white-space: nowrap;
 }
 
+
 .main-editor-layout {
     display: flex;
     height: calc(100vh - 200px);
@@ -589,6 +590,7 @@ button.small-cancel-btn:hover {
 .grid-item-delete-btn:hover {
     background-color: #dc3545;
 }
+
 
 #jourFramesArea {
     width: 380px;
@@ -1238,10 +1240,7 @@ button.small-cancel-btn:hover {
     flex-grow: 1;
 }
 
-
-/* ============================================== */
-/* === NOUVEAUX STYLES: RECADRAGE AUTOMATIQUE === */
-/* ============================================== */
+/* === STYLES: RECADRAGE AUTOMATIQUE === */
 .auto-crop-frame {
     margin-top: 25px;
     padding-top: 15px;
@@ -1275,7 +1274,6 @@ button.small-cancel-btn:hover {
     gap: 10px;
 }
 .setting-options input[type="radio"] {
-    /* Cache le bouton radio natif */
     position: absolute;
     opacity: 0;
     width: 0;
@@ -1314,8 +1312,6 @@ button.small-cancel-btn:hover {
     line-height: 1.2;
     color: #333;
 }
-
-/* Style de l'option sélectionnée */
 .setting-options input[type="radio"]:checked + .auto-crop-button {
     border-color: var(--neon-yellow, #E0FF00);
     background-color: #fff;
@@ -1325,6 +1321,39 @@ button.small-cancel-btn:hover {
 }
 .setting-options input[type="radio"]:checked + .auto-crop-button .auto-crop-label-text {
     font-weight: 700;
+}
+
+/* === BOUTON & PROGRESSION AUTO-CROP === */
+.auto-crop-actions {
+    margin-top: 20px;
+    display: flex;
+    justify-content: center;
+}
+#runAutoCropBtn {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    padding: 0;
+    background-color: #28a745;
+    border: 2px solid #fff;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+    transition: transform 0.2s ease-out, background-color 0.2s;
+}
+#runAutoCropBtn:hover:not(:disabled) {
+    transform: scale(1.1);
+    background-color: #218838;
+}
+#runAutoCropBtn .btn-icon {
+    width: 24px;
+    height: 24px;
+    margin-right: 0;
+    filter: invert(1);
+}
+.auto-crop-progress {
+    margin-top: 15px;
+    font-size: 0.9em;
+    text-align: center;
+    color: var(--text-secondary);
 }
 
 

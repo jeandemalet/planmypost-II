@@ -91,7 +91,7 @@ exports.getJoursForGallery = async (req, res) => {
 
 exports.updateJour = async (req, res) => {
     const { galleryId, jourId } = req.params;
-    const { images, descriptionText, descriptionHashtags } = req.body;
+    const { images, descriptionText, descriptionHashtags, autoCropSettings } = req.body;
 
     if (images !== undefined && !Array.isArray(images)) {
         return res.status(400).send('Invalid images data format. Expected an array if provided.');
@@ -120,6 +120,16 @@ exports.updateJour = async (req, res) => {
     }
     if (typeof descriptionHashtags === 'string') {
         updatePayload.descriptionHashtags = descriptionHashtags;
+    }
+    
+    // Gérer la mise à jour des paramètres de recadrage automatique
+    if (autoCropSettings && typeof autoCropSettings === 'object') {
+        if (autoCropSettings.vertical) {
+            updatePayload['autoCropSettings.vertical'] = autoCropSettings.vertical;
+        }
+        if (autoCropSettings.horizontal) {
+            updatePayload['autoCropSettings.horizontal'] = autoCropSettings.horizontal;
+        }
     }
     
     if (Object.keys(updatePayload).length === 0) {
@@ -175,7 +185,6 @@ exports.deleteJour = async (req, res) => {
     }
 };
 
-// NOUVELLE FONCTION: Exporter les images d'un Jour en tant que ZIP
 exports.exportJourImagesAsZip = async (req, res) => {
     const { galleryId, jourId } = req.params;
 
@@ -183,7 +192,7 @@ exports.exportJourImagesAsZip = async (req, res) => {
         const jour = await Jour.findById(jourId)
             .populate({
                 path: 'images.imageId',
-                model: 'Image' // Assurez-vous que 'Image' est le nom correct de votre modèle
+                model: 'Image'
             });
 
         if (!jour || jour.galleryId.toString() !== galleryId) {
@@ -195,10 +204,9 @@ exports.exportJourImagesAsZip = async (req, res) => {
         }
 
         const archive = archiver('zip', {
-            zlib: { level: 9 } // Niveau de compression
+            zlib: { level: 9 }
         });
 
-        // Gérer les erreurs de l'archiveur
         archive.on('warning', function (err) {
             if (err.code === 'ENOENT') {
                 console.warn('Archiver warning (ENOENT):', err);
@@ -208,29 +216,23 @@ exports.exportJourImagesAsZip = async (req, res) => {
         });
         archive.on('error', function (err) {
             console.error('Archiver error:', err);
-            // Si les en-têtes ne sont pas encore envoyés, envoyez une erreur 500
             if (!res.headersSent) {
                 res.status(500).send({ error: 'Failed to create zip archive.', details: err.message });
             }
         });
 
-        // Définir le nom du fichier ZIP pour le téléchargement
         const zipFileName = `Jour${jour.letter}.zip`;
-        res.attachment(zipFileName); // Définit Content-Disposition et Content-Type
+        res.attachment(zipFileName);
 
-        // Pipe de l'archive vers la réponse HTTP
         archive.pipe(res);
 
-        // Ajouter les fichiers à l'archive
         for (let i = 0; i < jour.images.length; i++) {
             const imageEntry = jour.images[i];
             if (imageEntry.imageId && imageEntry.imageId.path) {
                 const imageDoc = imageEntry.imageId;
                 const filePath = path.join(UPLOAD_DIR, imageDoc.path);
 
-                // Vérifier si le fichier existe avant de l'ajouter
                 if (fs.existsSync(filePath)) {
-                    // Nettoyer le nom de fichier original pour l'utiliser dans le ZIP
                     const originalFilenameSafe = (imageDoc.originalFilename || imageDoc.filename)
                                                 .replace(/[^a-zA-Z0-9_.\-]/g, '_');
                     const filenameInZip = `Jour${jour.letter}_${String(i + 1).padStart(2, '0')}_${originalFilenameSafe}`;
@@ -241,7 +243,6 @@ exports.exportJourImagesAsZip = async (req, res) => {
             }
         }
 
-        // Finaliser l'archive (ne plus ajouter de fichiers après cela)
         await archive.finalize();
 
     } catch (error) {
