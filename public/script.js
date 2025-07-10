@@ -1,31 +1,18 @@
-// =================================================================
-// --- Contenu complet du fichier : public/script.js (Corrigé) ---
-// =================================================================
-
-// --- Constantes Globales et État ---
 const BASE_API_URL = '';
-const JOUR_COLORS = [
-    "red", "blue", "green", "purple", "orange",
-    "brown", "magenta", "gold", "cyan", "darkgreen",
-    "pink", "navy", "gray", "darkorange"
-];
+const JOUR_COLORS = ["red", "blue", "green", "purple", "orange", "brown", "magenta", "gold", "cyan", "darkgreen", "pink", "navy", "gray", "darkorange"];
 const CALENDAR_THUMB_SIZE = { width: 30, height: 30 };
 const CALENDAR_HOVER_THUMB_SIZE = { width: 100, height: 100 };
 const PREVIEW_WIDTH = 100;
 const PREVIEW_HEIGHT = 100;
 const CROPPER_BACKGROUND_GRAY = 'rgb(46, 46, 46)';
 
-// L'instance de l'application sera stockée ici.
 let app = null;
 
-// =================================================================
-// --- CLASSE UTILITAIRES ---
-// =================================================================
 class Utils {
     static async loadImage(urlOrFile) {
         return new Promise((resolve, reject) => {
             const img = new Image();
-            img.crossOrigin = "Anonymous"; // Essentiel pour charger des images depuis une autre origine sur le canvas
+            img.crossOrigin = "Anonymous";
             img.onload = () => resolve(img);
             img.onerror = (err) => {
                 console.error("Utils.loadImage error:", err, "Source:", typeof urlOrFile === 'string' ? urlOrFile : urlOrFile.name);
@@ -114,9 +101,6 @@ class Utils {
     }
 }
 
-// =================================================================
-// --- CLASSE GridItemBackend ---
-// =================================================================
 class GridItemBackend {
     static SERVER_THUMB_OPTIMAL_DISPLAY_WIDTH = 150; 
     static SERVER_THUMB_OPTIMAL_DISPLAY_HEIGHT = 150; 
@@ -166,7 +150,6 @@ class GridItemBackend {
         this.imgElement.onerror = () => { 
             const currentSrcFilename = Utils.getFilenameFromURL(this.imgElement.src);
             if (currentSrcFilename === this.thumbnailFilename && this.imagePath !== this.thumbnailPath) {
-                console.warn(`Thumbnail ${this.thumbnailPath} failed to load, trying full image ${this.imagePath}`);
                 this.imgElement.src = this.imagePath;
             } else {
                 this.drawErrorPlaceholderImg(`Img ${this.basename.substring(0,10)}`); 
@@ -274,9 +257,6 @@ class GridItemBackend {
     }
 }
 
-// =================================================================
-// --- CLASSE JourFrameBackend ---
-// =================================================================
 class JourFrameBackend {
     constructor(organizer, jourData) {
         this.organizer = organizer;
@@ -355,9 +335,7 @@ class JourFrameBackend {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         this.canvasWrapper.classList.add('drag-over');
-
         const afterElement = this.getDragAfterElement(e.clientX, e.clientY);
-
         if (afterElement == null) {
             this.canvasWrapper.appendChild(this.placeholderElement);
         } else {
@@ -367,17 +345,14 @@ class JourFrameBackend {
 
     getDragAfterElement(x) {
         const draggableElements = [...this.canvasWrapper.querySelectorAll('.jour-image-item:not(.dragging-jour-item)')];
-    
         for (const child of draggableElements) {
             const box = child.getBoundingClientRect();
             if (x < box.left + box.width / 2) {
                 return child;
             }
         }
-    
         return null;
     }
-
 
     onDragLeave(e) {
         if (!this.canvasWrapper.contains(e.relatedTarget)) {
@@ -421,7 +396,6 @@ class JourFrameBackend {
                 
                 if (draggedElement && sourceJourFrame) {
                     this.canvasWrapper.insertBefore(draggedElement, afterElement);
-                    
                     if (sourceJourFrame !== this) {
                         sourceJourFrame.syncDataArrayFromDOM();
                     }
@@ -439,7 +413,6 @@ class JourFrameBackend {
     syncDataArrayFromDOM() {
         const newImagesData = [];
         const imageElements = this.canvasWrapper.querySelectorAll('.jour-image-item');
-
         const allImageDataById = new Map();
         this.organizer.jourFrames.forEach(jf => {
             jf.imagesData.forEach(data => allImageDataById.set(data.imageId, data));
@@ -454,8 +427,6 @@ class JourFrameBackend {
                 });
             }
         });
-
-
         imageElements.forEach(element => {
             const imageId = element.dataset.imageId;
             const data = allImageDataById.get(imageId);
@@ -463,9 +434,7 @@ class JourFrameBackend {
                 newImagesData.push(data);
             }
         });
-
         this.imagesData = newImagesData;
-        
         this.organizer.updateGridUsage();
         this.debouncedSave();
         this.checkAndApplyCroppedStyle();
@@ -474,21 +443,18 @@ class JourFrameBackend {
     addImageFromBackendData(imageData, isGridItemInstance = false) {
         let galleryIdForURL = this.galleryId;
         let thumbFilename;
-
         if (isGridItemInstance) { 
             galleryIdForURL = imageData.galleryId;
             thumbFilename = Utils.getFilenameFromURL(imageData.thumbnailPath); 
         } else { 
             thumbFilename = Utils.getFilenameFromURL(imageData.thumbnailPath); 
         }
-
         const imageItemData = {
             imageId: imageData._id || imageData.id, 
             originalReferencePath: imageData.parentImageId || (imageData._id || imageData.id), 
             dataURL: `${BASE_API_URL}/api/uploads/${galleryIdForURL}/${thumbFilename}`, 
             isCropped: imageData.isCroppedVersion || false,
         };
-
         this.imagesData.push(imageItemData);
         const newElement = this.createJourItemElement(imageItemData);
         this.canvasWrapper.appendChild(newElement);
@@ -500,7 +466,6 @@ class JourFrameBackend {
         itemElement.style.backgroundImage = `url(${imageItemData.dataURL})`;
         itemElement.draggable = true;
         itemElement.dataset.imageId = imageItemData.imageId;
-
         itemElement.addEventListener('dragstart', (e) => {
             e.target.classList.add('dragging-jour-item');
             e.dataTransfer.setData("application/json", JSON.stringify({
@@ -510,11 +475,9 @@ class JourFrameBackend {
             }));
             e.dataTransfer.effectAllowed = "move";
         });
-    
         itemElement.addEventListener('dragend', (e) => {
             e.target.classList.remove('dragging-jour-item');
         });
-    
         const deleteBtn = document.createElement('span');
         deleteBtn.className = 'delete-btn';
         deleteBtn.innerHTML = '×';
@@ -552,19 +515,16 @@ class JourFrameBackend {
             alert("Erreur: Impossible de déterminer la galerie ou l'ID du jour pour l'exportation.");
             return;
         }
-
         const exportUrl = `${BASE_API_URL}/api/galleries/${this.galleryId}/jours/${this.id}/export`;
         const originalButtonText = this.exportJourImagesBtn.textContent;
         this.exportJourImagesBtn.textContent = 'Préparation...';
         this.exportJourImagesBtn.disabled = true;
-
         try {
             const response = await fetch(exportUrl);
             if (!response.ok) {
                 const errorText = await response.text();
                 throw new Error(`Erreur HTTP ${response.status}: ${errorText}`);
             }
-
             const blob = await response.blob();
             let filename = `Jour${this.letter}.zip`;
             const contentDisposition = response.headers.get('content-disposition');
@@ -574,9 +534,7 @@ class JourFrameBackend {
                     filename = filenameMatch[1];
                 }
             }
-
             Utils.downloadDataURL(window.URL.createObjectURL(blob), filename);
-
         } catch (error) {
             console.error(`Erreur lors de l'exportation du Jour ${this.letter}:`, error);
             alert(`Erreur d'exportation: ${error.message}`);
@@ -591,36 +549,27 @@ class JourFrameBackend {
             console.error("Cannot save Jour: Missing Jour ID or Gallery ID.");
             return false;
         }
-
-        const imagesToSave = this.imagesData.map((imgData, idx) => ({
-            imageId: imgData.imageId,
-            order: idx
-        }));
-
+        const imagesToSave = this.imagesData.map((imgData, idx) => ({ imageId: imgData.imageId, order: idx }));
         const payload = {
             images: imagesToSave,
             descriptionText: this.descriptionText,
             descriptionHashtags: this.descriptionHashtags
         };
-
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/jours/${this.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
-
             if (!response.ok) {
                 const errorData = await response.text();
                 throw new Error(`Failed to save Jour ${this.letter}: ${response.statusText} - ${errorData}`);
             }
             await response.json();
-            
             if (this.organizer && this.organizer.calendarPage && document.getElementById('calendar').classList.contains('active')) {
                 this.organizer.calendarPage.buildCalendarUI();
             }
             return true;
-
         } catch (error) {
             console.error(`Error saving Jour ${this.letter}:`, error);
             if (app && app.descriptionManager) {
@@ -634,11 +583,9 @@ class JourFrameBackend {
         let changesApplied = false;
         const newImagesDataArray = [];
         const finalElements = [];
-    
         this.canvasWrapper.querySelectorAll('.jour-image-item').forEach(element => {
             const currentImageId = element.dataset.imageId;
             const modificationOutput = modifiedDataMap[currentImageId];
-    
             if (modificationOutput) {
                 changesApplied = true;
                 if (Array.isArray(modificationOutput)) {
@@ -660,7 +607,6 @@ class JourFrameBackend {
                 }
             }
         });
-    
         if (changesApplied) {
             this.imagesData = newImagesDataArray;
             this.canvasWrapper.innerHTML = '';
@@ -685,15 +631,10 @@ class JourFrameBackend {
         this.imagesData.forEach((imgData, i) => {
             const label = `${this.letter}${i + 1}`;
             const originalId = imgData.originalReferencePath; 
-
             if (!usage.has(originalId)) {
                 usage.set(originalId, []);
             }
-            usage.get(originalId).push({
-                label: label,
-                color: color,
-                jourLetter: this.letter
-            });
+            usage.get(originalId).push({ label: label, color: color, jourLetter: this.letter });
         });
         return usage;
     }
@@ -713,9 +654,6 @@ class JourFrameBackend {
     }
 }
 
-// =================================================================
-// --- NOUVELLE CLASSE: AutoCropper ---
-// =================================================================
 class AutoCropper {
     constructor(organizerApp, croppingPage) {
         this.organizerApp = organizerApp;
@@ -732,10 +670,6 @@ class AutoCropper {
 
         this.runBtn.addEventListener('click', () => this.run());
 
-        // --- CORRECTION DE LA BOUCLE ---
-        // L'erreur venait du fait que nous tentions d'ajouter un listener à la NodeList elle-même.
-        // La bonne approche est d'itérer sur chaque NodeList (vertical et horizontal), PUIS
-        // d'itérer sur chaque radio à l'intérieur pour attacher l'écouteur.
         Object.values(this.radioGroups).forEach(nodeList => {
             nodeList.forEach(radio => {
                 radio.addEventListener('change', () => this.debouncedSaveSettings());
@@ -808,7 +742,7 @@ class AutoCropper {
         for (let i = 0; i < imagesToProcess.length; i++) {
             const imgData = imagesToProcess[i];
             
-            if (imgData.isCropped) continue; // On ne traite pas les images déjà recadrées
+            if (imgData.isCropped) continue;
 
             this.progressElement.textContent = `Traitement ${i + 1}/${imagesToProcess.length}...`;
 
@@ -820,7 +754,7 @@ class AutoCropper {
 
             try {
                 const image = await Utils.loadImage(originalGridItem.imagePath);
-                const isVertical = image.naturalHeight > image.naturalWidth * 1.02; // Marge pour les carrés
+                const isVertical = image.naturalHeight > image.naturalWidth * 1.02;
                 const setting = isVertical ? settings.vertical : settings.horizontal;
 
                 if (setting === 'none') {
@@ -886,7 +820,7 @@ class AutoCropper {
             } catch (err) {
                 console.error(`Erreur lors du traitement auto de l'image ${originalGridItem.basename}:`, err);
                 this.progressElement.textContent = `Erreur sur l'image ${i + 1}.`;
-                await new Promise(resolve => setTimeout(resolve, 1500)); // Pause to show error
+                await new Promise(resolve => setTimeout(resolve, 1500));
             }
         }
         
@@ -902,10 +836,6 @@ class AutoCropper {
     }
 }
 
-
-// =================================================================
-// --- CLASSE CroppingPage ---
-// =================================================================
 class CroppingPage {
     constructor(organizerApp) {
         this.organizerApp = organizerApp;
@@ -915,11 +845,9 @@ class CroppingPage {
         this.editorPlaceholderElement = document.getElementById('croppingEditorPlaceholder');
         this.editorTitleElement = document.getElementById('croppingEditorTitle');
         this.thumbnailStripElement = document.getElementById('croppingThumbnailStrip');
-        
         this.currentSelectedJourFrame = null;
         this.croppingManager = new CroppingManager(this.organizerApp, this);
         this.autoCropper = new AutoCropper(this.organizerApp, this);
-
         this.jourListElement.addEventListener('click', (e) => this.onJourClick(e));
     }
 
@@ -930,10 +858,7 @@ class CroppingPage {
             return;
         }
         this.populateJourList();
-
-        const stillExists =
-            this.currentSelectedJourFrame ? this.organizerApp.jourFrames.find(jf => jf.id === this.currentSelectedJourFrame.id) : null;
-        
+        const stillExists = this.currentSelectedJourFrame ? this.organizerApp.jourFrames.find(jf => jf.id === this.currentSelectedJourFrame.id) : null;
         if (stillExists) {
             this.selectJour(stillExists, true);
         } else if (this.organizerApp.jourFrames.length > 0) {
@@ -944,17 +869,12 @@ class CroppingPage {
     }
 
     populateJourList() {
-        this.organizerApp._populateSharedJourList(
-            this.jourListElement, 
-            this.currentSelectedJourFrame ? this.currentSelectedJourFrame.id : null, 
-            'cropping'
-        );
+        this.organizerApp._populateSharedJourList(this.jourListElement, this.currentSelectedJourFrame ? this.currentSelectedJourFrame.id : null, 'cropping');
     }
 
     onJourClick(event) {
         const li = event.target.closest('li');
         if (!li || !li.dataset.jourId) return;
-
         const jourFrame = this.organizerApp.jourFrames.find(jf => jf.id === li.dataset.jourId);
         if (jourFrame) {
             this.selectJour(jourFrame);
@@ -965,12 +885,9 @@ class CroppingPage {
         if (this.currentSelectedJourFrame === jourFrame && this.editorPanelElement.style.display !== 'none' && !preventStart) {
             return; 
         }
-
         this.currentSelectedJourFrame = jourFrame;
-        
         this.populateJourList();
         this.autoCropper.loadSettingsForJour(jourFrame);
-
         if (!preventStart) {
             this.startCroppingForJour(jourFrame);
         } else {
@@ -985,15 +902,11 @@ class CroppingPage {
             this.editorPlaceholderElement.textContent = `Le Jour ${jourFrame.letter} est vide et ne peut pas être recadré.`;
             return;
         }
-        
         this.editorTitleElement.textContent = `Recadrage pour Jour ${jourFrame.letter}`;
-        
         this._populateThumbnailStrip(jourFrame);
-
         const imageInfosForCropper = jourFrame.imagesData.map(imgData => {
             const originalImageInGrid = this.organizerApp.gridItemsDict[imgData.originalReferencePath];
             const baseImageToCropFromDataURL = originalImageInGrid ? originalImageInGrid.imagePath : imgData.dataURL;
-            
             return {
                 pathForCropper: imgData.imageId, 
                 dataURL: imgData.dataURL, 
@@ -1002,7 +915,6 @@ class CroppingPage {
                 currentImageId: imgData.imageId 
             };
         });
-        
         this.croppingManager.startCropping(imageInfosForCropper, jourFrame);
     }
     
@@ -1013,11 +925,9 @@ class CroppingPage {
             thumbDiv.className = 'crop-strip-thumb';
             thumbDiv.style.backgroundImage = `url(${imgData.dataURL})`;
             thumbDiv.dataset.index = index;
-            
             thumbDiv.addEventListener('click', () => {
                 this.croppingManager.goToImage(index);
             });
-
             this.thumbnailStripElement.appendChild(thumbDiv);
         });
     }
@@ -1044,7 +954,6 @@ class CroppingPage {
         this.editorPlaceholderElement.style.display = 'block';
         this.editorTitleElement.textContent = "Sélectionnez un jour à recadrer";
         this.thumbnailStripElement.innerHTML = '';
-
         if (this.currentSelectedJourFrame) {
              this.currentSelectedJourFrame = null;
              this.populateJourList();
@@ -1052,16 +961,10 @@ class CroppingPage {
     }
 }
 
-// ... (Le reste du fichier, CroppingManager, DescriptionManager, CalendarPage, PublicationOrganizer, et la logique d'initialisation restent inchangés) ...
-
-// =================================================================
-// --- CLASSE CroppingManager ---
-// =================================================================
 class CroppingManager {
     constructor(organizer, croppingPage) {
         this.organizer = organizer;
         this.croppingPage = croppingPage;
-        
         this.editorPanel = document.getElementById('croppingEditorPanel');
         this.canvasElement = document.getElementById('cropperCanvas');
         this.ctx = this.canvasElement.getContext('2d', { alpha: false }); 
@@ -1070,7 +973,6 @@ class CroppingManager {
         this.previewCenter = document.getElementById('cropperPreviewCenter'); 
         this.previewRight = document.getElementById('cropperPreviewRight');
         this.infoLabel = document.getElementById('cropperInfoLabel');
-        
         this.prevBtn = document.getElementById('cropPrevImageBtn');
         this.nextBtn = document.getElementById('cropNextImageBtn');
         this.flipBtn = document.getElementById('cropFlipBtn');
@@ -1079,31 +981,25 @@ class CroppingManager {
         this.splitLineBtn = document.getElementById('cropSplitLineBtn'); 
         this.deleteBtn = document.getElementById('cropDeleteBtn');
         this.finishBtn = document.getElementById('cropFinishBtn');
-
         this.imagesToCrop = []; 
         this.currentImageIndex = -1;
         this.currentImageObject = null; 
         this.modifiedDataMap = {}; 
         this.currentJourFrameInstance = null;
-        
         this.cropRectDisplay = null; 
         this.isDragging = false;
         this.dragMode = null; 
         this.dragStart = {};
         this.currentAspectRatioName = '3:4'; 
-        
         this.splitModeState = 0; 
         this.showSplitLineCount = 0; 
-
         this.flippedH = false;
         this.saveMode = 'crop'; 
         this.ignoreSaveForThisImage = false;
         this.handleSize = 18; 
         this.handleDetectionOffset = this.handleSize / 2 + 6; 
-
         this.debouncedUpdatePreview = Utils.debounce(() => this.updatePreview(), 150);
         this.debouncedHandleResize = Utils.debounce(() => this._handleResize(), 50);
-
         this._initListeners();
     }
 
@@ -1113,29 +1009,17 @@ class CroppingManager {
         this.nextBtn.onclick = () => this.nextImage(false); 
         this.deleteBtn.onclick = () => {
             if (this.currentImageIndex < 0 || this.currentImageIndex >= this.imagesToCrop.length) {
-                return; // No image selected
+                return;
             }
-
             const imageToDelete = this.imagesToCrop[this.currentImageIndex];
             const imageIdToDelete = imageToDelete.currentImageId;
             const originalGridItem = this.organizer.gridItemsDict[imageToDelete.originalReferenceId];
             const displayName = originalGridItem ? originalGridItem.basename : `Image ID ${imageToDelete.originalReferenceId}`;
-
-            // 1. Remove from the JourFrame, which handles DOM and data array
             if (this.currentJourFrameInstance) {
                 this.currentJourFrameInstance.removeImageById(imageIdToDelete);
             }
-
-            // 2. Remove from the cropper's internal list
             this.imagesToCrop.splice(this.currentImageIndex, 1);
-            
-            // 3. Refresh the thumbnail strip
             this.croppingPage._populateThumbnailStrip(this.currentJourFrameInstance);
-
-
-            // 4. Load the next image (or finish if it was the last one)
-            // No need to increment index, as splice shifts the array.
-            // If it was the last image, currentImageIndex will now be out of bounds, which loadCurrentImage handles.
             this.infoLabel.textContent = `Image ${displayName} supprimée du jour.`;
             this.loadCurrentImage();
         };
@@ -1143,23 +1027,19 @@ class CroppingManager {
         this.aspectRatioSelect.onchange = (e) => this.onRatioChanged(e.target.value);
         this.whiteBarsBtn.onclick = () => this.toggleWhiteBars();
         this.splitLineBtn.onclick = () => this.toggleSplitMode(); 
-
         this.canvasElement.onmousedown = (e) => this.onCanvasMouseDown(e);
         this.canvasElement.addEventListener('mousemove', (e) => this.onCanvasMouseMoveHover(e));
         document.addEventListener('mousemove', (e) => this.onDocumentMouseMoveDrag(e)); 
         document.addEventListener('mouseup', (e) => this.onDocumentMouseUp(e));
-        
         document.addEventListener('keydown', (e) => this.onDocumentKeyDown(e));
-        
         new ResizeObserver(this.debouncedHandleResize).observe(this.canvasElement.parentElement);
-     }
+    }
 
     refreshLayout() {
         if (this.currentImageObject) {
-            this._handleResize(); // _handleResize contient déjà toute la logique de recalcul.
+            this._handleResize();
         }
     }
-
 
     _handleResize() {
         if (!this.editorPanel.style.display || this.editorPanel.style.display === 'none' || !this.currentImageObject) return;
@@ -1187,12 +1067,68 @@ class CroppingManager {
                 width: relativeCrop.width * newImageDims.displayWidth,
                 height: relativeCrop.height * newImageDims.displayHeight
             };
+        } else if (this.currentImageObject) {
+            this.initializeCropWithSmartCrop();
+            return;
         }
         
         this.redrawCanvasOnly();
         this.debouncedUpdatePreview();
     }
     
+    async initializeCropWithSmartCrop() {
+        if (!this.currentImageObject || typeof smartcrop === 'undefined') {
+            this.setDefaultCropRect();
+            this.redrawCanvasOnly();
+            this.debouncedUpdatePreview();
+            return;
+        }
+
+        try {
+            const aspectRatioName = this.aspectRatioSelect.value;
+            this.currentAspectRatioName = aspectRatioName;
+
+            const imageDims = { width: this.currentImageObject.naturalWidth, height: this.currentImageObject.naturalHeight };
+            let cropOptionsForSmartcrop;
+
+            if (aspectRatioName === 'free') {
+                const size = Math.min(imageDims.width, imageDims.height);
+                cropOptionsForSmartcrop = { width: size, height: size };
+            } else {
+                const ratioParts = aspectRatioName.split(':').map(Number);
+                const targetRatio = ratioParts[0] / ratioParts[1];
+                const imageRatio = imageDims.width / imageDims.height;
+                if (imageRatio > targetRatio) {
+                    cropOptionsForSmartcrop = { width: imageDims.height * targetRatio, height: imageDims.height };
+                } else {
+                    cropOptionsForSmartcrop = { width: imageDims.width, height: imageDims.width / targetRatio };
+                }
+            }
+
+            const result = await smartcrop.crop(this.currentImageObject, cropOptionsForSmartcrop);
+            const bestCrop = result.topCrop;
+            const { displayX, displayY, imageScale } = this.getImageDisplayDimensions();
+
+            if (imageScale > 0) {
+                this.cropRectDisplay = {
+                    x: displayX + (bestCrop.x * imageScale),
+                    y: displayY + (bestCrop.y * imageScale),
+                    width: bestCrop.width * imageScale,
+                    height: bestCrop.height * imageScale
+                };
+                this.adjustCropRectToAspectRatio();
+            } else {
+                throw new Error("L'échelle de l'image est nulle.");
+            }
+        } catch(e) {
+            console.warn("Smartcrop a échoué, utilisation du recadrage par défaut.", e.message);
+            this.setDefaultCropRect();
+        } finally {
+            this.redrawCanvasOnly();
+            this.debouncedUpdatePreview();
+        }
+    }
+
     redrawCanvasOnly() {
         this._internalRedraw(false); 
     }
@@ -1363,7 +1299,6 @@ class CroppingManager {
             return;
         }
 
-        // Sauvegarder l'image actuelle avant de changer
         if (this.currentImageIndex >= 0) {
             await this.applyAndSaveCurrentImage();
         }
@@ -1396,91 +1331,30 @@ class CroppingManager {
 
         try {
             this.currentImageObject = await Utils.loadImage(imgInfo.baseImageToCropFromDataURL);
-
+            
             let defaultRatio;
             const imgWidth = this.currentImageObject.naturalWidth || this.currentImageObject.width;
             const imgHeight = this.currentImageObject.naturalHeight || this.currentImageObject.height;
 
-            if (imgWidth > imgHeight * 1.05) { // Clairement horizontale
-                defaultRatio = '3:2';
-            } else if (imgHeight > imgWidth * 1.05) { // Clairement verticale
-                defaultRatio = '3:4';
-            } else { // Carrée ou presque
-                defaultRatio = '1:1';
-            }
-            
+            if (imgWidth > imgHeight * 1.05) { defaultRatio = '3:2'; } 
+            else if (imgHeight > imgWidth * 1.05) { defaultRatio = '3:4'; }
+            else { defaultRatio = '1:1'; }
             this.aspectRatioSelect.value = defaultRatio;
-
-            if (this.currentImageObject && typeof smartcrop !== 'undefined') {
-                this.infoLabel.textContent = `Analyse intelligente de l'image...`;
-
-                const aspectRatioName = this.aspectRatioSelect.value;
-                this.currentAspectRatioName = aspectRatioName;
-
-                const imageDims = {
-                    width: this.currentImageObject.naturalWidth,
-                    height: this.currentImageObject.naturalHeight
-                };
-
-                let cropOptionsForSmartcrop;
-
-                if (aspectRatioName === 'free') {
-                    const size = Math.min(imageDims.width, imageDims.height);
-                    cropOptionsForSmartcrop = { width: size, height: size };
-                } else {
-                    const ratioParts = aspectRatioName.split(':').map(Number);
-                    const targetRatio = ratioParts[0] / ratioParts[1];
-                    const imageRatio = imageDims.width / imageDims.height;
-
-                    if (imageRatio > targetRatio) {
-                        cropOptionsForSmartcrop = { width: imageDims.height * targetRatio, height: imageDims.height };
-                    } else {
-                        cropOptionsForSmartcrop = { width: imageDims.width, height: imageDims.width / targetRatio };
-                    }
-                }
-                
-                const result = await smartcrop.crop(this.currentImageObject, cropOptionsForSmartcrop);
-                const bestCrop = result.topCrop;
-
-                const { displayX, displayY, imageScale } = this.getImageDisplayDimensions();
-                
-                if (imageScale > 0) {
-                    this.cropRectDisplay = {
-                        x: displayX + (bestCrop.x * imageScale),
-                        y: displayY + (bestCrop.y * imageScale),
-                        width: bestCrop.width * imageScale,
-                        height: bestCrop.height * imageScale
-                    };
-                } else {
-                    throw new Error("L'échelle de l'image est nulle, utilisation du recadrage par défaut.");
-                }
-
-                this.adjustCropRectToAspectRatio();
-
-            } else {
-                throw new Error("Smartcrop non disponible ou l'image n'a pu être chargée.");
-            }
+            
+            await this.initializeCropWithSmartCrop();
 
         } catch (e) {
-            console.warn("L'analyse Smartcrop a échoué ou n'a pas été utilisée, application du recadrage par défaut.", e.message);
-            
-            if (this.currentImageObject) {
-                this.onRatioChanged(this.aspectRatioSelect.value);
-            } else {
-                console.error(`Erreur chargement: ${displayName}:`, e);
-                this.infoLabel.textContent = `Erreur chargement: ${displayName}`;
-                this.currentImageObject = null;
-                this.updatePreview(null, null);
-                return;
-            }
+            console.error(`Erreur chargement: ${displayName}:`, e);
+            this.infoLabel.textContent = `Erreur chargement: ${displayName}`;
+            this.currentImageObject = null;
+            this.updatePreview(null, null);
+            return;
         }
         
         this.aspectRatioSelect.disabled = this.splitModeState > 0 || this.saveMode === 'white_bars';
         this.whiteBarsBtn.disabled = this.splitModeState > 0;
         this.splitLineBtn.disabled = this.saveMode === 'white_bars';
 
-        this.redrawCanvasOnly(); 
-        this.debouncedUpdatePreview();
         this.infoLabel.textContent = `Image ${this.currentImageIndex + 1}/${this.imagesToCrop.length}: ${displayName}`;
         this.croppingPage._updateThumbnailStripHighlight(this.currentImageIndex);
     }
@@ -1740,12 +1614,9 @@ class CroppingManager {
 
     toggleSplitMode() {
         if (!this.currentImageObject) return;
-
         this.splitModeState = (this.splitModeState + 1) % 3; 
-
         this.whiteBarsBtn.classList.remove('active-crop-btn'); 
         this.saveMode = 'crop'; 
-
         if (this.splitModeState === 1) { 
             this.currentAspectRatioName = '6:4split'; 
             this.aspectRatioSelect.disabled = true;
@@ -1817,12 +1688,9 @@ class CroppingManager {
             this.saveMode = 'crop';
             this.aspectRatioSelect.disabled = (this.splitModeState > 0);
             this.splitLineBtn.disabled = false;
-            
-            // CORRECTION : Redéfinir le ratio par défaut en se basant sur l'image
             let defaultRatio;
             const imgWidth = this.currentImageObject.naturalWidth || this.currentImageObject.width;
             const imgHeight = this.currentImageObject.naturalHeight || this.currentImageObject.height;
-
             if (imgWidth > imgHeight * 1.05) {
                 defaultRatio = '3:2';
             } else if (imgHeight > imgWidth * 1.05) {
@@ -1831,7 +1699,6 @@ class CroppingManager {
                 defaultRatio = '1:1';
             }
             this.aspectRatioSelect.value = defaultRatio;
-            
             this.onRatioChanged(defaultRatio);
             this.whiteBarsBtn.classList.remove('active-crop-btn');
         }
@@ -1841,41 +1708,33 @@ class CroppingManager {
     
     async applyAndSaveCurrentImage() { 
         if (this.ignoreSaveForThisImage || !this.currentImageObject || this.currentImageIndex < 0) return;
-
         const currentImgInfoForCropper = this.imagesToCrop[this.currentImageIndex];
         const originalImageId = currentImgInfoForCropper.originalReferenceId; 
         const currentImageIdInJour = currentImgInfoForCropper.currentImageId; 
         const galleryIdForAPI = this.currentJourFrameInstance.galleryId;
-
         const saveCanvas = document.createElement('canvas');
         const saveCtx = saveCanvas.getContext('2d');
         let cropOperationsPayloads = []; 
-
         try {
             if (this.saveMode === 'white_bars') {
                 const { finalWidth, finalHeight, pasteX, pasteY } = this.calculateWhiteBarDimensions();
                 if (!finalWidth || finalWidth <= 0 || !finalHeight || finalHeight <= 0) {
-                    throw new Error("Dimensions invalides (nulles ou négatives) pour l'ajout de barres blanches.");
+                    throw new Error("Dimensions invalides pour l'ajout de barres blanches.");
                 }
                 saveCanvas.width = finalWidth; saveCanvas.height = finalHeight;
                 saveCtx.fillStyle = 'white'; saveCtx.fillRect(0, 0, finalWidth, finalHeight);
                 this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, pasteX, pasteY, this.currentImageObject.naturalWidth, this.currentImageObject.naturalHeight);
                 const newDataURL = saveCanvas.toDataURL('image/jpeg', 0.92); 
                 cropOperationsPayloads.push({ imageDataUrl: newDataURL, cropInfo: 'barres_3x4', filenameSuffix: 'barres_3x4' }); 
-
             } else if (this.saveMode === 'crop' && this.cropRectDisplay) {
                 const { sx, sy, sWidth, sHeight } = this.getCropSourceCoordinates();
-                
                 if (sWidth <= 0 || sHeight <= 0) {
-                    console.warn("Tentative de sauvegarde avec des dimensions de recadrage invalides (<= 0). Annulation.", {sWidth, sHeight});
                     this.infoLabel.textContent = `Recadrage ignoré (dimensions invalides).`;
                     return;
                 }
-
                 if (this.splitModeState === 1) { 
                     const sWidthLeft = Math.floor(sWidth / 2);
                     const sWidthRight = sWidth - sWidthLeft; 
-
                     if (sWidthLeft > 0) { 
                         saveCanvas.width = sWidthLeft; saveCanvas.height = sHeight;
                         this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthLeft, sHeight, sx, sy, sWidthLeft, sHeight);
@@ -1891,7 +1750,6 @@ class CroppingManager {
                     const sWidthLeft = sWidthThird;
                     const sWidthMid = sWidthThird;
                     const sWidthRight = sWidth - sWidthLeft - sWidthMid;
-
                     if (sWidthLeft > 0) {
                         saveCanvas.width = sWidthLeft; saveCanvas.height = sHeight; saveCtx.clearRect(0,0,saveCanvas.width,saveCanvas.height);
                         this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthLeft, sHeight, sx, sy, sWidthLeft, sHeight);
@@ -1919,10 +1777,8 @@ class CroppingManager {
                 const backendResults = [];
                 for (const opPayload of cropOperationsPayloads) {
                     if (!opPayload.imageDataUrl || !opPayload.imageDataUrl.startsWith('data:image/jpeg;base64,')) {
-                        console.error('Données d\'image invalides générées, annulation de l\'envoi:', opPayload);
                         continue; 
                     }
-
                     const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryIdForAPI}/images/${originalImageId}/crop`, {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
@@ -1934,7 +1790,6 @@ class CroppingManager {
                     }
                     const newImageDoc = await response.json(); 
                     backendResults.push(newImageDoc);
-
                     if (!this.organizer.gridItemsDict[newImageDoc._id]) {
                         const newGridItem = new GridItemBackend(newImageDoc, this.organizer.currentThumbSize, this.organizer);
                         this.organizer.gridItems.push(newGridItem);
@@ -1942,7 +1797,6 @@ class CroppingManager {
                     }
                 }
                 this.modifiedDataMap[currentImageIdInJour] = backendResults.length === 1 ? backendResults[0] : backendResults;
-                
                 const savedNames = backendResults.map(doc => Utils.getFilenameFromURL(doc.filename)).join(', ');
                 this.infoLabel.textContent = `Sauvegardé: ${savedNames}`;
             } else {
@@ -1965,6 +1819,7 @@ class CroppingManager {
             await this.finishAndApply(); 
         }
     }
+
     async prevImage() { 
         if (this.currentImageIndex > 0) {
             this.currentImageIndex--;
@@ -2118,9 +1973,6 @@ class CroppingManager {
     }
 }
 
-// =================================================================
-// --- CLASSE DescriptionManager ---
-// =================================================================
 class DescriptionManager {
     constructor(organizerApp) {
         this.organizerApp = organizerApp;
@@ -2258,9 +2110,6 @@ class DescriptionManager {
     }
 }
 
-// =================================================================
-// --- CLASSE CalendarPage (VERSION DÉFINITIVEMENT CORRIGÉE) ---
-// =================================================================
 class CalendarPage {
     constructor(parentElement, organizerApp) {
         this.parentElement = parentElement;
@@ -2409,11 +2258,7 @@ class CalendarPage {
     }
 
     populateJourList() {
-        this.organizerApp._populateSharedJourList(
-            this.jourListElement,
-            null, 
-            'calendar'
-        );
+        this.organizerApp._populateSharedJourList(this.jourListElement, null, 'calendar');
     }
     
     createDayCell(dateObj, isOtherMonth, isToday = false, isPast = false) {
@@ -2927,9 +2772,6 @@ class CalendarPage {
     }
 }
 
-// =================================================================
-// --- CLASSE PublicationOrganizer ---
-// =================================================================
 class PublicationOrganizer {
     constructor() {
         this.currentGalleryId = null; 
@@ -2937,7 +2779,6 @@ class PublicationOrganizer {
         this.minThumbSize = { width: 50, height: 50 };
         this.maxThumbSize = { width: 300, height: 300 };
         this.zoomStep = 25;
-
         this.gridItems = []; 
         this.gridItemsDict = {}; 
         this.jourFrames = []; 
@@ -2946,9 +2787,7 @@ class PublicationOrganizer {
         this.galleryCache = {}; 
         this.activeUploadXHR = null; 
         this.activeCallingButton = null;
-
         this.scheduleContext = { schedule: {}, allUserJours: [] };
-
         this.imageSelectorInput = document.getElementById('imageSelector'); 
         this.switchToGalleriesBtn = document.getElementById('switchToGalleriesBtn');
         this.addNewImagesBtn = document.getElementById('addNewImagesBtn');
@@ -2959,22 +2798,16 @@ class PublicationOrganizer {
         this.zoomInBtn = document.getElementById('zoomInBtn');
         this.sortOptionsSelect = document.getElementById('sortOptions');
         this.clearPreviewGalleryImagesBtn = document.getElementById('clearPreviewGalleryImagesBtn');
-        
         this.statsArea = document.getElementById('statsArea');
         this.statsLabelText = document.getElementById('statsLabelText');
-        
         this.galleriesUploadProgressContainer = document.getElementById('galleriesUploadProgressContainer');
         this.galleriesUploadProgressText = document.getElementById('galleriesUploadProgressText');
         this.galleriesUploadProgressBarInner = document.getElementById('galleriesUploadProgressBarInner');
-
         this.currentGalleryUploadProgressContainer = document.getElementById('currentGalleryUploadProgressContainer');
         this.currentGalleryUploadProgressText = document.getElementById('currentGalleryUploadProgressText');
         this.currentGalleryUploadProgressBarInner = document.getElementById('currentGalleryUploadProgressBarInner');
-
         this.jourFramesContainer = document.getElementById('jourFramesContainer');
         this.addJourFrameBtn = document.getElementById('addJourFrameBtn');
-        
-        
         this.galleriesTabContent = document.getElementById('galleries');
         this.galleriesListElement = document.getElementById('galleriesList');
         this.createNewGalleryBtn = document.getElementById('createNewGalleryBtn');
@@ -2982,7 +2815,6 @@ class PublicationOrganizer {
         this.newGalleryNameInput = document.getElementById('newGalleryNameInput');
         this.confirmNewGalleryBtn = document.getElementById('confirmNewGalleryBtn');
         this.cancelNewGalleryBtn = document.getElementById('cancelNewGalleryBtn');
-
         this.galleryPreviewArea = document.getElementById('galleryPreviewArea');
         this.galleryPreviewHeader = document.getElementById('galleryPreviewHeader');
         this.galleryPreviewNameElement = document.getElementById('galleryPreviewName');
@@ -2990,14 +2822,11 @@ class PublicationOrganizer {
         this.galleryPreviewPlaceholder = document.getElementById('galleryPreviewPlaceholder');
         this.switchToEditorBtn = document.getElementById('switchToEditorBtn');
         this.selectedGalleryForPreviewId = null;
-
         this.tabs = document.querySelectorAll('.tab-button');
         this.tabContents = document.querySelectorAll('.tab-content');
-
         this.croppingPage = new CroppingPage(this);
         this.calendarPage = null;
         this.descriptionManager = null; 
-
         this._initListeners();
         this.updateAddPhotosPlaceholderVisibility();
         this.updateUIToNoGalleryState(); 
@@ -3010,12 +2839,10 @@ class PublicationOrganizer {
         });
         this.imageSelectorInput.addEventListener('change', (event) => {
             let targetGalleryId = null;
-
             if (document.getElementById('galleries').classList.contains('active') && this.selectedGalleryForPreviewId) {
                 targetGalleryId = this.selectedGalleryForPreviewId;
                 if (!this.activeCallingButton) {
-                    const previewAddBtn = this.galleryPreviewGridElement.querySelector('.add-photos-preview-btn');
-                    this.activeCallingButton = previewAddBtn;
+                    this.activeCallingButton = this.galleryPreviewGridElement.querySelector('.add-photos-preview-btn');
                 }
             } 
             else if (document.getElementById('currentGallery').classList.contains('active') && this.currentGalleryId) {
@@ -3028,13 +2855,12 @@ class PublicationOrganizer {
             if (targetGalleryId) {
                 this.handleFileSelection(event.target.files, targetGalleryId);
             } else {
-                alert("Veuillez sélectionner une galerie dans l'onglet 'Galeries' (cliquez sur son nom pour la prévisualiser) ou charger une galerie dans 'Galerie en cours' avant d'ajouter des images.");
+                alert("Veuillez sélectionner une galerie avant d'ajouter des images.");
                 this.imageSelectorInput.value = ""; 
                 if (this.activeCallingButton) this.activeCallingButton.disabled = false;
                 this.activeCallingButton = null;
             }
         });
-
         this.switchToGalleriesBtn.addEventListener('click', () => this.activateTab('galleries'));
         this.switchToEditorBtn.addEventListener('click', () => {
             if (this.selectedGalleryForPreviewId) {
@@ -3042,16 +2868,14 @@ class PublicationOrganizer {
             } else if (this.currentGalleryId) {
                 this.activateTab('currentGallery');
             } else {
-                alert("Aucune galerie n'est sélectionnée. Veuillez en sélectionner une dans la liste.");
+                alert("Aucune galerie n'est sélectionnée.");
             }
         });
-
         this.addNewImagesBtn.addEventListener('click', () => {
              if (!this.currentGalleryId) { alert("Veuillez d'abord charger ou créer une galerie."); return; }
              this.activeCallingButton = this.addNewImagesBtn; 
              this.imageSelectorInput.click()
         });
-
         this.addPhotosToPreviewGalleryBtn.addEventListener('click', () => {
             if (!this.selectedGalleryForPreviewId) { alert("Veuillez sélectionner une galerie pour y ajouter des images."); return; }
             this.activeCallingButton = this.addPhotosToPreviewGalleryBtn;
@@ -3062,7 +2886,6 @@ class PublicationOrganizer {
              this.activeCallingButton = this.addPhotosPlaceholderBtn; 
             this.imageSelectorInput.click()
         });
-
         this.zoomOutBtn.addEventListener('click', () => this.zoomOut());
         this.zoomInBtn.addEventListener('click', () => this.zoomIn());
         this.sortOptionsSelect.addEventListener('change', () => this.sortGridItemsAndReflow());
@@ -3094,56 +2917,45 @@ class PublicationOrganizer {
     _populateSharedJourList(listElement, activeJourId, listType) {
         listElement.innerHTML = '';
         const jours = this.jourFrames;
-
         if (!jours || jours.length === 0) {
             listElement.innerHTML = '<li>Aucun jour défini.</li>';
             return;
         }
-
         jours.forEach(jourFrame => {
             const li = document.createElement('li');
             li.className = 'jour-list-item';
             li.dataset.jourId = jourFrame.id;
-
             if (activeJourId === jourFrame.id) {
                 if (listType === 'cropping') li.classList.add('active-cropping-jour');
                 else if (listType === 'description') li.classList.add('active-description-jour');
             }
-
             const textSpan = document.createElement('span');
             textSpan.className = 'jour-list-item-text';
             textSpan.textContent = `Jour ${jourFrame.letter}`;
-
             const iconsDiv = document.createElement('div');
             iconsDiv.className = 'jour-list-item-icons';
-
             const isCropped = jourFrame.hasBeenProcessedByCropper;
             const hasDescription = (jourFrame.descriptionText && jourFrame.descriptionText.trim() !== '') || 
                                  (jourFrame.descriptionHashtags && jourFrame.descriptionHashtags.trim() !== '');
             const isScheduled = this.calendarPage ? this.calendarPage.isJourScheduled(jourFrame.galleryId, jourFrame.letter) : false;
-
             const cropIcon = document.createElement('img');
             cropIcon.className = 'status-icon crop-icon';
             cropIcon.src = 'assets/crop.png';
             cropIcon.title = isCropped ? 'Recadré' : 'Non recadré';
             if (isCropped) cropIcon.classList.add('active');
-            
             const descIcon = document.createElement('img');
             descIcon.className = 'status-icon desc-icon';
             descIcon.src = 'assets/description.png';
             descIcon.title = hasDescription ? 'Description ajoutée' : 'Pas de description';
             if (hasDescription) descIcon.classList.add('active');
-
             const scheduleIcon = document.createElement('img');
             scheduleIcon.className = 'status-icon schedule-icon';
             scheduleIcon.src = 'assets/calendar.png';
             scheduleIcon.title = isScheduled ? 'Planifié' : 'Non planifié';
             if (isScheduled) scheduleIcon.classList.add('active');
-
             iconsDiv.appendChild(cropIcon);
             iconsDiv.appendChild(descIcon);
             iconsDiv.appendChild(scheduleIcon);
-
             li.appendChild(textSpan);
             li.appendChild(iconsDiv);
             listElement.appendChild(li);
@@ -3164,47 +2976,37 @@ class PublicationOrganizer {
             alert("Les données du calendrier ne sont pas chargées.");
             return;
         }
-    
         const scheduledJours = [];
         const jourMap = new Map(this.scheduleContext.allUserJours.map(j => [`${j.galleryId}-${j.letter}`, j._id]));
-    
         for (const date in this.scheduleContext.schedule) {
             for (const letter in this.scheduleContext.schedule[date]) {
                 const item = this.scheduleContext.schedule[date][letter];
                 const jourId = jourMap.get(`${item.galleryId}-${letter}`);
                 if (jourId) {
                     if (!scheduledJours.some(j => j.jourId === jourId)) {
-                        scheduledJours.push({
-                            galleryId: item.galleryId,
-                            jourId: jourId
-                        });
+                        scheduledJours.push({ galleryId: item.galleryId, jourId: jourId });
                     }
                 }
             }
         }
-    
         if (scheduledJours.length === 0) {
             alert("Aucun jour n'est actuellement planifié dans le calendrier.");
             return;
         }
-    
         const downloadBtn = document.getElementById('downloadAllScheduledBtn');
         const originalText = downloadBtn.textContent;
         downloadBtn.textContent = 'Préparation...';
         downloadBtn.disabled = true;
-    
         try {
             const response = await fetch(`${BASE_API_URL}/api/jours/export-all-scheduled`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ jours: scheduledJours })
             });
-    
             if (!response.ok) {
                 const errorText = await response.text();
                 throw new Error(`Erreur serveur ${response.status}: ${errorText}`);
             }
-    
             const blob = await response.blob();
             let filename = 'Planning.zip';
             const contentDisposition = response.headers.get('content-disposition');
@@ -3214,9 +3016,7 @@ class PublicationOrganizer {
                     filename = filenameMatch[1];
                 }
             }
-    
             Utils.downloadDataURL(window.URL.createObjectURL(blob), filename);
-    
         } catch (error) {
             console.error("Erreur lors du téléchargement de tous les jours planifiés:", error);
             alert(`Erreur de téléchargement : ${error.message}`);
@@ -3228,18 +3028,14 @@ class PublicationOrganizer {
     
     updateUIToNoGalleryState() {
         const noGalleryActive = !this.currentGalleryId;
-        
         this.createNewGalleryBtn.disabled = false; 
-        
         const currentGalleryTabContent = document.getElementById('currentGallery');
         currentGalleryTabContent.querySelectorAll('button, select, input[type="file"]').forEach(el => {
             if (el.id !== 'imageSelector') el.disabled = noGalleryActive; 
         });
-
         if (this.switchToEditorBtn) {
             this.switchToEditorBtn.disabled = noGalleryActive;
         }
-
         if (noGalleryActive) {
             this.imageGridElement.innerHTML = '<p style="text-align:center; margin-top:20px;">Chargez ou créez une galerie pour voir les images.</p>';
             this.jourFramesContainer.innerHTML = '<p style="text-align:center;">Chargez ou créez une galerie pour gérer les jours.</p>';
@@ -3250,28 +3046,24 @@ class PublicationOrganizer {
         } else {
             this.updateAddPhotosPlaceholderVisibility(); 
         }
-
         const calendarTab = document.getElementById('calendar');
         const calendarSidebar = calendarTab.querySelector('#calendar-sidebar');
         const calendarMain = calendarTab.querySelector('#calendar-main-content');
-        
         if (calendarSidebar) {
             calendarSidebar.querySelectorAll('button, input, select').forEach(el => el.disabled = noGalleryActive);
         }
         if (calendarMain) {
             calendarMain.querySelectorAll('button').forEach(el => el.disabled = noGalleryActive);
         }
-
         if (this.calendarPage) {
              if (noGalleryActive) {
-                this.scheduleContext = { schedule: {}, allUserJours: [] }; // Vider les données
-                this.calendarPage.buildCalendarUI(); // Redessiner avec les données vides
+                this.scheduleContext = { schedule: {}, allUserJours: [] };
+                this.calendarPage.buildCalendarUI();
                 this.calendarPage.monthYearLabelElement.textContent = "Calendrier";
              } else {
                 this.calendarPage.buildCalendarUI(); 
              }
         }
-        
         const croppingTabContent = document.getElementById('cropping');
         croppingTabContent.querySelectorAll('button, select').forEach(el => el.disabled = noGalleryActive);
         if (this.croppingPage) {
@@ -3282,7 +3074,6 @@ class PublicationOrganizer {
                 this.croppingPage.show();
             }
         }
-
         const descriptionTabContent = document.getElementById('description');
         descriptionTabContent.querySelectorAll('button, textarea').forEach(el => el.disabled = noGalleryActive);
         if (this.descriptionManager) {
@@ -3293,85 +3084,66 @@ class PublicationOrganizer {
                 this.descriptionManager.show(); 
             }
         }
-
-
         if (noGalleryActive && !document.getElementById('galleries').classList.contains('active')) {
              this.activateTab('galleries');
         }
     }
 
+    activateTab(tabId) {
+        if (tabId === 'currentGallery' && !this.currentGalleryId && this.selectedGalleryForPreviewId) {
+            this.handleLoadGallery(this.selectedGalleryForPreviewId);
+            return;
+        }
+        if (tabId === 'currentGallery' && !this.currentGalleryId && !this.selectedGalleryForPreviewId) {
+            alert("Aucune galerie n'est sélectionnée. Veuillez en sélectionner une dans l'onglet 'Galeries'.");
+            return;
+        }
+        this.tabs.forEach(t => t.classList.remove('active'));
+        this.tabContents.forEach(tc => tc.classList.remove('active'));
+        const tabButton = document.querySelector(`.tab-button[data-tab="${tabId}"]`);
+        const tabContent = document.getElementById(tabId);
 
-    // Dans la classe PublicationOrganizer
-
-// Fichier: public/script.js
-// Dans la classe PublicationOrganizer
-
-activateTab(tabId) {
-    if (tabId === 'currentGallery' && !this.currentGalleryId && this.selectedGalleryForPreviewId) {
-        this.handleLoadGallery(this.selectedGalleryForPreviewId);
-        return;
-    }
-
-    if (tabId === 'currentGallery' && !this.currentGalleryId && !this.selectedGalleryForPreviewId) {
-        alert("Aucune galerie n'est sélectionnée. Veuillez en sélectionner une dans l'onglet 'Galeries'.");
-        return;
-    }
-
-    this.tabs.forEach(t => t.classList.remove('active'));
-    this.tabContents.forEach(tc => tc.classList.remove('active'));
-    
-    const tabButton = document.querySelector(`.tab-button[data-tab="${tabId}"]`);
-    const tabContent = document.getElementById(tabId);
-
-    if (tabButton && tabContent) {
-        tabButton.classList.add('active');
-        tabContent.classList.add('active');
-
-        if (tabId === 'galleries') {
-            this.loadGalleriesList();
-            if (!this.selectedGalleryForPreviewId) {
-                this.clearGalleryPreview();
+        if (tabButton && tabContent) {
+            tabButton.classList.add('active');
+            tabContent.classList.add('active');
+            if (tabId === 'galleries') {
+                this.loadGalleriesList();
+                if (!this.selectedGalleryForPreviewId) {
+                    this.clearGalleryPreview();
+                }
+            } else if (tabId === 'cropping') {
+                if (this.currentGalleryId) {
+                    this.croppingPage.show();
+                    requestAnimationFrame(() => {
+                        this.croppingPage.croppingManager.refreshLayout();
+                    });
+                }
+            } else if (tabId === 'description') {
+                if (!this.descriptionManager) {
+                    this.descriptionManager = new DescriptionManager(this);
+                }
+                if (this.currentGalleryId) {
+                    this.descriptionManager.show();
+                }
+            } else if (tabId === 'calendar') {
+                if (!this.calendarPage) {
+                    this.calendarPage = new CalendarPage(tabContent, this);
+                }
+                 if (this.currentGalleryId) {
+                    this.calendarPage.buildCalendarUI(); 
+                }
             }
-        } else if (tabId === 'cropping') {
-            if (this.currentGalleryId) {
-                // ================================================================
-                // --- CORRECTION DÉFINITIVE ---
-                // 1. On appelle .show() pour initialiser la logique (charger la première image si besoin, etc.)
-                this.croppingPage.show();
-                
-                // 2. On demande au navigateur d'exécuter le rafraîchissement juste après
-                //    que le conteneur soit devenu visible et ait ses dimensions.
-                requestAnimationFrame(() => {
-                    this.croppingPage.croppingManager.refreshLayout();
-                });
-                // ================================================================
-            }
-        } else if (tabId === 'description') {
-            if (!this.descriptionManager) {
-                this.descriptionManager = new DescriptionManager(this);
-            }
-            if (this.currentGalleryId) {
-                this.descriptionManager.show();
-            }
-        } else if (tabId === 'calendar') {
-            if (!this.calendarPage) {
-                this.calendarPage = new CalendarPage(tabContent, this);
-            }
-             if (this.currentGalleryId) {
-                this.calendarPage.buildCalendarUI(); 
+        } else { 
+            this.tabs[0]?.classList.add('active');
+            const firstTabId = this.tabs[0]?.dataset.tab;
+            if (firstTabId) {
+                 document.getElementById(firstTabId)?.classList.add('active');
+                 if (firstTabId === 'galleries') this.loadGalleriesList(); 
             }
         }
-    } else { 
-        this.tabs[0]?.classList.add('active');
-        const firstTabId = this.tabs[0]?.dataset.tab;
-        if (firstTabId) {
-             document.getElementById(firstTabId)?.classList.add('active');
-             if (firstTabId === 'galleries') this.loadGalleriesList(); 
-        }
+        this.updateUIToNoGalleryState();
+        this.saveAppState();
     }
-    this.updateUIToNoGalleryState();
-    this.saveAppState();
-}
 
     async loadGalleriesList() {
         this.galleriesListElement.innerHTML = '<li>Chargement des galeries...</li>';
@@ -3379,11 +3151,8 @@ activateTab(tabId) {
             const response = await fetch(`${BASE_API_URL}/api/galleries?sort=name_asc`);
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
             const galleries = await response.json();
-            
             this.galleryCache = {}; 
             galleries.forEach(g => this.galleryCache[g._id] = g.name);
-
-
             this.galleriesListElement.innerHTML = ''; 
             if (galleries.length === 0) {
                 this.galleriesListElement.innerHTML = '<li>Aucune galerie. Créez-en une !</li>';
@@ -3391,7 +3160,6 @@ activateTab(tabId) {
                 this.updateUIToNoGalleryState(); 
                 return;
             }
-
             galleries.forEach(gallery => {
                 const li = document.createElement('li');
                 li.className = 'gallery-list-item';
@@ -3399,48 +3167,39 @@ activateTab(tabId) {
                 if (gallery._id === this.selectedGalleryForPreviewId) { 
                     li.classList.add('selected-for-preview');
                 }
-
                 const nameSpan = document.createElement('span');
                 nameSpan.className = 'gallery-name';
                 nameSpan.textContent = gallery.name || `Galerie (ID: ...${gallery._id.slice(-6)})`;
-                
                 if (typeof gallery.imageCount === 'number') {
                     const countSpan = document.createElement('span');
                     countSpan.className = 'gallery-photo-count';
                     countSpan.textContent = `(${gallery.imageCount})`;
                     nameSpan.appendChild(countSpan);
                 }
-
                 nameSpan.onclick = () => {
                     this.showGalleryPreview(gallery._id, gallery.name);
                 }; 
-
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'gallery-actions';
-                
                 const renameBtn = document.createElement('button');
                 renameBtn.innerHTML = '<img src="assets/description.png" alt="Renommer" class="btn-icon">';
                 renameBtn.classList.add('rename-gallery-btn');
                 renameBtn.title = 'Renommer cette galerie';
                 renameBtn.onclick = () => this.handleRenameGallery(gallery._id, gallery.name);
-                
                 const deleteBtn = document.createElement('button');
                 deleteBtn.innerHTML = '<img src="assets/bin.png" alt="Supprimer" class="btn-icon">';
                 deleteBtn.classList.add('delete-gallery-btn');
                 deleteBtn.title = 'Supprimer cette galerie';
                 deleteBtn.onclick = () => this.handleDeleteGallery(gallery._id, gallery.name);
-                
                 actionsDiv.appendChild(renameBtn);
                 actionsDiv.appendChild(deleteBtn);
                 li.appendChild(nameSpan);
                 li.appendChild(actionsDiv);
                 this.galleriesListElement.appendChild(li);
             });
-
             if (!this.selectedGalleryForPreviewId && galleries.length > 0) {
                 this.showGalleryPreview(galleries[0]._id, galleries[0].name);
             }
-
         } catch (error) {
             console.error("Erreur lors du chargement de la liste des galeries:", error);
             this.galleriesListElement.innerHTML = `<li>Erreur de chargement: ${error.message}</li>`;
@@ -3455,28 +3214,23 @@ activateTab(tabId) {
         this.galleryPreviewNameElement.textContent = galleryName;
         this.galleryPreviewGridElement.innerHTML = '<p>Chargement des images...</p>';
         this.galleriesUploadProgressContainer.style.display = 'none'; 
-
         this.galleriesListElement.querySelectorAll('.gallery-list-item').forEach(item => {
             item.classList.remove('selected-for-preview');
             if (item.dataset.galleryId === galleryId) {
                 item.classList.add('selected-for-preview');
             }
         });
-        
         this.clearPreviewGalleryImagesBtn.disabled = false;
         this.clearPreviewGalleryImagesBtn.style.display = 'block';
         this.switchToEditorBtn.style.display = 'block';
         this.switchToEditorBtn.disabled = false;
         this.addPhotosToPreviewGalleryBtn.style.display = 'block';
         this.addPhotosToPreviewGalleryBtn.disabled = false;
-        
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryId}`);
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
             const galleryDetails = await response.json();
-            
             this.galleryCache[galleryId] = galleryDetails.galleryState.name;
-
             this.galleryPreviewGridElement.innerHTML = '';
             if (galleryDetails.images && galleryDetails.images.length > 0) {
                 galleryDetails.images.forEach(imgData => {
@@ -3484,14 +3238,12 @@ activateTab(tabId) {
                     itemDiv.className = 'grid-item'; 
                     itemDiv.style.width = `150px`;
                     itemDiv.style.height = `150px`;
-
                     const imgElement = document.createElement('img');
                     imgElement.src = `${BASE_API_URL}/api/uploads/${imgData.galleryId}/${Utils.getFilenameFromURL(imgData.thumbnailPath)}`;
                     imgElement.alt = imgData.originalFilename;
                     imgElement.style.objectFit = 'contain';
                     imgElement.style.width = '100%';
                     imgElement.style.height = '100%';
-
                     const deleteBtnPreview = document.createElement('button');
                     deleteBtnPreview.className = 'grid-item-delete-btn';
                     deleteBtnPreview.innerHTML = '&times;';
@@ -3501,7 +3253,6 @@ activateTab(tabId) {
                         e.stopPropagation();
                         this.handleDeleteImageFromPreview(galleryId, imgData._id, imgData.originalFilename);
                     };
-                    
                     itemDiv.appendChild(imgElement);
                     itemDiv.appendChild(deleteBtnPreview); 
                     this.galleryPreviewGridElement.appendChild(itemDiv);
@@ -3514,13 +3265,10 @@ activateTab(tabId) {
                     if (this.selectedGalleryForPreviewId) {
                         this.activeCallingButton = addPhotosBtn; 
                         this.imageSelectorInput.click();
-                    } else {
-                        alert("Erreur: Aucune galerie sélectionnée pour l'aperçu.");
                     }
                 };
                 this.galleryPreviewGridElement.appendChild(addPhotosBtn);
             }
-
         } catch (error) {
             console.error("Erreur lors du chargement de l'aperçu de la galerie:", error);
             this.galleryPreviewGridElement.innerHTML = `<p>Erreur: ${error.message}</p>`;
@@ -3540,10 +3288,7 @@ activateTab(tabId) {
                 throw new Error(`Échec de la suppression (preview): ${response.statusText} - ${errorText}`);
             }
             const result = await response.json();
-            console.log(result.message);
-
             await this.showGalleryPreview(previewGalleryId, this.galleryCache[previewGalleryId] || "Galerie");
-
             if (previewGalleryId === this.currentGalleryId) {
                 result.deletedImageIds.forEach(idToDelete => {
                     const itemInGrid = this.gridItemsDict[idToDelete];
@@ -3563,7 +3308,6 @@ activateTab(tabId) {
             alert(`Erreur lors de la suppression de l'image (preview) : ${error.message}`);
         }
     }
-
 
     clearGalleryPreview() {
         this.selectedGalleryForPreviewId = null;
@@ -3585,7 +3329,6 @@ activateTab(tabId) {
         const galleryName = this.newGalleryNameInput.value.trim() || `Galerie du ${new Date().toLocaleDateString('fr-FR')}`; 
         this.newGalleryForm.style.display = 'none';
         this.newGalleryNameInput.value = '';
-
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries`, {
                 method: 'POST',
@@ -3594,12 +3337,9 @@ activateTab(tabId) {
             });
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status} - ${await response.text()}`);
             const newGallery = await response.json();
-            
             this.galleryCache[newGallery._id] = newGallery.name; 
-
             await this.loadGalleriesList(); 
             this.showGalleryPreview(newGallery._id, newGallery.name); 
-
             if (!this.currentGalleryId) {
                  this.handleLoadGallery(newGallery._id);
             } else {
@@ -3617,34 +3357,22 @@ activateTab(tabId) {
             this.activateTab('currentGallery'); 
             return;
         }
-        
         if(this.currentGalleryId && this.currentGalleryId !== galleryId) {
             await this.saveAppState(); 
         }
-
         this.currentGalleryId = galleryId;
         localStorage.setItem('publicationOrganizer_lastGalleryId', this.currentGalleryId);
-        
         this.gridItems = [];
         this.gridItemsDict = {};
         this.imageGridElement.innerHTML = '';
         this.jourFrames = [];
         this.jourFramesContainer.innerHTML = '';
         this.currentJourFrame = null;
-
         this.scheduleContext = { schedule: {}, allUserJours: [] };
-        
-        if (this.descriptionManager) {
-            this.descriptionManager.clearEditor();
-        }
-
-        if (this.croppingPage) {
-            this.croppingPage.clearEditor();
-        }
-
+        if (this.descriptionManager) this.descriptionManager.clearEditor();
+        if (this.croppingPage) this.croppingPage.clearEditor();
         if(this.galleriesUploadProgressContainer) this.galleriesUploadProgressContainer.style.display = 'none';
         if(this.currentGalleryUploadProgressContainer) this.currentGalleryUploadProgressContainer.style.display = 'none';
-
         await this.loadState(); 
         if (this.selectedGalleryForPreviewId) {
             this.switchToEditorBtn.disabled = (this.selectedGalleryForPreviewId !== this.currentGalleryId);
@@ -3656,20 +3384,17 @@ activateTab(tabId) {
 
     async loadState() {
         if (!this.currentGalleryId) {
-            console.log("loadState called without a gallery ID. Resetting UI.");
             this.updateUIToNoGalleryState();
             return;
         }
-
         const loadingOverlay = document.getElementById('loadingOverlay');
         loadingOverlay.style.display = 'flex';
         loadingOverlay.querySelector('p').textContent = 'Chargement de la galerie...';
-
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}`);
             if (!response.ok) {
                 if (response.status === 404) {
-                    alert("La galerie demandée n'a pas été trouvée. Elle a peut-être été supprimée.");
+                    alert("La galerie demandée n'a pas été trouvée.");
                     localStorage.removeItem('publicationOrganizer_lastGalleryId');
                     this.currentGalleryId = null;
                     this.clearGalleryPreview();
@@ -3681,26 +3406,22 @@ activateTab(tabId) {
                 return;
             }
             const data = await response.json();
-
             this.gridItems = [];
             this.gridItemsDict = {};
             this.imageGridElement.innerHTML = '';
             this.jourFrames = [];
             this.jourFramesContainer.innerHTML = '';
             this.currentJourFrame = null;
-
             const galleryState = data.galleryState || {};
             this.galleryCache[this.currentGalleryId] = galleryState.name || 'Galerie sans nom';
             document.getElementById('currentGalleryNameDisplay').textContent = `Galerie : ${this.getCurrentGalleryName()}`;
             this.currentThumbSize = galleryState.currentThumbSize || { width: 150, height: 150 };
             this.sortOptionsSelect.value = galleryState.sortOption || 'date_desc';
             this.nextJourIndex = galleryState.nextJourIndex || 0;
-
             if (data.images && data.images.length > 0) {
                 this.addImagesToGrid(data.images);
                 this.sortGridItemsAndReflow();
             }
-            
             if (data.jours && data.jours.length > 0) {
                 data.jours.sort((a, b) => a.index - b.index).forEach(jourData => {
                     const newJourFrame = new JourFrameBackend(this, jourData);
@@ -3709,26 +3430,20 @@ activateTab(tabId) {
                 });
                 this.recalculateNextJourIndex();
             }
-
             this.scheduleContext = {
                 schedule: data.schedule || {},
                 allUserJours: data.scheduleContext.allUserJours || []
             };
-
             if (this.calendarPage) {
                 this.calendarPage.buildCalendarUI();
             }
-            
             this.updateGridUsage();
             this.updateStatsLabel();
             this.updateAddPhotosPlaceholderVisibility();
             this.updateGridItemStyles();
             this.updateUIToNoGalleryState(); 
-
             const activeTab = galleryState.activeTab || 'currentGallery';
             this.activateTab(activeTab);
-
-
         } catch (error) {
             console.error("Erreur critique lors du chargement de l'état de la galerie:", error);
             loadingOverlay.querySelector('p').innerHTML = `Erreur de chargement: ${error.message}<br/>Veuillez rafraîchir.`;
@@ -3750,7 +3465,6 @@ activateTab(tabId) {
                 });
                 if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
                 this.galleryCache[galleryId] = newName.trim(); 
-
                 await this.loadGalleriesList(); 
                 if (this.selectedGalleryForPreviewId === galleryId) { 
                     this.showGalleryPreview(galleryId, newName.trim());
@@ -3763,25 +3477,20 @@ activateTab(tabId) {
     }
     
     async handleDeleteGallery(galleryId, galleryName) {
-        if (!confirm(`Êtes-vous sûr de vouloir supprimer la galerie "${galleryName || galleryId}" et toutes ses données (images, jours, calendrier) ?\nCETTE ACTION EST IRRÉVERSIBLE.`)) {
+        if (!confirm(`Êtes-vous sûr de vouloir supprimer la galerie "${galleryName || galleryId}" et toutes ses données ?\nCETTE ACTION EST IRRÉVERSIBLE.`)) {
             return;
         }
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryId}`, { method: 'DELETE' });
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status} - ${await response.text()}`);
-            
-            console.log(`Galerie ${galleryId} supprimée.`);
             delete this.galleryCache[galleryId]; 
-
             if (this.selectedGalleryForPreviewId === galleryId) { 
                 this.clearGalleryPreview();
             }
-            
             const wasCurrentGallery = (this.currentGalleryId === galleryId);
             if (wasCurrentGallery) {
                 this.currentGalleryId = null;
                 localStorage.removeItem('publicationOrganizer_lastGalleryId');
-                
                 this.gridItems = [];
                 this.gridItemsDict = {};
                 this.imageGridElement.innerHTML = '';
@@ -3793,12 +3502,9 @@ activateTab(tabId) {
                 if (this.descriptionManager) this.descriptionManager.clearEditor();
                 if (this.croppingPage) this.croppingPage.clearEditor();
             }
-
             await this.loadGalleriesList(); 
-            
             const galleryListItems = this.galleriesListElement.querySelectorAll('li');
             const noGalleriesLeft = galleryListItems.length === 0 || (galleryListItems.length === 1 && galleryListItems[0].textContent.includes("Aucune galerie"));
-
             if (noGalleriesLeft) {
                  this.currentGalleryId = null; 
                  localStorage.removeItem('publicationOrganizer_lastGalleryId');
@@ -3807,13 +3513,11 @@ activateTab(tabId) {
                 this.activateTab('galleries'); 
             }
             this.updateUIToNoGalleryState(); 
-
         } catch (error) {
             console.error("Erreur lors de la suppression de la galerie:", error);
             alert(`Impossible de supprimer la galerie: ${error.message}`);
         }
     }
-
 
     updateAddPhotosPlaceholderVisibility() {
         if (!this.currentGalleryId) { 
@@ -3822,7 +3526,6 @@ activateTab(tabId) {
             this.imageGridElement.style.display = 'block'; 
             return;
         }
-
         if (this.gridItems.length === 0) {
             this.addPhotosPlaceholderBtn.style.display = 'block';
             this.imageGridElement.style.display = 'none'; 
@@ -3834,7 +3537,6 @@ activateTab(tabId) {
 
     async handleFileSelection(filesArray, targetGalleryIdForUpload) {
         const callingButtonElement = this.activeCallingButton; 
-
         if (!targetGalleryIdForUpload) {
             alert("Veuillez sélectionner une galerie pour y ajouter des images.");
             this.imageSelectorInput.value = "";
@@ -3848,15 +3550,12 @@ activateTab(tabId) {
             this.activeCallingButton = null;
             return;
         }
-
         const BATCH_SIZE = 30; 
         const totalFiles = filesArray.length;
         let filesUploadedSuccessfully = 0;
         let allNewImageDocs = []; 
-
         let progressContainer, progressTextEl, progressBarInnerEl;
         const isGalleryTabActive = document.getElementById('galleries').classList.contains('active');
-        
         if (isGalleryTabActive && this.galleriesUploadProgressContainer) {
             progressContainer = this.galleriesUploadProgressContainer;
             progressTextEl = this.galleriesUploadProgressText;
@@ -3866,49 +3565,35 @@ activateTab(tabId) {
             progressTextEl = this.currentGalleryUploadProgressText;
             progressBarInnerEl = this.currentGalleryUploadProgressBarInner;
         } else {
-            console.error("UI de progression non trouvée.");
-            alert("Erreur UI : Impossible d'afficher la progression.");
-            this.imageSelectorInput.value = "";
-            if(callingButtonElement) callingButtonElement.disabled = false;
-            this.activeCallingButton = null;
             return;
         }
-        
         progressContainer.style.display = 'block';
         progressBarInnerEl.style.width = '0%';
         progressBarInnerEl.textContent = '0%';
         progressBarInnerEl.style.backgroundColor = '#007bff';
         progressTextEl.textContent = `Préparation de l'upload de ${totalFiles} images...`;
-
         if (callingButtonElement) callingButtonElement.disabled = true;
         this.imageSelectorInput.disabled = true;
         if (!isGalleryTabActive) {
             if (this.addNewImagesBtn) this.addNewImagesBtn.disabled = true;
             if (this.addPhotosPlaceholderBtn) this.addPhotosPlaceholderBtn.disabled = true;
         }
-
         for (let i = 0; i < totalFiles; i += BATCH_SIZE) {
             const batchFiles = Array.from(filesArray).slice(i, i + BATCH_SIZE);
             const batchNumber = Math.floor(i / BATCH_SIZE) + 1;
             const totalBatches = Math.ceil(totalFiles / BATCH_SIZE);
-
             const imageFilesInBatch = batchFiles.filter(f => f.type.startsWith('image/'));
             if (imageFilesInBatch.length === 0) {
-                console.log(`[CLIENT] Lot ${batchNumber}/${totalBatches} ne contient aucune image, ignoré.`);
                 continue; 
             }
-
             const formData = new FormData();
             for (const file of imageFilesInBatch) {
                 formData.append('images', file, file.name);
             }
-            
             const overallProgressPercentBeforeBatch = Math.round((filesUploadedSuccessfully / totalFiles) * 100);
             progressBarInnerEl.style.width = `${overallProgressPercentBeforeBatch}%`;
             progressBarInnerEl.textContent = `${overallProgressPercentBeforeBatch}%`;
             progressTextEl.textContent = `Envoi du lot ${batchNumber}/${totalBatches} (${imageFilesInBatch.length} images)...`;
-
-
             try {
                 const batchResult = await this.sendBatch(formData, targetGalleryIdForUpload, (progressEvent) => {
                     if (progressEvent.lengthComputable) {
@@ -3916,11 +3601,9 @@ activateTab(tabId) {
                         progressTextEl.textContent = `Envoi du lot ${batchNumber}/${totalBatches} (${imageFilesInBatch.length} images)... ${batchUploadPercent}%`;
                     }
                 });
-
                 if (batchResult && Array.isArray(batchResult)) {
                     allNewImageDocs.push(...batchResult);
                     filesUploadedSuccessfully += batchResult.length; 
-
                     if (targetGalleryIdForUpload === this.currentGalleryId) {
                         this.addImagesToGrid(batchResult); 
                     } else if (targetGalleryIdForUpload === this.selectedGalleryForPreviewId && isGalleryTabActive) {
@@ -3928,9 +3611,6 @@ activateTab(tabId) {
                     }
                 }
                 progressBarInnerEl.style.backgroundColor = '#007bff'; 
-                console.log(`[CLIENT] Lot ${batchNumber} traité. Images serveur pour ce lot: ${batchResult ? batchResult.length : 0}. Total serveur: ${allNewImageDocs.length}`);
-
-
             } catch (error) {
                 console.error(`[CLIENT] Erreur lors de l'envoi du lot ${batchNumber}:`, error);
                 progressTextEl.textContent = `Erreur sur lot ${batchNumber}. ${error.message ? String(error.message).substring(0,40) : 'Erreur'}.`;
@@ -3946,7 +3626,6 @@ activateTab(tabId) {
                 return; 
             }
         }
-        
         progressBarInnerEl.style.width = '100%';
         progressBarInnerEl.textContent = '100%';
         if (filesUploadedSuccessfully >= totalFiles && allNewImageDocs.length >= totalFiles) {
@@ -3959,12 +3638,10 @@ activateTab(tabId) {
              progressTextEl.textContent = `Échec. Aucune image ajoutée. Vérifiez console.`;
             progressBarInnerEl.style.backgroundColor = '#dc3545';
         }
-
         if (targetGalleryIdForUpload === this.currentGalleryId) {
              this.sortGridItemsAndReflow(); 
              this.updateGridUsage();
         }
-
         if (callingButtonElement) callingButtonElement.disabled = false;
         this.imageSelectorInput.disabled = false;
         this.imageSelectorInput.value = ""; 
@@ -3972,20 +3649,16 @@ activateTab(tabId) {
             if (this.addNewImagesBtn) this.addNewImagesBtn.disabled = false;
             if (this.addPhotosPlaceholderBtn) this.addPhotosPlaceholderBtn.disabled = false;
         }
-
         setTimeout(() => {
             progressContainer.style.display = 'none';
             this.updateStatsLabel();
             this.updateAddPhotosPlaceholderVisibility();
         }, 5000); 
-
         this.activeCallingButton = null;
     }
     
     addImagesToGrid(imagesDataArray) {
         if (!Array.isArray(imagesDataArray) || imagesDataArray.length === 0) return;
-        console.log(`[CLIENT addImagesToGrid] Ajout de ${imagesDataArray.length} images à la grille.`);
-
         let addedCount = 0;
         imagesDataArray.forEach(imgData => {
             if (imgData && imgData._id) {
@@ -4006,11 +3679,7 @@ activateTab(tabId) {
                     this.gridItems.push(gridItem); 
                     this.gridItemsDict[imgData._id] = gridItem;
                     addedCount++;
-                } else {
-                    console.warn(`[CLIENT addImagesToGrid] L'image ${imgData._id} existe déjà.`);
                 }
-            } else {
-                console.warn('[CLIENT addImagesToGrid] Donnée d\'image invalide:', imgData);
             }
         });
         if (addedCount > 0) {
@@ -4025,42 +3694,26 @@ activateTab(tabId) {
         return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.open('POST', `${BASE_API_URL}/api/galleries/${galleryId}/images`, true);
-            
             if (onProgress && typeof onProgress === 'function') {
                 xhr.upload.onprogress = onProgress;
             }
-
             xhr.onload = () => {
                 if (xhr.status >= 200 && xhr.status < 300) {
                     try {
-                        const newImagesData = JSON.parse(xhr.responseText);
-                        console.log(`[CLIENT sendBatch] Lot réussi, images reçues:`, newImagesData.length);
-                        resolve(newImagesData);
+                        resolve(JSON.parse(xhr.responseText));
                     } catch (e) {
-                        console.error("[CLIENT sendBatch] Erreur parsing JSON du lot:", e, xhr.responseText);
                         reject(new Error("Réponse serveur invalide pour le lot."));
                     }
                 } else {
                     const errorMsg = `Échec du lot (${xhr.status} ${xhr.statusText}). Réponse: ${xhr.responseText.substring(0,100)}`;
-                    console.error(`[CLIENT sendBatch] Erreur serveur pour le lot: ${xhr.status} ${xhr.statusText}`, xhr.responseText);
                     reject(new Error(errorMsg));
                 }
             };
-
-            xhr.onerror = () => {
-                console.error("[CLIENT sendBatch] Erreur réseau pour le lot.");
-                reject(new Error("Erreur réseau lors de l'envoi du lot."));
-            };
-            
-            xhr.onabort = () => {
-                console.log("[CLIENT sendBatch] Upload du lot annulé.");
-                reject(new Error("Upload du lot annulé."));
-            };
-
+            xhr.onerror = () => reject(new Error("Erreur réseau lors de l'envoi du lot."));
+            xhr.onabort = () => reject(new Error("Upload du lot annulé."));
             xhr.send(formData);
         });
     }
-
 
     async deleteImageFromGrid(imageId) {
         if (!this.currentGalleryId || !imageId) {
@@ -4069,8 +3722,7 @@ activateTab(tabId) {
         }
         const gridItemToDelete = this.gridItemsDict[imageId];
         const imageNameForConfirm = gridItemToDelete ? gridItemToDelete.basename : `ID ${imageId}`;
-
-        if (!confirm(`Voulez-vous vraiment supprimer l'image "${imageNameForConfirm}" et toutes ses utilisations (y compris versions recadrées si c'est une originale) ?`)) {
+        if (!confirm(`Voulez-vous vraiment supprimer l'image "${imageNameForConfirm}" et toutes ses utilisations ?`)) {
             return;
         }
         try {
@@ -4082,8 +3734,6 @@ activateTab(tabId) {
                 throw new Error(`Échec de la suppression de l'image: ${response.statusText} - ${errorText}`);
             }
             const result = await response.json(); 
-            console.log(result.message);
-
             result.deletedImageIds.forEach(idToDelete => {
                 const itemInGrid = this.gridItemsDict[idToDelete];
                 if (itemInGrid) {
@@ -4095,11 +3745,9 @@ activateTab(tabId) {
                     jf.removeImageById(idToDelete); 
                 });
             });
-
             this.updateGridUsage(); 
             this.updateStatsLabel();
             this.updateAddPhotosPlaceholderVisibility();
-
         } catch (error) {
             console.error("Error deleting image from grid:", error);
             alert(`Erreur lors de la suppression de l'image : ${error.message}`);
@@ -4113,43 +3761,32 @@ activateTab(tabId) {
             return;
         }
         const galleryNameToConfirm = this.galleryCache[galleryIdToClear] || galleryIdToClear;
-
-        if (!confirm(`ÊTES-VOUS SÛR de vouloir supprimer TOUTES les images de la galerie "${galleryNameToConfirm}" ?\nCette action est irréversible et affectera aussi les Jours et le Calendrier si cette galerie est chargée.`)) {
+        if (!confirm(`ÊTES-VOUS SÛR de vouloir supprimer TOUTES les images de la galerie "${galleryNameToConfirm}" ?\nCette action est irréversible.`)) {
             return;
         }
-
         try {
-            const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryIdToClear}/images`, { 
-                method: 'DELETE'
-            });
+            const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryIdToClear}/images`, { method: 'DELETE' });
             if (!response.ok) {
                 const errorText = await response.text();
                 throw new Error(`Échec du vidage de la galerie: ${response.statusText} - ${errorText}`);
             }
-            console.log(await response.text()); 
-
             this.showGalleryPreview(galleryIdToClear, galleryNameToConfirm);
-
             if (this.currentGalleryId === galleryIdToClear) {
                 this.imageGridElement.innerHTML = '';
                 this.gridItems = [];
                 this.gridItemsDict = {};
-
                 this.jourFrames.forEach(jf => {
                     jf.imagesData = []; 
                     jf.syncDataArrayFromDOM(); 
                 });
-
                 this.updateGridUsage(); 
                 this.updateStatsLabel(); 
                 this.updateAddPhotosPlaceholderVisibility();
-                
                 if (this.calendarPage && document.getElementById('calendar').classList.contains('active')) {
-                    this.scheduleContext.schedule = {}; // Vider les données
+                    this.scheduleContext.schedule = {};
                     this.calendarPage.buildCalendarUI();
                 }
             }
-
         } catch (error) {
             console.error("Error clearing all gallery images:", error);
             alert(`Erreur lors du vidage de la galerie : ${error.message}`);
@@ -4200,7 +3837,6 @@ activateTab(tabId) {
                 default: return 0;
             }
         });
-
         this.gridItems.forEach(item => this.imageGridElement.appendChild(item.element));
         this.updateGridUsage(); 
         this.saveAppState();
@@ -4208,16 +3844,11 @@ activateTab(tabId) {
 
     onGridItemClick(gridItem) { 
         if (!gridItem || !gridItem.isValid) return; 
-
         if (!this.currentJourFrame) {
-            alert("Veuillez d'abord sélectionner ou ajouter un Jour de publication actif (cliquez sur son label).");
+            alert("Veuillez d'abord sélectionner ou ajouter un Jour de publication actif.");
             return;
         }
-        
-        const alreadyInCurrentJourFrame = this.currentJourFrame.imagesData.some(
-            imgData => imgData.imageId === gridItem.id 
-        );
-
+        const alreadyInCurrentJourFrame = this.currentJourFrame.imagesData.some(imgData => imgData.imageId === gridItem.id);
         if (alreadyInCurrentJourFrame) { 
             this.currentJourFrame.removeImageById(gridItem.id);
         } else {
@@ -4225,12 +3856,10 @@ activateTab(tabId) {
             const originalId = gridItem.parentImageId || gridItem.id;
             const usageArray = combinedUsage.get(originalId) || [];
             const uniqueJourLetters = new Set(usageArray.map(u => u.jourLetter));
-
             if (uniqueJourLetters.size >= 4) {
                 alert("Une image ne peut pas être sélectionnée dans plus de 4 jours différents.");
                 return;
             }
-
             const newElement = this.currentJourFrame.createJourItemElement({
                 imageId: gridItem.id,
                 originalReferencePath: gridItem.parentImageId || gridItem.id,
@@ -4244,13 +3873,10 @@ activateTab(tabId) {
 
     updateGridUsage() {
         const combinedUsage = this.getCombinedUsageMapForMultiDay(); 
-        
         for (const imageId in this.gridItemsDict) { 
             const gridItem = this.gridItemsDict[imageId];
             const originalIdToCompare = gridItem.parentImageId || gridItem.id;
-
             const usageArray = combinedUsage.get(originalIdToCompare);
-
             if (usageArray && usageArray.length > 0) {
                 if (usageArray.length === 1) {
                     gridItem.markUsed(usageArray[0].label, usageArray[0].color);
@@ -4276,14 +3902,11 @@ activateTab(tabId) {
                 existing.push(...usageInfos);
             }
         });
-
         for (const usages of combined.values()) {
             usages.sort((a, b) => a.jourLetter.localeCompare(b.jourLetter));
         }
-
         return combined;
     }
-
 
     updateStatsLabel() {
         if (!this.currentGalleryId) {
@@ -4292,19 +3915,14 @@ activateTab(tabId) {
         }
         const numGridImages = this.gridItems.filter(item => item.isValid).length; 
         const numJourImages = this.jourFrames.reduce((sum, jf) => sum + jf.imagesData.length, 0);
-        const currentStatsText = `Grille: ${numGridImages} | Jours: ${numJourImages}`;
-        
-        this.statsLabelText.textContent = currentStatsText;
+        this.statsLabelText.textContent = `Grille: ${numGridImages} | Jours: ${numJourImages}`;
     }
 
     async addJourFrame() {
-        if (!this.currentGalleryId) { alert("Aucune galerie active. Veuillez d'abord créer ou charger une galerie."); return; }
-        
+        if (!this.currentGalleryId) { alert("Aucune galerie active."); return; }
         this.recalculateNextJourIndex(); 
         if (this.nextJourIndex >= 26) { alert("Maximum de Jours (A-Z) atteint."); return; }
-        
         this.addJourFrameBtn.disabled = true; 
-
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/jours`, {
                 method: 'POST',
@@ -4322,19 +3940,14 @@ activateTab(tabId) {
                  throw new Error(userMessage);
             }
             const newJourData = await response.json(); 
-            
             const newJourFrame = new JourFrameBackend(this, newJourData); 
-            
             this.jourFramesContainer.appendChild(newJourFrame.element); 
             this.jourFrames.push(newJourFrame); 
             this.jourFrames.sort((a, b) => a.index - b.index); 
-
             this.setCurrentJourFrame(newJourFrame);
-            
             this.recalculateNextJourIndex();
             this.updateStatsLabel();
             this.saveAppState(); 
-
             if (this.calendarPage) {
                 const newJourContext = {
                     _id: newJourData._id,
@@ -4347,9 +3960,7 @@ activateTab(tabId) {
                     this.calendarPage.buildCalendarUI();
                 }
             }
-            
             this.refreshSidePanels();
-
         } catch (error) {
             console.error("Error adding JourFrame:", error);
             alert(error.message);
@@ -4370,12 +3981,10 @@ activateTab(tabId) {
     
     async closeJourFrame(jourFrameToClose) { 
         if (!confirm(`Voulez-vous vraiment supprimer le Jour ${jourFrameToClose.letter} ?`)) return;
-
         const index = this.jourFrames.indexOf(jourFrameToClose);
         if (index > -1) {
             await jourFrameToClose.destroy(); 
             this.jourFrames.splice(index, 1);
-
             if (this.currentJourFrame === jourFrameToClose) {
                 this.setCurrentJourFrame(this.jourFrames[index] || this.jourFrames[index-1] || (this.jourFrames.length > 0 ? this.jourFrames[0] : null));
             }
@@ -4383,7 +3992,6 @@ activateTab(tabId) {
             this.updateGridUsage();
             this.updateStatsLabel();
             this.saveAppState();
-            
             if (this.calendarPage) {
                 const datesToRemove = [];
                 for (const dateStr in this.scheduleContext.schedule) {
@@ -4395,14 +4003,12 @@ activateTab(tabId) {
                     this.calendarPage.removePublicationForDate(dateObj, jourFrameToClose.letter);
                 });
             }
-
             this.refreshSidePanels();
         }
     }
     
     recalculateNextJourIndex() {
         if (this.jourFrames.length === 0) { this.nextJourIndex = 0; return; }
-        
         const existingIndices = new Set(this.jourFrames.map(jf => jf.index));
         let smallestAvailable = 0;
         while(existingIndices.has(smallestAvailable) && smallestAvailable < 26) { 
@@ -4430,14 +4036,12 @@ activateTab(tabId) {
     
     async saveAppState() {
         if (!this.currentGalleryId) return;
-
         const appState = {
             currentThumbSize: this.currentThumbSize,
             sortOption: this.sortOptionsSelect.value,
             activeTab: document.querySelector('.tab-button.active')?.dataset.tab || 'galleries',
             nextJourIndex: this.nextJourIndex 
         };
-
         try {
             await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/state`, {
                 method: 'PUT',
@@ -4469,11 +4073,6 @@ activateTab(tabId) {
         return null;
     }
 }
-
-
-// =================================================================
-// --- POINT D'ENTRÉE ET LOGIQUE D'INITIALISATION ---
-// =================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
     checkUserStatus();
@@ -4508,14 +4107,12 @@ async function startApp() {
     const loadingOverlay = document.getElementById('loadingOverlay');
     loadingOverlay.style.display = 'flex';
     loadingOverlay.querySelector('p').textContent = 'Initialisation de l\'application...';
-
     try {
         if (!app) {
             app = new PublicationOrganizer();
             window.pubApp = app; 
-                }
-        
-        let galleryIdToLoad;
+        }
+        let galleryIdToLoad = localStorage.getItem('publicationOrganizer_lastGalleryId');
         if (!galleryIdToLoad) {
             const response = await fetch(`${BASE_API_URL}/api/galleries?limit=1&sort=lastAccessed`);
             if (response.ok) {
@@ -4526,16 +4123,13 @@ async function startApp() {
                 }
             }
         }
-        
         app.currentGalleryId = galleryIdToLoad;
         await app.loadState();
-
     } catch (error) {
         console.error("Erreur critique lors du démarrage de l'application:", error);
         loadingOverlay.querySelector('p').innerHTML = `Erreur d'initialisation: ${error.message}`;
         return; 
     }
-    
     loadingOverlay.style.display = 'none';
 }
 
@@ -4543,21 +4137,18 @@ function setupGlobalEventListeners() {
     const profileButton = document.getElementById('profileButton');
     const profileDropdown = document.getElementById('profileDropdown');
     const logoutLink = document.getElementById('logoutLink');
-
     if (profileButton && profileDropdown) {
         profileButton.addEventListener('click', (event) => {
             event.stopPropagation();
             profileDropdown.classList.toggle('show');
         });
     }
-
     if (logoutLink) {
         logoutLink.addEventListener('click', (event) => {
             event.preventDefault();
             logout();
         });
     }
-
     window.addEventListener('click', (event) => {
         if (profileDropdown && !event.target.matches('#profileButton') && !event.target.closest('.profile-container')) {
             if (profileDropdown.classList.contains('show')) {
@@ -4573,7 +4164,6 @@ async function logout() {
         if (response.ok) {
             window.location.href = 'welcome.html';
         } else {
-            console.error('La déconnexion a échoué.');
             alert('Erreur lors de la déconnexion.');
         }
     } catch (error) {
