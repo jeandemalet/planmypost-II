@@ -1152,8 +1152,15 @@ class CroppingManager {
         document.addEventListener('keydown', (e) => this.onDocumentKeyDown(e));
         
         new ResizeObserver(this.debouncedHandleResize).observe(this.canvasElement.parentElement);
+     }
+
+    refreshLayout() {
+        if (this.currentImageObject) {
+            this._handleResize(); // _handleResize contient déjà toute la logique de recalcul.
+        }
     }
-    
+
+
     _handleResize() {
         if (!this.editorPanel.style.display || this.editorPanel.style.display === 'none' || !this.currentImageObject) return;
 
@@ -3294,62 +3301,77 @@ class PublicationOrganizer {
     }
 
 
-    activateTab(tabId) {
-        if (tabId === 'currentGallery' && !this.currentGalleryId && this.selectedGalleryForPreviewId) {
-            this.handleLoadGallery(this.selectedGalleryForPreviewId);
-            return; // handleLoadGallery will call activateTab again.
-        }
+    // Dans la classe PublicationOrganizer
 
-        if (tabId === 'currentGallery' && !this.currentGalleryId && !this.selectedGalleryForPreviewId) {
-            alert("Aucune galerie n'est sélectionnée. Veuillez en sélectionner une dans l'onglet 'Galeries'.");
-            return; // Do not switch tab
-        }
+// Fichier: public/script.js
+// Dans la classe PublicationOrganizer
 
-        this.tabs.forEach(t => t.classList.remove('active'));
-        this.tabContents.forEach(tc => tc.classList.remove('active'));
-        
-        const tabButton = document.querySelector(`.tab-button[data-tab="${tabId}"]`);
-        const tabContent = document.getElementById(tabId);
-
-        if (tabButton && tabContent) {
-            tabButton.classList.add('active');
-            tabContent.classList.add('active');
-
-            if (tabId === 'galleries') {
-                this.loadGalleriesList();
-                if (!this.selectedGalleryForPreviewId) {
-                    this.clearGalleryPreview();
-                }
-            } else if (tabId === 'cropping') {
-                if (this.currentGalleryId) {
-                    this.croppingPage.show();
-                }
-            } else if (tabId === 'description') {
-                if (!this.descriptionManager) {
-                    this.descriptionManager = new DescriptionManager(this);
-                }
-                if (this.currentGalleryId) {
-                    this.descriptionManager.show();
-                }
-            } else if (tabId === 'calendar') {
-                if (!this.calendarPage) {
-                    this.calendarPage = new CalendarPage(tabContent, this);
-                }
-                 if (this.currentGalleryId) {
-                    this.calendarPage.buildCalendarUI(); 
-                }
-            }
-        } else { 
-            this.tabs[0]?.classList.add('active');
-            const firstTabId = this.tabs[0]?.dataset.tab;
-            if (firstTabId) {
-                 document.getElementById(firstTabId)?.classList.add('active');
-                 if (firstTabId === 'galleries') this.loadGalleriesList(); 
-            }
-        }
-        this.updateUIToNoGalleryState();
-        this.saveAppState();
+activateTab(tabId) {
+    if (tabId === 'currentGallery' && !this.currentGalleryId && this.selectedGalleryForPreviewId) {
+        this.handleLoadGallery(this.selectedGalleryForPreviewId);
+        return;
     }
+
+    if (tabId === 'currentGallery' && !this.currentGalleryId && !this.selectedGalleryForPreviewId) {
+        alert("Aucune galerie n'est sélectionnée. Veuillez en sélectionner une dans l'onglet 'Galeries'.");
+        return;
+    }
+
+    this.tabs.forEach(t => t.classList.remove('active'));
+    this.tabContents.forEach(tc => tc.classList.remove('active'));
+    
+    const tabButton = document.querySelector(`.tab-button[data-tab="${tabId}"]`);
+    const tabContent = document.getElementById(tabId);
+
+    if (tabButton && tabContent) {
+        tabButton.classList.add('active');
+        tabContent.classList.add('active');
+
+        if (tabId === 'galleries') {
+            this.loadGalleriesList();
+            if (!this.selectedGalleryForPreviewId) {
+                this.clearGalleryPreview();
+            }
+        } else if (tabId === 'cropping') {
+            if (this.currentGalleryId) {
+                // ================================================================
+                // --- CORRECTION DÉFINITIVE ---
+                // 1. On appelle .show() pour initialiser la logique (charger la première image si besoin, etc.)
+                this.croppingPage.show();
+                
+                // 2. On demande au navigateur d'exécuter le rafraîchissement juste après
+                //    que le conteneur soit devenu visible et ait ses dimensions.
+                requestAnimationFrame(() => {
+                    this.croppingPage.croppingManager.refreshLayout();
+                });
+                // ================================================================
+            }
+        } else if (tabId === 'description') {
+            if (!this.descriptionManager) {
+                this.descriptionManager = new DescriptionManager(this);
+            }
+            if (this.currentGalleryId) {
+                this.descriptionManager.show();
+            }
+        } else if (tabId === 'calendar') {
+            if (!this.calendarPage) {
+                this.calendarPage = new CalendarPage(tabContent, this);
+            }
+             if (this.currentGalleryId) {
+                this.calendarPage.buildCalendarUI(); 
+            }
+        }
+    } else { 
+        this.tabs[0]?.classList.add('active');
+        const firstTabId = this.tabs[0]?.dataset.tab;
+        if (firstTabId) {
+             document.getElementById(firstTabId)?.classList.add('active');
+             if (firstTabId === 'galleries') this.loadGalleriesList(); 
+        }
+    }
+    this.updateUIToNoGalleryState();
+    this.saveAppState();
+}
 
     async loadGalleriesList() {
         this.galleriesListElement.innerHTML = '<li>Chargement des galeries...</li>';
