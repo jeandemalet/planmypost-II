@@ -145,11 +145,20 @@
             <div class="cropping-layout">
                 <div id="croppingJourListPanel">
                     <h4>Jours de la Galerie</h4>
+                    <button id="toggleCroppingViewBtn" class="secondary-action" style="width: 100%; margin-bottom: 10px;">
+                        <img src="/assets/tri.png" alt="Tout voir" class="btn-icon"> 
+                        <span id="toggleCroppingViewBtnText">Tout voir</span>
+                    </button>
                     <ul id="croppingJourList">
                     </ul>
                 </div>
                 <div id="croppingEditorContainer">
                     <h3 id="croppingEditorTitle">Sélectionnez un jour à recadrer</h3>
+                    
+                    <div id="allPhotosGroupedViewContainer" style="display: none;">
+                        <!-- Le contenu de la vue d'ensemble sera injecté ici par JS -->
+                    </div>
+
                     <div id="croppingEditorPanel" style="display: none;">
                         <div class="cropper-main-area">
                             <div class="cropper-canvas-container">

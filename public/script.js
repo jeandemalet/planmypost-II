@@ -824,7 +824,20 @@ class CroppingPage {
         this.currentSelectedJourFrame = null;
         this.croppingManager = new CroppingManager(this.organizerApp, this);
         this.autoCropper = new AutoCropper(this.organizerApp, this);
+
+        // NOUVEAUX ÉLÉMENTS ET ÉTAT
+        this.toggleViewBtn = document.getElementById('toggleCroppingViewBtn');
+        this.toggleViewBtnText = document.getElementById('toggleCroppingViewBtnText');
+        this.allPhotosGroupedViewContainer = document.getElementById('allPhotosGroupedViewContainer');
+        this.isAllPhotosViewActive = false;
+
+        this._initListeners();
+    }
+
+    _initListeners() {
         this.jourListElement.addEventListener('click', (e) => this.onJourClick(e));
+        // NOUVEAU LISTENER
+        this.toggleViewBtn.addEventListener('click', () => this.toggleAllPhotosView());
     }
 
     show() {
@@ -834,6 +847,12 @@ class CroppingPage {
             return;
         }
         this.populateJourList();
+        
+        if (this.isAllPhotosViewActive) {
+            this.renderAllPhotosGroupedView();
+            return;
+        }
+
         const stillExists = this.currentSelectedJourFrame ? this.organizerApp.jourFrames.find(jf => jf.id === this.currentSelectedJourFrame.id) : null;
         if (stillExists) {
             this.selectJour(stillExists, true);
@@ -853,11 +872,19 @@ class CroppingPage {
         if (!li || !li.dataset.jourId) return;
         const jourFrame = this.organizerApp.jourFrames.find(jf => jf.id === li.dataset.jourId);
         if (jourFrame) {
+            // Cliquer sur un jour désactive toujours la vue d'ensemble
+            if (this.isAllPhotosViewActive) {
+                this.toggleAllPhotosView(false);
+            }
             this.selectJour(jourFrame);
         }
     }
 
     selectJour(jourFrame, preventStart = false) {
+        if (this.isAllPhotosViewActive) {
+            this.toggleAllPhotosView(false);
+        }
+        
         if (this.currentSelectedJourFrame === jourFrame && this.editorPanelElement.style.display !== 'none' && !preventStart) {
             return; 
         }
@@ -867,7 +894,108 @@ class CroppingPage {
         if (!preventStart) {
             this.startCroppingForJour(jourFrame);
         } else {
+            this.showEditor();
             this.editorTitleElement.textContent = `Recadrage pour Jour ${jourFrame.letter}`;
+        }
+    }
+
+    toggleAllPhotosView(forceState) {
+        this.isAllPhotosViewActive = typeof forceState === 'boolean' ? forceState : !this.isAllPhotosViewActive;
+
+        if (this.isAllPhotosViewActive) {
+            this.currentSelectedJourFrame = null;
+            this.populateJourList();
+            this.renderAllPhotosGroupedView();
+            this.toggleViewBtnText.textContent = 'Retour au recadrage';
+            this.toggleViewBtn.style.backgroundColor = '#5a6268';
+            this.toggleViewBtn.style.borderColor = '#545b62';
+            this.editorTitleElement.textContent = 'Toutes les photos par jour';
+            this.editorPanelElement.style.display = 'none';
+            this.editorPlaceholderElement.style.display = 'none';
+            this.allPhotosGroupedViewContainer.style.display = 'block';
+
+        } else {
+            this.allPhotosGroupedViewContainer.style.display = 'none';
+            this.allPhotosGroupedViewContainer.innerHTML = '';
+            this.toggleViewBtnText.textContent = 'Tout voir';
+            this.toggleViewBtn.style.backgroundColor = '';
+            this.toggleViewBtn.style.borderColor = '';
+
+            if (this.organizerApp.jourFrames.length > 0) {
+                this.selectJour(this.organizerApp.jourFrames[0]);
+            } else {
+                this.clearEditor();
+            }
+        }
+    }
+
+    renderAllPhotosGroupedView() {
+        const container = this.allPhotosGroupedViewContainer;
+        container.innerHTML = '';
+        const usedImageIds = new Set();
+        const app = this.organizerApp;
+
+        app.jourFrames.forEach(jourFrame => {
+            if (jourFrame.imagesData.length === 0) return;
+
+            const groupDiv = document.createElement('div');
+            groupDiv.className = 'jour-group-container';
+            
+            const header = document.createElement('h4');
+            header.className = 'jour-group-header';
+            header.textContent = `Jour ${jourFrame.letter}`;
+            groupDiv.appendChild(header);
+
+            const gridDiv = document.createElement('div');
+            gridDiv.className = 'jour-group-grid';
+            
+            jourFrame.imagesData.forEach(imgData => {
+                const gridItem = app.gridItemsDict[imgData.imageId];
+                if (gridItem) {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'grouped-view-item';
+                    itemDiv.title = gridItem.basename;
+                    
+                    const img = document.createElement('img');
+                    img.src = gridItem.thumbnailPath;
+                    img.alt = gridItem.basename;
+                    
+                    itemDiv.appendChild(img);
+                    gridDiv.appendChild(itemDiv);
+                    usedImageIds.add(gridItem.id);
+                }
+            });
+            groupDiv.appendChild(gridDiv);
+            container.appendChild(groupDiv);
+        });
+
+        const unclassifiedPhotos = app.gridItems.filter(item => !usedImageIds.has(item.id) && !item.isCroppedVersion);
+        if (unclassifiedPhotos.length > 0) {
+            const groupDiv = document.createElement('div');
+            groupDiv.className = 'jour-group-container';
+            
+            const header = document.createElement('h4');
+            header.className = 'jour-group-header';
+            header.textContent = 'Photos non classées';
+            groupDiv.appendChild(header);
+
+            const gridDiv = document.createElement('div');
+            gridDiv.className = 'jour-group-grid';
+
+            unclassifiedPhotos.forEach(gridItem => {
+                const itemDiv = document.createElement('div');
+                itemDiv.className = 'grouped-view-item';
+                itemDiv.title = gridItem.basename;
+                
+                const img = document.createElement('img');
+                img.src = gridItem.thumbnailPath;
+                img.alt = gridItem.basename;
+
+                itemDiv.appendChild(img);
+                gridDiv.appendChild(itemDiv);
+            });
+            groupDiv.appendChild(gridDiv);
+            container.appendChild(groupDiv);
         }
     }
 
@@ -876,8 +1004,10 @@ class CroppingPage {
             this.clearEditor();
             this.editorTitleElement.textContent = `Jour ${jourFrame.letter}`;
             this.editorPlaceholderElement.textContent = `Le Jour ${jourFrame.letter} est vide et ne peut pas être recadré.`;
+            this.editorPlaceholderElement.style.display = 'block';
             return;
         }
+        this.showEditor();
         this.editorTitleElement.textContent = `Recadrage pour Jour ${jourFrame.letter}`;
         this._populateThumbnailStrip(jourFrame);
         const imageInfosForCropper = jourFrame.imagesData.map(imgData => {
@@ -923,11 +1053,13 @@ class CroppingPage {
     showEditor() {
         this.editorPanelElement.style.display = 'flex';
         this.editorPlaceholderElement.style.display = 'none';
+        this.allPhotosGroupedViewContainer.style.display = 'none';
     }
 
     clearEditor() {
         this.editorPanelElement.style.display = 'none';
         this.editorPlaceholderElement.style.display = 'block';
+        this.allPhotosGroupedViewContainer.style.display = 'none';
         this.editorTitleElement.textContent = "Sélectionnez un jour à recadrer";
         this.thumbnailStripElement.innerHTML = '';
         if (this.currentSelectedJourFrame) {
@@ -2742,7 +2874,11 @@ class PublicationOrganizer {
              }
         }
         const croppingTabContent = document.getElementById('cropping');
-        croppingTabContent.querySelectorAll('button, select').forEach(el => el.disabled = noGalleryActive);
+        croppingTabContent.querySelectorAll('button, select').forEach(el => {
+            if (el.id !== 'toggleCroppingViewBtn') { // Exclude the toggle button from being disabled
+                el.disabled = noGalleryActive;
+            }
+        });
         if (this.croppingPage) {
             if (noGalleryActive) {
                 this.croppingPage.clearEditor();
