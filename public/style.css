@@ -1383,7 +1383,7 @@ button.small-cancel-btn:hover {
     align-items: center;
     overflow-y: auto;
     border-radius: 6px;
-    align-self: stretch;
+    align-self: flex-start;
 }
 .cropper-previews p {
     margin-top: 0;
