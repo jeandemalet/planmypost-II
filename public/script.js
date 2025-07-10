@@ -900,12 +900,11 @@ class CroppingPage {
         this.isAllPhotosViewActive = typeof forceState === 'boolean' ? forceState : !this.isAllPhotosViewActive;
 
         if (this.isAllPhotosViewActive) {
-            // Si un recadrage manuel est en cours, on l'applique avant de changer de vue
             if (this.croppingManager && this.croppingManager.currentImageIndex > -1 && !this.croppingManager.ignoreSaveForThisImage) {
                 await this.croppingManager.applyAndSaveCurrentImage();
                 if (this.croppingManager.currentJourFrameInstance) {
                     this.croppingManager.currentJourFrameInstance.updateImagesFromCropper(this.croppingManager.modifiedDataMap);
-                    this.croppingManager.modifiedDataMap = {}; // On vide la map après l'avoir appliquée
+                    this.croppingManager.modifiedDataMap = {};
                 }
             }
 
@@ -946,22 +945,17 @@ class CroppingPage {
             return;
         }
 
-        // --- Helper function pour créer un élément d'image dans la vue groupée ---
         const createItemDiv = (gridItem) => {
             const itemDiv = document.createElement('div');
             itemDiv.className = 'grouped-view-item';
             itemDiv.title = gridItem.basename;
             const img = document.createElement('img');
-            // La clé est ici : on utilise le thumbnailPath du GridItem, qui peut être
-            // soit l'original, soit la version recadrée.
             img.src = gridItem.thumbnailPath;
             img.alt = gridItem.basename;
             itemDiv.appendChild(img);
             return itemDiv;
         };
 
-        // --- Boucle sur tous les jours (de A à Z) ---
-        // Cette nouvelle logique est plus simple et reflète directement le contenu de chaque jour.
         app.jourFrames.forEach(jourFrame => {
             const groupDiv = document.createElement('div');
             groupDiv.className = 'jour-group-container';
@@ -975,17 +969,15 @@ class CroppingPage {
             gridDiv.className = 'jour-group-grid';
 
             if (jourFrame.imagesData.length === 0) {
-                // Afficher un message si le jour est vide.
                 gridDiv.innerHTML = '<p class="jour-group-empty-text">Ce jour est vide.</p>';
             } else {
-                // Itérer sur les images ACTUELLES du jour.
-                // Si une image a été splittée, imagesData contiendra 2 éléments, créant 2 blocs.
-                // Si une image a des barres blanches, imagesData contiendra la nouvelle image, qui sera affichée.
-                // Si une image n'a pas été touchée, on affiche l'original.
-                jourFrame.imagesData.forEach(imgData => {
+                jourFrame.imagesData.forEach((imgData, index) => {
                     const gridItem = app.gridItemsDict[imgData.imageId];
                     if (gridItem) {
-                        gridDiv.appendChild(createItemDiv(gridItem));
+                        const itemDiv = createItemDiv(gridItem);
+                        itemDiv.classList.add('clickable-in-grid');
+                        itemDiv.addEventListener('click', () => this.switchToCropperForImage(jourFrame, index));
+                        gridDiv.appendChild(itemDiv);
                     } else {
                         console.warn(`Impossible de trouver l'image avec l'ID: ${imgData.imageId} pour le Jour ${jourFrame.letter} dans la vue groupée.`);
                         const errorDiv = document.createElement('div');
@@ -1000,7 +992,12 @@ class CroppingPage {
         });
     }
 
-    startCroppingForJour(jourFrame) {
+    switchToCropperForImage(jourFrame, imageIndex) {
+        this.toggleAllPhotosView(false);
+        this.startCroppingForJour(jourFrame, imageIndex);
+    }
+    
+    startCroppingForJour(jourFrame, startIndex = 0) {
         if (!jourFrame.imagesData || jourFrame.imagesData.length === 0) {
             this.clearEditor();
             this.editorTitleElement.textContent = `Jour ${jourFrame.letter}`;
@@ -1022,7 +1019,7 @@ class CroppingPage {
                 currentImageId: imgData.imageId 
             };
         });
-        this.croppingManager.startCropping(imageInfosForCropper, jourFrame);
+        this.croppingManager.startCropping(imageInfosForCropper, jourFrame, startIndex);
     }
     
     _populateThumbnailStrip(jourFrame) {
@@ -1069,6 +1066,7 @@ class CroppingPage {
         }
     }
 }
+
 
 class CroppingManager {
     constructor(organizer, croppingPage) {
@@ -1325,27 +1323,27 @@ class CroppingManager {
         this.canvasElement.height = container.clientHeight;
     }
     
-    async startCropping(images, callingJourFrame) { 
-        this.imagesToCrop = images; 
+    async startCropping(images, callingJourFrame, startIndex = 0) {
+        this.imagesToCrop = images;
         this.currentJourFrameInstance = callingJourFrame;
-        this.currentImageIndex = -1;
+        this.currentImageIndex = startIndex;
         this.modifiedDataMap = {};
-        this.saveMode = 'crop'; 
+        this.saveMode = 'crop';
         this.croppingPage.showEditor();
-        this.setCanvasDimensions(); 
-        this.isDragging = false; 
-        this.dragMode = null;    
-        this.canvasElement.style.cursor = 'crosshair'; 
-        this.splitModeState = 0; 
+        this.setCanvasDimensions();
+        this.isDragging = false;
+        this.dragMode = null;
+        this.canvasElement.style.cursor = 'crosshair';
+        this.splitModeState = 0;
         this.showSplitLineCount = 0;
         this.splitLineBtn.title = "Diviser l'image pour un carrousel";
         this.splitLineBtn.classList.remove('active-crop-btn');
         this.aspectRatioSelect.disabled = false;
         this.whiteBarsBtn.disabled = false;
         this.whiteBarsBtn.classList.remove('active-crop-btn');
-        this.aspectRatioSelect.value = '3:4'; 
-        this.currentAspectRatioName = '3:4';   
-        await this.nextImage(true); 
+        this.aspectRatioSelect.value = '3:4';
+        this.currentAspectRatioName = '3:4';
+        await this.loadCurrentImage();
     }
     
     async finishAndApply() { 
@@ -1545,20 +1543,20 @@ class CroppingManager {
                 const sWidthThird = Math.floor(sWidth / 3);
                 const sWidthLeft = sWidthThird, sWidthMid = sWidthThird;
                 const sWidthRight = sWidth - sWidthLeft - sWidthMid;
-                tempCanvas.width = sWidthLeft; tempCanvas.height = sHeight;
                 if (sWidthLeft > 0) {
+                    tempCanvas.width = sWidthLeft; tempCanvas.height = sHeight;
                     this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0,0, sWidthLeft, sHeight, sx, sy, sWidthLeft, sHeight);
                     this.previewLeft.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH / 3 - 6, PREVIEW_HEIGHT, 'lightgrey');
                     this.previewLeft.style.display = 'inline-block';
                 }
-                tempCanvas.width = sWidthMid; tempCanvas.height = sHeight; tempCtx.clearRect(0,0,tempCanvas.width,tempCanvas.height);
                 if (sWidthMid > 0) {
+                    tempCanvas.width = sWidthMid; tempCanvas.height = sHeight; tempCtx.clearRect(0,0,tempCanvas.width,tempCanvas.height);
                     this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0,0, sWidthMid, sHeight, sx + sWidthLeft, sy, sWidthMid, sHeight);
                     this.previewCenter.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH / 3 - 6, PREVIEW_HEIGHT, 'lightgrey');
                     this.previewCenter.style.display = 'inline-block';
                 }
-                tempCanvas.width = sWidthRight; tempCanvas.height = sHeight; tempCtx.clearRect(0,0,tempCanvas.width,tempCanvas.height);
                 if (sWidthRight > 0) {
+                    tempCanvas.width = sWidthRight; tempCanvas.height = sHeight; tempCtx.clearRect(0,0,tempCanvas.width,tempCanvas.height);
                     this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0,0, sWidthRight, sHeight, sx + sWidthLeft + sWidthMid, sy, sWidthRight, sHeight);
                     this.previewRight.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH / 3 - 6, PREVIEW_HEIGHT, 'lightgrey');
                     this.previewRight.style.display = 'inline-block';
