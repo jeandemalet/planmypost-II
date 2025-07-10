@@ -1380,7 +1380,7 @@ button.small-cancel-btn:hover {
     background-color: #f9f9f9;
     display: flex;
     flex-direction: column;
-    align-items: flex-start;
+    align-items: center;
     overflow-y: auto;
     border-radius: 6px;
     align-self: stretch;
@@ -1394,13 +1394,21 @@ button.small-cancel-btn:hover {
     align-self: center;
 }
 
+.preview-title {
+    font-weight: 700;
+    font-size: 1.1em;
+    margin-bottom: 15px;
+    width: 100%;
+    color: var(--text-primary);
+    text-align: center; /* Centrer le titre */
+}
+
 #cropperPreviewLeft, #cropperPreviewCenter, #cropperPreviewRight {
     max-width: 100%;
     border: 1px solid #ddd;
     margin-bottom: 10px;
     background-color: lightgrey;
     object-fit: contain;
-    align-self: flex-start;
     border-radius: 4px;
 }
 
