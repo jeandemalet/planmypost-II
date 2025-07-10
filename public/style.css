@@ -1242,9 +1242,10 @@ button.small-cancel-btn:hover {
 
 /* === STYLES: RECADRAGE AUTOMATIQUE === */
 .auto-crop-frame {
-    margin-top: 25px;
-    padding-top: 15px;
-    border-top: 2px solid #000;
+    padding: 15px;
+    border: 1px solid #ccc;
+    border-radius: 8px;
+    background-color: #f9f9f9;
 }
 .auto-crop-frame fieldset {
     border: none;
@@ -1352,7 +1353,7 @@ button.small-cancel-btn:hover {
     gap: 15px;
     overflow: hidden;
     margin-bottom: 15px;
-    align-items: center;
+    align-items: flex-start; /* Changed from center */
 }
 .cropper-canvas-container {
     flex-grow: 1;
@@ -1372,18 +1373,34 @@ button.small-cancel-btn:hover {
     object-fit: contain;
     cursor: crosshair;
 }
+.cropper-right-panel {
+    display: flex;
+    flex-direction: column;
+    width: 260px;
+    min-width: 260px;
+    gap: 15px;
+}
 .cropper-previews {
-    width: 240px;
-    min-width: 240px;
+    width: 100%;
     padding: 10px;
     border: 1px solid #ccc;
     background-color: #f9f9f9;
     display: flex;
     flex-direction: column;
     align-items: center;
-    overflow-y: auto;
     border-radius: 6px;
-    align-self: flex-start;
+    box-sizing: border-box;
+}
+.cropper-previews {
+    width: 100%;
+    padding: 10px;
+    border: 1px solid #ccc;
+    background-color: #f9f9f9;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    border-radius: 6px;
+    box-sizing: border-box;
 }
 .cropper-previews p {
     margin-top: 0;
