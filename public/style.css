@@ -1458,8 +1458,12 @@ button.small-cancel-btn:hover {
     flex-wrap: wrap;
     gap: 10px;
     align-items: center;
-    padding-top: 10px;
-    border-top: 1px solid #eee;
+    justify-content: flex-start; /* Aligné à gauche */
+    padding: 10px;
+    margin: 10px 0; /* Marge verticale uniquement */
+    border-radius: 8px;
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
 }
 .cropper-controls button, .cropper-controls select {
     padding: 8px 12px;
