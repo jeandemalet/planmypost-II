@@ -707,106 +707,120 @@ class AutoCropper {
     }
 
     async run() {
-        const jourFrame = this.croppingPage.currentSelectedJourFrame;
-        if (!jourFrame) {
-            alert("Veuillez sélectionner un Jour à traiter.");
+        const scope = document.querySelector('input[name="crop_scope"]:checked').value;
+        let joursToProcess = [];
+
+        if (scope === 'all') {
+            joursToProcess = this.organizerApp.jourFrames;
+        } else if (scope === 'selection') {
+            const selectedJourIds = Array.from(document.querySelectorAll('.jour-list-item-checkbox:checked'))
+                                         .map(cb => cb.dataset.jourId);
+            joursToProcess = this.organizerApp.jourFrames.filter(jf => selectedJourIds.includes(jf.id));
+        }
+
+        if (joursToProcess.length === 0) {
+            alert("Aucun jour sélectionné à traiter.");
             return;
         }
-        if (jourFrame.imagesData.length === 0) {
-            alert("Ce Jour ne contient aucune image.");
-            return;
-        }
+
         if (this.isRunning) return;
         
         this.isRunning = true;
         this.runBtn.disabled = true;
         this.progressElement.style.display = 'block';
-        this.progressElement.textContent = 'Initialisation...';
 
         const settings = {
             vertical: document.querySelector('input[name="vertical_treatment"]:checked').value,
             horizontal: document.querySelector('input[name="horizontal_treatment"]:checked').value
         };
-        
-        const modifiedDataMap = {};
-        const imagesToProcess = [...jourFrame.imagesData];
 
-        for (let i = 0; i < imagesToProcess.length; i++) {
-            const imgData = imagesToProcess[i];
-            if (imgData.isCropped) continue;
-            this.progressElement.textContent = `Traitement ${i + 1}/${imagesToProcess.length}...`;
-            const originalGridItem = this.organizerApp.gridItemsDict[imgData.originalReferencePath];
-            if (!originalGridItem) {
-                console.warn(`Image originale ${imgData.originalReferencePath} non trouvée.`);
-                continue;
-            }
-            try {
-                const image = await Utils.loadImage(originalGridItem.imagePath);
-                const isVertical = image.naturalHeight > image.naturalWidth * 1.02;
-                const setting = isVertical ? settings.vertical : settings.horizontal;
-                if (setting === 'none') continue;
+        for (const jour of joursToProcess) {
+            const modifiedDataMap = {};
+            const imagesToProcess = [...jour.imagesData];
 
-                let dataURL = null;
-                let cropInfo = '';
-                let filenameSuffix = '';
+            if (imagesToProcess.length === 0) continue;
+
+            for (let i = 0; i < imagesToProcess.length; i++) {
+                const imgData = imagesToProcess[i];
+                if (imgData.isCropped) continue;
                 
-                if (setting === 'auto' && isVertical) {
-                    const result = await smartcrop.crop(image, { width: image.naturalWidth, height: image.naturalWidth * 4/3 });
-                    const bestCrop = result.topCrop;
-                    const tempCanvas = document.createElement('canvas');
-                    tempCanvas.width = bestCrop.width;
-                    tempCanvas.height = bestCrop.height;
-                    const tempCtx = tempCanvas.getContext('2d');
-                    tempCtx.drawImage(image, bestCrop.x, bestCrop.y, bestCrop.width, bestCrop.height, 0, 0, bestCrop.width, bestCrop.height);
-                    dataURL = tempCanvas.toDataURL('image/jpeg', 0.92);
-                    cropInfo = 'recadrage_auto_3x4';
-                    filenameSuffix = 'auto_3x4';
-                } else if (setting === 'whitebars') {
-                    const targetRatio = 3 / 4;
-                    let finalWidth, finalHeight, pasteX, pasteY;
-                    if (image.naturalWidth / image.naturalHeight > targetRatio) {
-                        finalWidth = image.naturalWidth;
-                        finalHeight = Math.round(image.naturalWidth / targetRatio);
-                    } else {
-                        finalHeight = image.naturalHeight;
-                        finalWidth = Math.round(image.naturalHeight * targetRatio);
-                    }
-                    pasteX = Math.round((finalWidth - image.naturalWidth) / 2);
-                    pasteY = Math.round((finalHeight - image.naturalHeight) / 2);
+                this.progressElement.textContent = `Traitement Jour ${jour.letter} (${i + 1}/${imagesToProcess.length})...`;
 
-                    const tempCanvas = document.createElement('canvas');
-                    tempCanvas.width = finalWidth; tempCanvas.height = finalHeight;
-                    const tempCtx = tempCanvas.getContext('2d');
-                    tempCtx.fillStyle = 'white';
-                    tempCtx.fillRect(0, 0, finalWidth, finalHeight);
-                    tempCtx.drawImage(image, pasteX, pasteY);
-                    dataURL = tempCanvas.toDataURL('image/jpeg', 0.92);
-                    cropInfo = 'barres_blanches_3x4';
-                    filenameSuffix = 'barres_3x4';
+                const originalGridItem = this.organizerApp.gridItemsDict[imgData.originalReferencePath];
+                if (!originalGridItem) {
+                    console.warn(`Image originale ${imgData.originalReferencePath} non trouvée.`);
+                    continue;
                 }
 
-                if (dataURL) {
-                    const response = await fetch(`${BASE_API_URL}/api/galleries/${jourFrame.galleryId}/images/${originalGridItem.id}/crop`, {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ imageDataUrl: dataURL, cropInfo, filenameSuffix })
-                    });
-                    if (!response.ok) throw new Error(await response.text());
-                    const newImageDoc = await response.json();
-                    if (!this.organizerApp.gridItemsDict[newImageDoc._id]) {
-                        const newGridItem = new GridItemBackend(newImageDoc, this.organizerApp.currentThumbSize, this.organizerApp);
-                        this.organizerApp.gridItems.push(newGridItem);
-                        this.organizerApp.gridItemsDict[newImageDoc._id] = newGridItem;
+                try {
+                    const image = await Utils.loadImage(originalGridItem.imagePath);
+                    const isVertical = image.naturalHeight > image.naturalWidth * 1.02;
+                    const setting = isVertical ? settings.vertical : settings.horizontal;
+                    if (setting === 'none') continue;
+
+                    let dataURL = null;
+                    let cropInfo = '';
+                    let filenameSuffix = '';
+                    
+                    if (setting === 'auto' && isVertical) {
+                        const result = await smartcrop.crop(image, { width: image.naturalWidth, height: image.naturalWidth * 4/3 });
+                        const bestCrop = result.topCrop;
+                        const tempCanvas = document.createElement('canvas');
+                        tempCanvas.width = bestCrop.width;
+                        tempCanvas.height = bestCrop.height;
+                        const tempCtx = tempCanvas.getContext('2d');
+                        tempCtx.drawImage(image, bestCrop.x, bestCrop.y, bestCrop.width, bestCrop.height, 0, 0, bestCrop.width, bestCrop.height);
+                        dataURL = tempCanvas.toDataURL('image/jpeg', 0.92);
+                        cropInfo = 'recadrage_auto_3x4';
+                        filenameSuffix = 'auto_3x4';
+                    } else if (setting === 'whitebars') {
+                        const targetRatio = 3 / 4;
+                        let finalWidth, finalHeight, pasteX, pasteY;
+                        if (image.naturalWidth / image.naturalHeight > targetRatio) {
+                            finalWidth = image.naturalWidth;
+                            finalHeight = Math.round(image.naturalWidth / targetRatio);
+                        } else {
+                            finalHeight = image.naturalHeight;
+                            finalWidth = Math.round(image.naturalHeight * targetRatio);
+                        }
+                        pasteX = Math.round((finalWidth - image.naturalWidth) / 2);
+                        pasteY = Math.round((finalHeight - image.naturalHeight) / 2);
+
+                        const tempCanvas = document.createElement('canvas');
+                        tempCanvas.width = finalWidth; tempCanvas.height = finalHeight;
+                        const tempCtx = tempCanvas.getContext('2d');
+                        tempCtx.fillStyle = 'white';
+                        tempCtx.fillRect(0, 0, finalWidth, finalHeight);
+                        tempCtx.drawImage(image, pasteX, pasteY);
+                        dataURL = tempCanvas.toDataURL('image/jpeg', 0.92);
+                        cropInfo = 'barres_blanches_3x4';
+                        filenameSuffix = 'barres_3x4';
                     }
-                    modifiedDataMap[imgData.imageId] = newImageDoc;
+
+                    if (dataURL) {
+                        const response = await fetch(`${BASE_API_URL}/api/galleries/${jour.galleryId}/images/${originalGridItem.id}/crop`, {
+                            method: 'POST',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ imageDataUrl: dataURL, cropInfo, filenameSuffix })
+                        });
+                        if (!response.ok) throw new Error(await response.text());
+                        const newImageDoc = await response.json();
+                        if (!this.organizerApp.gridItemsDict[newImageDoc._id]) {
+                            const newGridItem = new GridItemBackend(newImageDoc, this.organizerApp.currentThumbSize, this.organizerApp);
+                            this.organizerApp.gridItems.push(newGridItem);
+                            this.organizerApp.gridItemsDict[newImageDoc._id] = newGridItem;
+                        }
+                        modifiedDataMap[imgData.imageId] = newImageDoc;
+                    }
+                } catch (err) {
+                    console.error(`Erreur auto-crop pour ${originalGridItem.basename}:`, err);
+                    this.progressElement.textContent = `Erreur sur l'image ${i + 1} du Jour ${jour.letter}.`;
+                    await new Promise(resolve => setTimeout(resolve, 1500));
                 }
-            } catch (err) {
-                console.error(`Erreur auto-crop pour ${originalGridItem.basename}:`, err);
-                this.progressElement.textContent = `Erreur sur l'image ${i + 1}.`;
-                await new Promise(resolve => setTimeout(resolve, 1500));
             }
+            jour.updateImagesFromCropper(modifiedDataMap);
         }
-        jourFrame.updateImagesFromCropper(modifiedDataMap);
+
         this.organizerApp.refreshSidePanels();
         this.progressElement.textContent = 'Terminé !';
         setTimeout(() => {
@@ -855,24 +869,18 @@ class CroppingPage {
         }
         this.populateJourList();
         
-        // --- MODIFICATIONS ---
-        // Logique pour afficher la vue correcte lorsque l'onglet est activé
         if (this.isAllPhotosViewActive) {
-            this.toggleAllPhotosView(true); // Forcer l'affichage de la vue "Tout voir"
+            this.toggleAllPhotosView(true);
         } else {
-            // Si on était en mode éditeur, on essaie de restaurer cet état
             const stillExists = this.currentSelectedJourFrame ? this.organizerApp.jourFrames.find(jf => jf.id === this.currentSelectedJourFrame.id) : null;
             if (stillExists) {
                 this.selectJour(stillExists, true);
             } else if (this.organizerApp.jourFrames.length > 0) {
-                // Si le jour sélectionné n'existe plus, on sélectionne le premier
                 this.selectJour(this.organizerApp.jourFrames[0]);
             } else {
-                // S'il n'y a pas de jours, on efface l'éditeur
                 this.clearEditor();
             }
         }
-        // --- FIN DES MODIFICATIONS ---
     }
 
     populateJourList() {
@@ -884,23 +892,17 @@ class CroppingPage {
         if (!li || !li.dataset.jourId) return;
         const jourFrame = this.organizerApp.jourFrames.find(jf => jf.id === li.dataset.jourId);
         if (jourFrame) {
-            // --- MODIFICATIONS ---
-            // Un clic sur un jour dans la liste doit toujours amener à l'éditeur de ce jour
             if (this.isAllPhotosViewActive) {
-                this.toggleAllPhotosView(false); // Basculer vers la vue éditeur
+                this.toggleAllPhotosView(false); // Switch to editor view
             }
             this.selectJour(jourFrame);
-            // --- FIN DES MODIFICATIONS ---
         }
     }
 
     selectJour(jourFrame, preventStart = false) {
-        // --- MODIFICATIONS ---
-        // S'assurer qu'on n'est pas en vue d'ensemble quand un jour est sélectionné
         if (this.isAllPhotosViewActive) {
-            this.toggleAllPhotosView(false);
+            this.toggleAllPhotosView(false); // Should switch to editor view
         }
-        // --- FIN DES MODIFICATIONS ---
         
         if (this.currentSelectedJourFrame === jourFrame && this.editorPanelElement.style.display !== 'none' && !preventStart) {
             return; 
@@ -908,6 +910,7 @@ class CroppingPage {
         this.currentSelectedJourFrame = jourFrame;
         this.populateJourList();
         this.autoCropper.loadSettingsForJour(jourFrame);
+
         if (!preventStart) {
             this.startCroppingForJour(jourFrame);
         } else {
@@ -938,9 +941,7 @@ class CroppingPage {
             this.editorPanelElement.style.display = 'none';
             this.editorPlaceholderElement.style.display = 'none';
             this.allPhotosGroupedViewContainer.style.display = 'block';
-            // --- MODIFICATIONS ---
-            this.autoCropSidebar.style.display = 'block'; // Afficher la barre latérale
-            // --- FIN DES MODIFICATIONS ---
+            this.autoCropSidebar.style.display = 'block';
 
         } else {
             this.allPhotosGroupedViewContainer.style.display = 'none';
@@ -948,9 +949,7 @@ class CroppingPage {
             this.toggleViewBtnText.textContent = 'Tout voir';
             this.toggleViewBtn.style.backgroundColor = '';
             this.toggleViewBtn.style.borderColor = '';
-            // --- MODIFICATIONS ---
-            this.autoCropSidebar.style.display = 'none'; // Masquer la barre latérale
-            // --- FIN DES MODIFICATIONS ---
+            this.autoCropSidebar.style.display = 'none';
 
             const firstJour = this.organizerApp.jourFrames[0];
             if (firstJour) {
@@ -1078,18 +1077,14 @@ class CroppingPage {
         this.editorPanelElement.style.display = 'flex';
         this.editorPlaceholderElement.style.display = 'none';
         this.allPhotosGroupedViewContainer.style.display = 'none';
-        // --- MODIFICATIONS ---
-        this.autoCropSidebar.style.display = 'none'; // S'assurer que la barre latérale est masquée en mode éditeur
-        // --- FIN DES MODIFICATIONS ---
+        this.autoCropSidebar.style.display = 'none';
     }
 
     clearEditor() {
         this.editorPanelElement.style.display = 'none';
         this.editorPlaceholderElement.style.display = 'block';
         this.allPhotosGroupedViewContainer.style.display = 'none';
-        // --- MODIFICATIONS ---
-        this.autoCropSidebar.style.display = 'none'; // S'assurer que la barre latérale est masquée quand l'éditeur est vidé
-        // --- FIN DES MODIFICATIONS ---
+        this.autoCropSidebar.style.display = 'none';
         this.editorTitleElement.textContent = "Sélectionnez un jour à recadrer";
         this.thumbnailStripElement.innerHTML = '';
         if (this.currentSelectedJourFrame) {
@@ -2754,7 +2749,7 @@ class PublicationOrganizer {
         });
     }
 
-    _populateSharedJourList(listElement, activeJourId, listType) {
+    _populateSharedJourList(listElement, activeJourId, listType, showCheckboxes = false) {
         listElement.innerHTML = '';
         const jours = this.jourFrames;
         if (!jours || jours.length === 0) {
@@ -2798,6 +2793,15 @@ class PublicationOrganizer {
             iconsDiv.appendChild(scheduleIcon);
             li.appendChild(textSpan);
             li.appendChild(iconsDiv);
+
+            if (showCheckboxes) {
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.className = 'jour-list-item-checkbox';
+                checkbox.dataset.jourId = jourFrame.id;
+                li.appendChild(checkbox);
+            }
+
             listElement.appendChild(li);
         });
     }

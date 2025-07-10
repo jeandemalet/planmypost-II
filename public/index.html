@@ -248,8 +248,15 @@
                                     </label>
                                  </div>
                             </div>
+                            <div class="auto-crop-scope-switch">
+                                <input type="radio" id="cropScopeAll" name="crop_scope" value="all" checked>
+                                <label for="cropScopeAll">Tout recadrer</label>
+                                
+                                <input type="radio" id="cropScopeDay" name="crop_scope" value="selection">
+                                <label for="cropScopeDay">Sélection</label>
+                            </div>
                             <div class="auto-crop-actions">
-                                <button id="runAutoCropBtn" class="primary-action" title="Lancer le recadrage automatique pour ce Jour">
+                                <button id="runAutoCropBtn" class="primary-action" title="Lancer le recadrage automatique">
                                     Lancer l'automatisation
                                 </button>
                             </div>

@@ -1965,3 +1965,165 @@ button.small-cancel-btn:hover {
 #toggleCroppingViewBtn {
     transition: background-color 0.3s, border-color 0.3s;
 }
+
+.jour-list-item-checkbox {
+    margin-left: auto;
+    transform: scale(1.2);
+}
+
+.clickable-in-grid {
+    cursor: pointer;
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.clickable-in-grid:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    z-index: 10;
+}
+
+.grouped-view-item-error {
+    background-color: #f8d7da;
+    color: #721c24;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 0.8em;
+    text-align: center;
+    padding: 5px;
+    aspect-ratio: 1 / 1;
+    border-radius: 4px;
+}
+
+/* ========================================================== */
+/* --- AJUSTEMENTS LAYOUT RECADRAGE --- */
+/* ========================================================== */
+
+.cropping-layout {
+    display: flex;
+    gap: 15px;
+    height: calc(100vh - 150px);
+}
+
+#croppingJourListPanel {
+    width: 280px;
+    min-width: 250px;
+    border-right: 1px solid #ddd;
+    padding-right: 15px;
+    overflow-y: auto;
+}
+
+#croppingEditorContainer {
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+#croppingEditorContainer > h3 {
+    margin-top: 0;
+    margin-bottom: 15px;
+    text-align: center;
+}
+
+#croppingEditorPanel {
+    display: none; /* Caché par défaut */
+    flex-direction: column;
+    flex-grow: 1;
+}
+
+#allPhotosGroupedViewContainer {
+    display: block; /* Affiché par défaut */
+    flex-grow: 1;
+    overflow-y: auto;
+}
+
+.cropping-sidebar-right {
+    width: 320px;
+    min-width: 300px;
+    padding-left: 15px;
+    border-left: 1px solid #ddd;
+    overflow-y: auto;
+}
+
+.auto-crop-scope-switch {
+    display: flex;
+    justify-content: center;
+    margin-bottom: 15px;
+    background-color: #e9ecef;
+    border-radius: 15px;
+    padding: 4px;
+    border: 1px solid #ced4da;
+}
+
+.auto-crop-scope-switch input[type="radio"] {
+    display: none;
+}
+
+.auto-crop-scope-switch label {
+    flex: 1;
+    text-align: center;
+    padding: 6px 10px;
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.85em;
+    font-weight: 500;
+    color: #495057;
+    transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.auto-crop-scope-switch input[type="radio"]:checked + label {
+    background-color: #fff;
+    color: #007bff;
+    font-weight: 700;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* --- MODIFICATIONS POUR LA VUE D'ENSEMBLE --- */
+/* Quand la vue d'ensemble est active, le panneau central prend toute la place */
+#croppingEditorContainer.all-photos-view-active {
+    padding-left: 0;
+}
+
+/* Le panneau éditeur est caché en vue d'ensemble */
+.all-photos-view-active #croppingEditorPanel {
+    display: none;
+}
+
+/* Le conteneur de la vue d'ensemble est visible */
+.all-photos-view-active #allPhotosGroupedViewContainer {
+    display: block;
+}
+
+/* La barre latérale est visible en vue d'ensemble */
+.all-photos-view-active + #autoCropSidebar {
+    display: block;
+}
+
+/* --- MODIFICATIONS POUR LA VUE ÉDITEUR --- */
+/* Quand l'éditeur est actif, le panneau central est normal */
+#croppingEditorContainer.editor-view-active {
+    /* Pas de style spécifique nécessaire, revient au défaut */
+}
+
+/* Le panneau éditeur est visible */
+.editor-view-active #croppingEditorPanel {
+    display: flex; /* ou 'block' selon le contenu */
+}
+
+/* Le conteneur de la vue d'ensemble est caché */
+.editor-view-active #allPhotosGroupedViewContainer {
+    display: none;
+}
+
+/* La barre latérale est cachée en vue éditeur */
+.editor-view-active + #autoCropSidebar {
+    display: none;
+}
+
+#croppingEditorPlaceholder {
+    text-align: center;
+    color: #6c757d;
+    margin-top: 30px;
+    font-size: 1.1em;
+}
