@@ -16,25 +16,15 @@ jobs:
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
 
-      # ÉTAPE 2 : DÉBOGAGE DE LA CONNEXION (L'ÉTAPE LA PLUS IMPORTANTE)
-      - name: Debug Tailscale Connection
-        run: |
-          echo "--- Attente pour la stabilisation du réseau ---"
-          sleep 10 test
-          
-          echo "--- Statut Tailscale (doit lister la VM) ---"
-          tailscale status
-          
-          echo "--- Test de connectivité IP (doit réussir) ---"
-          ping -c 4 100.77.241.100 || echo "Le ping de l'adresse IP a échoué"
-          
-          echo "--- Test de l'ouverture du port SSH (doit réussir) ---"
-          nc -zv 100.77.241.100 22 || echo "La connexion au port 22 a échoué"
+      # ÉTAPE 1.5 : PAUSE POUR STABILISER LE RÉSEAU
+      - name: Wait for Tailscale
+        run: sleep 5
 
-      # ÉTAPE 3 : DÉPLOIEMENT VIA SSH
+      # ÉTAPE 2 : DÉPLOIEMENT VIA SSH
       - name: SSH into VM and deploy
         uses: appleboy/ssh-action@master
         with:
+          # On utilise l'adresse IP, c'est le plus fiable
           host: 100.77.241.100
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
