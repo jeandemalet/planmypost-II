@@ -16,22 +16,19 @@ jobs:
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
 
-      # ÉTAPE 2 : DÉBOGAGE DE LA CONNEXION (NOUVELLE ÉTAPE !)
+      # ÉTAPE 2 : DÉBOGAGE DE LA CONNEXION (L'ÉTAPE LA PLUS IMPORTANTE)
       - name: Debug Tailscale Connection
         run: |
           echo "--- Attente pour la stabilisation du réseau ---"
           sleep 10
           
-          echo "--- Statut Tailscale ---"
+          echo "--- Statut Tailscale (doit lister la VM) ---"
           tailscale status
           
-          echo "--- Test de résolution DNS (MagicDNS) ---"
-          ping -c 4 planmypost-vm || echo "Le ping du nom de machine a échoué"
-          
-          echo "--- Test de connectivité IP ---"
+          echo "--- Test de connectivité IP (doit réussir) ---"
           ping -c 4 100.77.241.100 || echo "Le ping de l'adresse IP a échoué"
           
-          echo "--- Test de l'ouverture du port SSH ---"
+          echo "--- Test de l'ouverture du port SSH (doit réussir) ---"
           nc -zv 100.77.241.100 22 || echo "La connexion au port 22 a échoué"
 
       # ÉTAPE 3 : DÉPLOIEMENT VIA SSH
