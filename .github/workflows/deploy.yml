@@ -20,7 +20,7 @@ jobs:
       - name: Debug Tailscale Connection
         run: |
           echo "--- Attente pour la stabilisation du réseau ---"
-          sleep 10
+          sleep 10 test
           
           echo "--- Statut Tailscale (doit lister la VM) ---"
           tailscale status
