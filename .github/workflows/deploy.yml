@@ -1,0 +1,53 @@
+# Nom du workflow, visible dans l'onglet "Actions" de votre dépôt GitHub
+name: Deploy to VM
+
+# Ce workflow se déclenchera automatiquement à chaque fois que vous ferez un 'push'
+# sur votre branche principale 'main'. Si votre branche s'appelle 'master', changez-le ici.
+on:
+  push:
+    branches:
+      - main
+
+# Définit les tâches (jobs) à exécuter
+jobs:
+  deploy:
+    # Nom de la tâche
+    name: Deploy code to planmypost-vm
+
+    # L'action s'exécutera sur une machine virtuelle Ubuntu fournie par GitHub
+    runs-on: ubuntu-latest
+
+    # Liste des étapes à suivre pour cette tâche
+    steps:
+      - name: SSH into VM and deploy
+        # Utilisation d'une action de la communauté pour simplifier la connexion SSH
+        uses: appleboy/ssh-action@master
+        
+        # Configuration de la connexion avec les secrets que vous avez créés
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          
+          # Le script qui sera exécuté sur votre VM une fois la connexion établie
+          script: |
+            # 1. Se déplacer dans le répertoire de votre projet sur la VM
+            cd /var/www/planmypost-II
+            
+            # 2. Récupérer les toutes dernières modifications depuis GitHub
+            git pull origin main
+            
+            # 3. Message de confirmation qui s'affichera dans les logs de GitHub Actions
+            echo "Deployment successful!"
+            
+            # --- COMMANDES OPTIONNELLES ---
+            # Décommentez et adaptez les lignes suivantes si votre projet en a besoin.
+            
+            # Exemple pour un projet Node.js avec PM2 :
+            # echo "Installing dependencies and restarting app..."
+            # npm install
+            # pm2 restart planmypost-app # Remplacez par le nom de votre app dans PM2
+            
+            # Exemple pour un projet PHP avec Composer :
+            # echo "Installing Composer dependencies..."
+            # composer install --no-interaction --prefer-dist --optimize-autoloader --no-dev
