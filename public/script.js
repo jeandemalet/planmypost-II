@@ -2228,7 +2228,7 @@ class CalendarPage {
 
     buildCalendarUI() {
         this.calendarGridElement.innerHTML = '';
-        if (!app.currentGalleryId) {
+        if (!app || !app.currentGalleryId) {
             this.calendarGridElement.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 20px;">Chargez une galerie pour voir le calendrier.</p>';
             this.monthYearLabelElement.textContent = "Calendrier";
             this.populateJourList();
@@ -2705,11 +2705,31 @@ class PublicationOrganizer {
         this.tabs = document.querySelectorAll('.tab-button');
         this.tabContents = document.querySelectorAll('.tab-content');
         this.croppingPage = new CroppingPage(this);
+        
         this.calendarPage = null;
         this.descriptionManager = null;
         this._initListeners();
         this.updateAddPhotosPlaceholderVisibility();
         this.updateUIToNoGalleryState();
+    }
+
+    // Méthode pour initialiser les modules de manière sécurisée après que app soit défini
+    initializeModules() {
+        // Initialiser CalendarPage si pas encore fait
+        if (!this.calendarPage) {
+            const calendarTabContent = document.getElementById('calendar');
+            if (calendarTabContent) {
+                this.calendarPage = new CalendarPage(calendarTabContent, this);
+            }
+        }
+        
+        // Initialiser DescriptionManager si pas encore fait
+        if (!this.descriptionManager) {
+            const descriptionTabContent = document.getElementById('description');
+            if (descriptionTabContent) {
+                this.descriptionManager = new DescriptionManager(this);
+            }
+        }
     }
 
     _initListeners() {
@@ -3712,7 +3732,13 @@ class PublicationOrganizer {
 
     sortGridItemsAndReflow() {
         const sortValue = this.sortOptionsSelect.value;
-        this.gridItems.sort((a, b) => {
+
+        // --- DÉBUT DE LA CORRECTION ---
+        // On ne trie et n'affiche que les images originales dans la grille principale.
+        // Les versions recadrées existent en mémoire mais ne sont pas montrées ici.
+        const originalImages = this.gridItems.filter(item => !item.isCroppedVersion);
+
+        originalImages.sort((a, b) => {
             let valA, valB;
             switch (sortValue) {
                 case 'name_asc': case 'name_desc':
@@ -3729,7 +3755,12 @@ class PublicationOrganizer {
                 default: return 0;
             }
         });
-        this.gridItems.forEach(item => this.imageGridElement.appendChild(item.element));
+
+        // Vider la grille et la repeupler uniquement avec les images originales triées
+        this.imageGridElement.innerHTML = '';
+        originalImages.forEach(item => this.imageGridElement.appendChild(item.element));
+        // --- FIN DE LA CORRECTION ---
+
         this.updateGridUsage();
         this.saveAppState();
     }
@@ -4044,6 +4075,8 @@ async function startApp() {
         if (!app) {
             app = new PublicationOrganizer();
             window.pubApp = app;
+            // Initialiser les modules maintenant que app est défini
+            app.initializeModules();
         }
         let galleryIdToLoad = localStorage.getItem('publicationOrganizer_lastGalleryId');
         if (!galleryIdToLoad) {
