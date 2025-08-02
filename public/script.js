@@ -50,7 +50,7 @@ class Utils {
             ctx.fillStyle = 'red';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText("ERR", targetWidth/2, targetHeight/2);
+            ctx.fillText("ERR", targetWidth / 2, targetHeight / 2);
             return canvas.toDataURL('image/png');
         }
 
@@ -82,7 +82,7 @@ class Utils {
 
     static debounce(func, delay) {
         let timeout;
-        return function(...args) {
+        return function (...args) {
             const context = this;
             clearTimeout(timeout);
             timeout = setTimeout(() => func.apply(context, args), delay);
@@ -97,24 +97,24 @@ class Utils {
         a.click();
         document.body.removeChild(a);
     }
-    
+
     static getFilenameFromURL(url) {
         if (!url) return '';
         const normalizedUrl = url.replace(/\\/g, '/');
         const parts = normalizedUrl.split('/');
-        return parts.pop() || ''; 
+        return parts.pop() || '';
     }
 }
 
 class GridItemBackend {
-    static SERVER_THUMB_OPTIMAL_DISPLAY_WIDTH = 150; 
-    static SERVER_THUMB_OPTIMAL_DISPLAY_HEIGHT = 150; 
+    static SERVER_THUMB_OPTIMAL_DISPLAY_WIDTH = 150;
+    static SERVER_THUMB_OPTIMAL_DISPLAY_HEIGHT = 150;
 
     constructor(imageData, initialThumbSize, organizerRef) {
         this.id = imageData._id;
         this.galleryId = imageData.galleryId;
         this.basename = imageData.originalFilename;
-        
+
         this.imageFilename = Utils.getFilenameFromURL(imageData.path);
         this.thumbnailFilename = Utils.getFilenameFromURL(imageData.thumbnailPath);
 
@@ -125,19 +125,19 @@ class GridItemBackend {
         this.fileModTimeTs = imageData.fileLastModified ? new Date(imageData.fileLastModified).getTime() : new Date(imageData.uploadDate).getTime();
 
         this.isCroppedVersion = imageData.isCroppedVersion || false;
-        this.parentImageId = imageData.parentImageId || null; 
+        this.parentImageId = imageData.parentImageId || null;
 
         this.thumbSize = { ...initialThumbSize };
         this.element = document.createElement('div');
         this.element.className = 'grid-item';
         this.imgElement = document.createElement('img');
-        
+
         this.singleDayOverlay = document.createElement('span');
         this.singleDayOverlay.className = 'order-text';
 
         this.multiDayOverlay = document.createElement('div');
         this.multiDayOverlay.className = 'multi-day-overlay';
-        
+
         this.deleteButton = document.createElement('button');
         this.deleteButton.className = 'grid-item-delete-btn';
         this.deleteButton.innerHTML = '×';
@@ -147,17 +147,17 @@ class GridItemBackend {
             organizerRef.deleteImageFromGrid(this.id);
         };
 
-        this.imgElement.src = this.thumbnailPath; 
+        this.imgElement.src = this.thumbnailPath;
         this.imgElement.alt = this.basename;
         this.imgElement.style.width = '100%';
         this.imgElement.style.height = '100%';
         this.imgElement.style.objectFit = 'contain';
-        this.imgElement.onerror = () => { 
+        this.imgElement.onerror = () => {
             const currentSrcFilename = Utils.getFilenameFromURL(this.imgElement.src);
             if (currentSrcFilename === this.thumbnailFilename && this.imagePath !== this.thumbnailPath) {
                 this.imgElement.src = this.imagePath;
             } else {
-                this.drawErrorPlaceholderImg(`Img ${this.basename.substring(0,10)}`); 
+                this.drawErrorPlaceholderImg(`Img ${this.basename.substring(0, 10)}`);
             }
         };
 
@@ -166,13 +166,13 @@ class GridItemBackend {
         this.element.appendChild(this.multiDayOverlay);
         this.element.appendChild(this.deleteButton);
 
-        this.isValid = true; 
+        this.isValid = true;
 
         this.updateElementStyle();
     }
 
     drawErrorPlaceholderImg(text) {
-        this.imgElement.remove(); 
+        this.imgElement.remove();
         const errorDiv = document.createElement('div');
         errorDiv.style.width = '100%';
         errorDiv.style.height = '100%';
@@ -183,7 +183,7 @@ class GridItemBackend {
         errorDiv.style.backgroundColor = 'lightgrey';
         errorDiv.style.fontSize = `${Math.max(8, this.thumbSize.height / 7)}px`;
         errorDiv.textContent = text;
-        this.element.insertBefore(errorDiv, this.singleDayOverlay); 
+        this.element.insertBefore(errorDiv, this.singleDayOverlay);
     }
 
     updateElementStyle() {
@@ -195,7 +195,7 @@ class GridItemBackend {
         if (newThumbSize.width === this.thumbSize.width && newThumbSize.height === this.thumbSize.height) {
             return;
         }
-        
+
         const oldSrcFilename = Utils.getFilenameFromURL(this.imgElement.src);
         let newSrcToUse = this.thumbnailPath;
 
@@ -203,10 +203,10 @@ class GridItemBackend {
         const loadFullImageThresholdHeight = GridItemBackend.SERVER_THUMB_OPTIMAL_DISPLAY_HEIGHT * 1.5;
 
         if (newThumbSize.width > loadFullImageThresholdWidth || newThumbSize.height > loadFullImageThresholdHeight) {
-            if (this.imagePath !== this.thumbnailPath) { 
+            if (this.imagePath !== this.thumbnailPath) {
                 newSrcToUse = this.imagePath;
             } else {
-                 newSrcToUse = this.thumbnailPath; 
+                newSrcToUse = this.thumbnailPath;
             }
         } else {
             newSrcToUse = this.thumbnailPath;
@@ -224,19 +224,19 @@ class GridItemBackend {
     markUsed(order, color = "red") {
         this.multiDayOverlay.style.display = 'none';
         this.multiDayOverlay.innerHTML = '';
-        
+
         this.singleDayOverlay.textContent = order;
         this.singleDayOverlay.style.color = color;
         this.singleDayOverlay.style.display = 'block';
         const fontSize = Math.max(10, Math.min(32, Math.floor(this.thumbSize.height * 0.3)));
         this.singleDayOverlay.style.fontSize = `${fontSize}px`;
-        
+
         this.element.classList.add('used');
     }
 
     markUsedInMultipleDays(usageArray) {
         this.singleDayOverlay.style.display = 'none';
-        this.multiDayOverlay.innerHTML = ''; 
+        this.multiDayOverlay.innerHTML = '';
 
         usageArray.slice(0, 4).forEach((usage, index) => {
             const quadrantText = document.createElement('div');
@@ -367,7 +367,7 @@ class JourFrameBackend {
             }
         }
     }
-    
+
     onDrop(e) {
         e.preventDefault();
         this.canvasWrapper.classList.remove('drag-over');
@@ -382,6 +382,7 @@ class JourFrameBackend {
             const data = JSON.parse(jsonData);
             const afterElement = this.getDragAfterElement(e.clientX, e.clientY);
 
+            // --- DÉBUT DE LA CORRECTION ---
             if (data.sourceType === 'grid') {
                 const gridItem = this.organizer.gridItemsDict[data.imageId];
                 if (gridItem) {
@@ -391,14 +392,35 @@ class JourFrameBackend {
                         dataURL: gridItem.thumbnailPath,
                         isCropped: gridItem.isCroppedVersion
                     };
+
+                    // 1. Calculer l'index d'insertion
+                    let insertIndex = this.imagesData.length;
+                    if (afterElement) {
+                        const afterElementId = afterElement.dataset.imageId;
+                        const idx = this.imagesData.findIndex(d => d.imageId === afterElementId);
+                        if (idx !== -1) {
+                            insertIndex = idx;
+                        }
+                    }
+                                     
+                    // 2. Mettre à jour le modèle de données d'abord
+                    this.imagesData.splice(insertIndex, 0, newItemData);
+
+                    // 3. Créer et insérer le nouvel élément DOM
                     const newElement = this.createJourItemElement(newItemData);
                     this.canvasWrapper.insertBefore(newElement, afterElement);
-                    this.syncDataArrayFromDOM();
+
+                    // 4. Appeler directement les fonctions de mise à jour
+                    this.organizer.updateGridUsage();
+                    this.debouncedSave();
+                    this.checkAndApplyCroppedStyle();
+                    this.updateUnscheduledJoursList();
                 }
+            // --- FIN DE LA CORRECTION ---
             } else if (data.sourceType === 'jour') {
                 const sourceJourFrame = this.organizer.jourFrames.find(jf => jf.id === data.sourceJourId);
                 const draggedElement = document.querySelector('.dragging-jour-item');
-                
+
                 if (draggedElement && sourceJourFrame) {
                     this.canvasWrapper.insertBefore(draggedElement, afterElement);
                     if (sourceJourFrame !== this) {
@@ -414,7 +436,7 @@ class JourFrameBackend {
             if (dragging) dragging.classList.remove('dragging-jour-item');
         }
     }
-    
+
     syncDataArrayFromDOM() {
         const newImagesData = [];
         const imageElements = this.canvasWrapper.querySelectorAll('.jour-image-item');
@@ -424,7 +446,7 @@ class JourFrameBackend {
         });
         this.organizer.gridItems.forEach(gridItem => {
             if (!allImageDataById.has(gridItem.id)) {
-                 allImageDataById.set(gridItem.id, {
+                allImageDataById.set(gridItem.id, {
                     imageId: gridItem.id,
                     originalReferencePath: gridItem.parentImageId || gridItem.id,
                     dataURL: gridItem.thumbnailPath,
@@ -443,26 +465,33 @@ class JourFrameBackend {
         this.organizer.updateGridUsage();
         this.debouncedSave();
         this.checkAndApplyCroppedStyle();
+
+        // Mettre à jour la liste des jours à planifier
+        this.updateUnscheduledJoursList();
     }
 
     addImageFromBackendData(imageData, isGridItemInstance = false) {
         let galleryIdForURL = this.galleryId;
         let thumbFilename;
-        if (isGridItemInstance) { 
+        if (isGridItemInstance) {
             galleryIdForURL = imageData.galleryId;
-            thumbFilename = Utils.getFilenameFromURL(imageData.thumbnailPath); 
-        } else { 
-            thumbFilename = Utils.getFilenameFromURL(imageData.thumbnailPath); 
+            thumbFilename = Utils.getFilenameFromURL(imageData.thumbnailPath);
+        } else {
+            thumbFilename = Utils.getFilenameFromURL(imageData.thumbnailPath);
         }
         const imageItemData = {
-            imageId: imageData._id || imageData.id, 
-            originalReferencePath: imageData.parentImageId || (imageData._id || imageData.id), 
-            dataURL: `${BASE_API_URL}/api/uploads/${galleryIdForURL}/${thumbFilename}`, 
+            imageId: imageData._id || imageData.id,
+            originalReferencePath: imageData.parentImageId || (imageData._id || imageData.id),
+            dataURL: `${BASE_API_URL}/api/uploads/${galleryIdForURL}/${thumbFilename}`,
             isCropped: imageData.isCroppedVersion || false,
         };
         this.imagesData.push(imageItemData);
         const newElement = this.createJourItemElement(imageItemData);
         this.canvasWrapper.appendChild(newElement);
+
+        // Mettre à jour la grille et la liste des jours à planifier
+        this.organizer.updateGridUsage();
+        this.updateUnscheduledJoursList();
     }
 
     createJourItemElement(imageItemData) {
@@ -501,13 +530,26 @@ class JourFrameBackend {
         }
         this.syncDataArrayFromDOM();
     }
-    
+
     checkAndApplyCroppedStyle() {
         this.hasBeenProcessedByCropper = this.imagesData.some(img => img.isCropped);
         if (this.hasBeenProcessedByCropper) {
             this.element.classList.add('jour-frame-processed');
         } else {
             this.element.classList.remove('jour-frame-processed');
+        }
+    }
+
+    // Fonction utilitaire pour mettre à jour la liste des jours à planifier
+    updateUnscheduledJoursList() {
+        console.log(`🔄 updateUnscheduledJoursList appelée pour jour ${this.letter}`);
+        if (this.organizer && this.organizer.calendarPage) {
+            // S'assurer que ce jour est dans allUserJours
+            this.organizer.ensureJourInAllUserJours(this);
+            console.log(`✅ Mise à jour de la liste des jours à planifier`);
+            this.organizer.calendarPage.buildUnscheduledJoursList();
+        } else {
+            console.log(`❌ Pas de calendarPage disponible`);
         }
     }
 
@@ -582,7 +624,7 @@ class JourFrameBackend {
             return false;
         }
     }
-    
+
     updateImagesFromCropper(modifiedDataMap) {
         let changesApplied = false;
         const newImagesDataArray = [];
@@ -617,24 +659,26 @@ class JourFrameBackend {
             finalElements.forEach(el => this.canvasWrapper.appendChild(el));
             this.debouncedSave();
             this.checkAndApplyCroppedStyle();
+            // Mettre à jour la liste des jours à planifier après modification par le cropper
+            this.updateUnscheduledJoursList();
         }
     }
 
     createImageItemDataFromBackendDoc(imageDoc) {
         return {
             imageId: imageDoc._id,
-            originalReferencePath: imageDoc.parentImageId || imageDoc._id, 
+            originalReferencePath: imageDoc.parentImageId || imageDoc._id,
             dataURL: `${BASE_API_URL}/api/uploads/${imageDoc.galleryId}/${Utils.getFilenameFromURL(imageDoc.thumbnailPath)}`,
             isCropped: imageDoc.isCroppedVersion
         };
     }
-    
+
     getUsageDataForMultiple() {
         const usage = new Map();
         const color = JOUR_COLORS[this.index % JOUR_COLORS.length];
         this.imagesData.forEach((imgData, i) => {
             const label = `${this.letter}${i + 1}`;
-            const originalId = imgData.originalReferencePath; 
+            const originalId = imgData.originalReferencePath;
             if (!usage.has(originalId)) {
                 usage.set(originalId, []);
             }
@@ -643,7 +687,7 @@ class JourFrameBackend {
         return usage;
     }
 
-    async destroy() { 
+    async destroy() {
         if (this.id && app.currentGalleryId) {
             try {
                 await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/jours/${this.id}`, { method: 'DELETE' });
@@ -654,7 +698,7 @@ class JourFrameBackend {
         if (this.element.parentNode) {
             this.element.parentNode.removeChild(this.element);
         }
-        this.imagesData = []; 
+        this.imagesData = [];
     }
 }
 
@@ -714,7 +758,7 @@ class AutoCropper {
             joursToProcess = this.organizerApp.jourFrames;
         } else if (scope === 'selection') {
             const selectedJourIds = Array.from(document.querySelectorAll('.jour-list-item-checkbox:checked'))
-                                         .map(cb => cb.dataset.jourId);
+                .map(cb => cb.dataset.jourId);
             joursToProcess = this.organizerApp.jourFrames.filter(jf => selectedJourIds.includes(jf.id));
         }
 
@@ -724,7 +768,7 @@ class AutoCropper {
         }
 
         if (this.isRunning) return;
-        
+
         this.isRunning = true;
         this.runBtn.disabled = true;
         this.progressElement.style.display = 'block';
@@ -743,7 +787,7 @@ class AutoCropper {
             for (let i = 0; i < imagesToProcess.length; i++) {
                 const imgData = imagesToProcess[i];
                 if (imgData.isCropped) continue;
-                
+
                 this.progressElement.textContent = `Traitement Jour ${jour.letter} (${i + 1}/${imagesToProcess.length})...`;
 
                 const originalGridItem = this.organizerApp.gridItemsDict[imgData.originalReferencePath];
@@ -761,9 +805,9 @@ class AutoCropper {
                     let dataURL = null;
                     let cropInfo = '';
                     let filenameSuffix = '';
-                    
+
                     if (setting === 'auto' && isVertical) {
-                        const result = await smartcrop.crop(image, { width: image.naturalWidth, height: image.naturalWidth * 4/3 });
+                        const result = await smartcrop.crop(image, { width: image.naturalWidth, height: image.naturalWidth * 4 / 3 });
                         const bestCrop = result.topCrop;
                         const tempCanvas = document.createElement('canvas');
                         tempCanvas.width = bestCrop.width;
@@ -847,7 +891,7 @@ class CroppingPage {
         this.toggleViewBtn = document.getElementById('toggleCroppingViewBtn');
         this.toggleViewBtnText = document.getElementById('toggleCroppingViewBtnText');
         this.allPhotosGroupedViewContainer = document.getElementById('allPhotosGroupedViewContainer');
-        
+
         // --- MODIFICATIONS ---
         this.autoCropSidebar = document.getElementById('autoCropSidebar');
         this.isAllPhotosViewActive = true; // La vue d'ensemble est maintenant active par défaut
@@ -868,7 +912,7 @@ class CroppingPage {
             return;
         }
         this.populateJourList();
-        
+
         if (this.isAllPhotosViewActive) {
             this.toggleAllPhotosView(true);
         } else {
@@ -903,9 +947,9 @@ class CroppingPage {
         if (this.isAllPhotosViewActive) {
             this.toggleAllPhotosView(false); // Should switch to editor view
         }
-        
+
         if (this.currentSelectedJourFrame === jourFrame && this.editorPanelElement.style.display !== 'none' && !preventStart) {
-            return; 
+            return;
         }
         this.currentSelectedJourFrame = jourFrame;
         this.populateJourList();
@@ -1021,7 +1065,7 @@ class CroppingPage {
         this.toggleAllPhotosView(false);
         this.startCroppingForJour(jourFrame, imageIndex);
     }
-    
+
     startCroppingForJour(jourFrame, startIndex = 0) {
         if (!jourFrame.imagesData || jourFrame.imagesData.length === 0) {
             this.clearEditor();
@@ -1037,16 +1081,16 @@ class CroppingPage {
             const originalImageInGrid = this.organizerApp.gridItemsDict[imgData.originalReferencePath];
             const baseImageToCropFromDataURL = originalImageInGrid ? originalImageInGrid.imagePath : imgData.dataURL;
             return {
-                pathForCropper: imgData.imageId, 
-                dataURL: imgData.dataURL, 
-                originalReferenceId: imgData.originalReferencePath, 
-                baseImageToCropFromDataURL, 
-                currentImageId: imgData.imageId 
+                pathForCropper: imgData.imageId,
+                dataURL: imgData.dataURL,
+                originalReferenceId: imgData.originalReferencePath,
+                baseImageToCropFromDataURL,
+                currentImageId: imgData.imageId
             };
         });
         this.croppingManager.startCropping(imageInfosForCropper, jourFrame, startIndex);
     }
-    
+
     _populateThumbnailStrip(jourFrame) {
         this.thumbnailStripElement.innerHTML = '';
         jourFrame.imagesData.forEach((imgData, index) => {
@@ -1088,8 +1132,8 @@ class CroppingPage {
         this.editorTitleElement.textContent = "Sélectionnez un jour à recadrer";
         this.thumbnailStripElement.innerHTML = '';
         if (this.currentSelectedJourFrame) {
-             this.currentSelectedJourFrame = null;
-             this.populateJourList();
+            this.currentSelectedJourFrame = null;
+            this.populateJourList();
         }
     }
 }
@@ -1101,10 +1145,10 @@ class CroppingManager {
         this.croppingPage = croppingPage;
         this.editorPanel = document.getElementById('croppingEditorPanel');
         this.canvasElement = document.getElementById('cropperCanvas');
-        this.ctx = this.canvasElement.getContext('2d', { alpha: false }); 
-        this.previewContainer = this.editorPanel.querySelector('.cropper-previews'); 
+        this.ctx = this.canvasElement.getContext('2d', { alpha: false });
+        this.previewContainer = this.editorPanel.querySelector('.cropper-previews');
         this.previewLeft = document.getElementById('cropperPreviewLeft');
-        this.previewCenter = document.getElementById('cropperPreviewCenter'); 
+        this.previewCenter = document.getElementById('cropperPreviewCenter');
         this.previewRight = document.getElementById('cropperPreviewRight');
         this.infoLabel = document.getElementById('cropperInfoLabel');
         this.prevBtn = document.getElementById('cropPrevImageBtn');
@@ -1112,26 +1156,26 @@ class CroppingManager {
         this.flipBtn = document.getElementById('cropFlipBtn');
         this.aspectRatioSelect = document.getElementById('cropAspectRatio');
         this.whiteBarsBtn = document.getElementById('cropAddWhiteBarsBtn');
-        this.splitLineBtn = document.getElementById('cropSplitLineBtn'); 
+        this.splitLineBtn = document.getElementById('cropSplitLineBtn');
         this.deleteBtn = document.getElementById('cropDeleteBtn');
         this.finishBtn = document.getElementById('cropFinishBtn');
-        this.imagesToCrop = []; 
+        this.imagesToCrop = [];
         this.currentImageIndex = -1;
-        this.currentImageObject = null; 
-        this.modifiedDataMap = {}; 
+        this.currentImageObject = null;
+        this.modifiedDataMap = {};
         this.currentJourFrameInstance = null;
-        this.cropRectDisplay = null; 
+        this.cropRectDisplay = null;
         this.isDragging = false;
-        this.dragMode = null; 
+        this.dragMode = null;
         this.dragStart = {};
-        this.currentAspectRatioName = '3:4'; 
-        this.splitModeState = 0; 
-        this.showSplitLineCount = 0; 
+        this.currentAspectRatioName = '3:4';
+        this.splitModeState = 0;
+        this.showSplitLineCount = 0;
         this.flippedH = false;
-        this.saveMode = 'crop'; 
+        this.saveMode = 'crop';
         this.ignoreSaveForThisImage = false;
-        this.handleSize = 18; 
-        this.handleDetectionOffset = this.handleSize / 2 + 6; 
+        this.handleSize = 18;
+        this.handleDetectionOffset = this.handleSize / 2 + 6;
         this.debouncedUpdatePreview = Utils.debounce(() => this.updatePreview(), 150);
         this.debouncedHandleResize = Utils.debounce(() => this._handleResize(), 50);
         this._initListeners();
@@ -1139,8 +1183,8 @@ class CroppingManager {
 
     _initListeners() {
         this.finishBtn.onclick = () => this.finishAndApply();
-        this.prevBtn.onclick = () => this.prevImage(); 
-        this.nextBtn.onclick = () => this.nextImage(false); 
+        this.prevBtn.onclick = () => this.prevImage();
+        this.nextBtn.onclick = () => this.nextImage(false);
         this.deleteBtn.onclick = () => {
             if (this.currentImageIndex < 0 || this.currentImageIndex >= this.imagesToCrop.length) { return; }
             const imageToDelete = this.imagesToCrop[this.currentImageIndex];
@@ -1158,10 +1202,10 @@ class CroppingManager {
         this.flipBtn.onclick = () => this.toggleFlip();
         this.aspectRatioSelect.onchange = (e) => this.onRatioChanged(e.target.value);
         this.whiteBarsBtn.onclick = () => this.toggleWhiteBars();
-        this.splitLineBtn.onclick = () => this.toggleSplitMode(); 
+        this.splitLineBtn.onclick = () => this.toggleSplitMode();
         this.canvasElement.onmousedown = (e) => this.onCanvasMouseDown(e);
         this.canvasElement.addEventListener('mousemove', (e) => this.onCanvasMouseMoveHover(e));
-        document.addEventListener('mousemove', (e) => this.onDocumentMouseMoveDrag(e)); 
+        document.addEventListener('mousemove', (e) => this.onDocumentMouseMoveDrag(e));
         document.addEventListener('mouseup', (e) => this.onDocumentMouseUp(e));
         document.addEventListener('keydown', (e) => this.onDocumentKeyDown(e));
         new ResizeObserver(this.debouncedHandleResize).observe(this.canvasElement.parentElement);
@@ -1203,7 +1247,7 @@ class CroppingManager {
         this.redrawCanvasOnly();
         this.debouncedUpdatePreview();
     }
-    
+
     async initializeCropWithSmartCrop() {
         if (!this.currentImageObject || typeof smartcrop === 'undefined') {
             this.setDefaultCropRect();
@@ -1243,7 +1287,7 @@ class CroppingManager {
             } else {
                 throw new Error("L'échelle de l'image est nulle.");
             }
-        } catch(e) {
+        } catch (e) {
             console.warn("Smartcrop a échoué, utilisation du recadrage par défaut.", e.message);
             this.setDefaultCropRect();
         } finally {
@@ -1253,21 +1297,21 @@ class CroppingManager {
     }
 
     redrawCanvasOnly() { this._internalRedraw(false); }
-    
-    _internalRedraw(updatePreviewAlso = false) { 
-        this.ctx.fillStyle = CROPPER_BACKGROUND_GRAY; 
+
+    _internalRedraw(updatePreviewAlso = false) {
+        this.ctx.fillStyle = CROPPER_BACKGROUND_GRAY;
         this.ctx.fillRect(0, 0, this.canvasElement.width, this.canvasElement.height);
         if (!this.currentImageObject) return;
-    
+
         if (this.saveMode === 'white_bars') {
             const canvasWidth = this.canvasElement.width, canvasHeight = this.canvasElement.height;
             const { finalWidth: origFinalWidth, finalHeight: origFinalHeight, pasteX: origPasteX, pasteY: origPasteY } = this.calculateWhiteBarDimensions();
             if (!origFinalWidth || !origFinalHeight) return;
             const scaleToFitCanvasX = canvasWidth / origFinalWidth, scaleToFitCanvasY = canvasHeight / origFinalHeight;
-            const finalScale = Math.min(scaleToFitCanvasX, scaleToFitCanvasY) * 0.95; 
+            const finalScale = Math.min(scaleToFitCanvasX, scaleToFitCanvasY) * 0.95;
             const displayWBFWidth = origFinalWidth * finalScale, displayWBFHeight = origFinalHeight * finalScale;
             const displayWBFX = (canvasWidth - displayWBFWidth) / 2, displayWBFY = (canvasHeight - displayWBFHeight) / 2;
-            this.ctx.fillStyle = 'white'; 
+            this.ctx.fillStyle = 'white';
             this.ctx.fillRect(displayWBFX, displayWBFY, displayWBFWidth, displayWBFHeight);
             const imgRenderWidth = (this.currentImageObject.naturalWidth || this.currentImageObject.width) * finalScale;
             const imgRenderHeight = (this.currentImageObject.naturalHeight || this.currentImageObject.height) * finalScale;
@@ -1276,80 +1320,80 @@ class CroppingManager {
             if (this.flippedH) { this.ctx.translate(imgRenderX + imgRenderWidth, imgRenderY); this.ctx.scale(-1, 1); this.ctx.drawImage(this.currentImageObject, 0, 0, imgRenderWidth, imgRenderHeight); }
             else { this.ctx.drawImage(this.currentImageObject, imgRenderX, imgRenderY, imgRenderWidth, imgRenderHeight); }
             this.ctx.restore();
-        } else { 
+        } else {
             const { displayX, displayY, displayWidth, displayHeight } = this.getImageDisplayDimensions();
             this.ctx.save();
             if (this.flippedH) { this.ctx.translate(this.canvasElement.width, 0); this.ctx.scale(-1, 1); const adjustedDisplayX = this.canvasElement.width - displayX - displayWidth; this.ctx.drawImage(this.currentImageObject, adjustedDisplayX, displayY, displayWidth, displayHeight); }
             else { this.ctx.drawImage(this.currentImageObject, displayX, displayY, displayWidth, displayHeight); }
             this.ctx.restore();
-            this.ctx.strokeStyle = 'rgba(0,0,0,0.3)'; 
+            this.ctx.strokeStyle = 'rgba(0,0,0,0.3)';
             this.ctx.lineWidth = 1;
-            this.ctx.strokeRect(displayX -0.5, displayY -0.5, displayWidth+1, displayHeight+1);
-            if (this.cropRectDisplay) { 
-                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)'; 
+            this.ctx.strokeRect(displayX - 0.5, displayY - 0.5, displayWidth + 1, displayHeight + 1);
+            if (this.cropRectDisplay) {
+                this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
                 this.ctx.lineWidth = 2;
                 this.ctx.strokeRect(this.cropRectDisplay.x, this.cropRectDisplay.y, this.cropRectDisplay.width, this.cropRectDisplay.height);
-                this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)'; 
-                this.ctx.lineWidth = 0.5; 
-                this.ctx.strokeRect(this.cropRectDisplay.x -0.5, this.cropRectDisplay.y -0.5, this.cropRectDisplay.width +1, this.cropRectDisplay.height+1);
-                const {x,y,width,height} = this.cropRectDisplay;
+                this.ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+                this.ctx.lineWidth = 0.5;
+                this.ctx.strokeRect(this.cropRectDisplay.x - 0.5, this.cropRectDisplay.y - 0.5, this.cropRectDisplay.width + 1, this.cropRectDisplay.height + 1);
+                const { x, y, width, height } = this.cropRectDisplay;
                 const hRadius = this.handleSize / 2;
-                const handlePoints = [ [x,y], [x+width/2,y], [x+width,y], [x+width,y+height/2], [x+width,y+height], [x+width/2,y+height], [x,y+height], [x,y+height/2] ];
-                handlePoints.forEach(([hx,hy]) => {
+                const handlePoints = [[x, y], [x + width / 2, y], [x + width, y], [x + width, y + height / 2], [x + width, y + height], [x + width / 2, y + height], [x, y + height], [x, y + height / 2]];
+                handlePoints.forEach(([hx, hy]) => {
                     this.ctx.beginPath();
                     this.ctx.arc(hx, hy, hRadius, 0, 2 * Math.PI, false);
-                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.95)'; 
+                    this.ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
                     this.ctx.fill();
                     this.ctx.lineWidth = 1;
-                    this.ctx.strokeStyle = 'rgba(0,0,0,0.6)'; 
+                    this.ctx.strokeStyle = 'rgba(0,0,0,0.6)';
                     this.ctx.stroke();
                 });
-                if (this.showSplitLineCount > 0 && width > 0) { 
-                    this.ctx.beginPath(); 
-                    this.ctx.setLineDash([5, 3]); 
-                    this.ctx.strokeStyle = 'rgba(220, 220, 220, 0.7)'; 
+                if (this.showSplitLineCount > 0 && width > 0) {
+                    this.ctx.beginPath();
+                    this.ctx.setLineDash([5, 3]);
+                    this.ctx.strokeStyle = 'rgba(220, 220, 220, 0.7)';
                     this.ctx.lineWidth = 1;
                     if (this.showSplitLineCount >= 1) {
                         const firstLineX = this.cropRectDisplay.x + this.cropRectDisplay.width / (this.showSplitLineCount + 1);
-                        this.ctx.moveTo(firstLineX, this.cropRectDisplay.y); 
-                        this.ctx.lineTo(firstLineX, this.cropRectDisplay.y + this.cropRectDisplay.height); 
+                        this.ctx.moveTo(firstLineX, this.cropRectDisplay.y);
+                        this.ctx.lineTo(firstLineX, this.cropRectDisplay.y + this.cropRectDisplay.height);
                     }
                     if (this.showSplitLineCount === 2) {
                         const secondLineX = this.cropRectDisplay.x + (2 * this.cropRectDisplay.width) / (this.showSplitLineCount + 1);
-                        this.ctx.moveTo(secondLineX, this.cropRectDisplay.y); 
-                        this.ctx.lineTo(secondLineX, this.cropRectDisplay.y + this.cropRectDisplay.height); 
+                        this.ctx.moveTo(secondLineX, this.cropRectDisplay.y);
+                        this.ctx.lineTo(secondLineX, this.cropRectDisplay.y + this.cropRectDisplay.height);
                     }
-                    this.ctx.stroke(); 
-                    this.ctx.setLineDash([]); 
+                    this.ctx.stroke();
+                    this.ctx.setLineDash([]);
                 }
             }
         }
         if (updatePreviewAlso) {
-             this.debouncedUpdatePreview();
+            this.debouncedUpdatePreview();
         }
     }
 
-    async onDocumentKeyDown(event) { 
+    async onDocumentKeyDown(event) {
         if (this.editorPanel.style.display === 'none' || !this.currentImageObject) { return; }
         const activeElement = document.activeElement;
         if (activeElement && (activeElement.tagName === 'INPUT' || activeElement.tagName === 'SELECT' || activeElement.tagName === 'TEXTAREA' || activeElement.isContentEditable)) { return; }
         let handled = false;
         if (event.key === "ArrowLeft") {
-            await this.prevImage(); 
+            await this.prevImage();
             handled = true;
         } else if (event.key === "ArrowRight") {
-            await this.nextImage(false); 
+            await this.nextImage(false);
             handled = true;
         }
-        if (handled) event.preventDefault(); 
+        if (handled) event.preventDefault();
     }
-    
+
     setCanvasDimensions() {
         const container = this.canvasElement.parentElement;
         this.canvasElement.width = container.clientWidth;
         this.canvasElement.height = container.clientHeight;
     }
-    
+
     async startCropping(images, callingJourFrame, startIndex = 0) {
         this.imagesToCrop = images;
         this.currentJourFrameInstance = callingJourFrame;
@@ -1372,8 +1416,8 @@ class CroppingManager {
         this.currentAspectRatioName = '3:4';
         await this.loadCurrentImage();
     }
-    
-    async finishAndApply() { 
+
+    async finishAndApply() {
         if (this.currentImageIndex >= 0 && this.currentImageIndex < this.imagesToCrop.length && !this.ignoreSaveForThisImage) {
             await this.applyAndSaveCurrentImage();
         }
@@ -1382,12 +1426,12 @@ class CroppingManager {
         }
         this.imagesToCrop = [];
         this.currentJourFrameInstance = null;
-        this.currentImageObject = null; 
-        this.ctx.clearRect(0,0,this.canvasElement.width, this.canvasElement.height);
+        this.currentImageObject = null;
+        this.ctx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
         this.infoLabel.textContent = "";
         this.isDragging = false;
         this.dragMode = null;
-        this.canvasElement.style.cursor = 'default'; 
+        this.canvasElement.style.cursor = 'default';
         this.croppingPage.clearEditor();
         this.organizer.refreshSidePanels();
     }
@@ -1427,7 +1471,7 @@ class CroppingManager {
             let defaultRatio;
             const imgWidth = this.currentImageObject.naturalWidth || this.currentImageObject.width;
             const imgHeight = this.currentImageObject.naturalHeight || this.currentImageObject.height;
-            if (imgWidth > imgHeight * 1.05) { defaultRatio = '3:2'; } 
+            if (imgWidth > imgHeight * 1.05) { defaultRatio = '3:2'; }
             else if (imgHeight > imgWidth * 1.05) { defaultRatio = '3:4'; }
             else { defaultRatio = '1:1'; }
             this.aspectRatioSelect.value = defaultRatio;
@@ -1445,73 +1489,73 @@ class CroppingManager {
         this.infoLabel.textContent = `${displayName}`;
         this.croppingPage._updateThumbnailStripHighlight(this.currentImageIndex);
     }
-    
-    setDefaultCropRect() { 
+
+    setDefaultCropRect() {
         if (!this.currentImageObject) return;
         const { displayX, displayY, displayWidth, displayHeight } = this.getImageDisplayDimensions();
         this.cropRectDisplay = { x: displayX, y: displayY, width: displayWidth, height: displayHeight };
-        this.adjustCropRectToAspectRatio(); 
-        this.canvasElement.style.cursor = 'crosshair'; 
+        this.adjustCropRectToAspectRatio();
+        this.canvasElement.style.cursor = 'crosshair';
     }
 
-    setDefaultMaximizedCropRectForSplit() { 
+    setDefaultMaximizedCropRectForSplit() {
         if (!this.currentImageObject) return;
         const { displayX, displayY, displayWidth, displayHeight } = this.getImageDisplayDimensions();
-        const targetRatioVal = 6 / 4; 
+        const targetRatioVal = 6 / 4;
         let newW, newH;
-        if (displayWidth / displayHeight > targetRatioVal) { newH = displayHeight; newW = newH * targetRatioVal; } 
-        else { newW = displayWidth; newH = newW / targetRatioVal; }
-        const newCropX = displayX + (displayWidth - newW) / 2;
-        const newCropY = displayY + (displayHeight - newH) / 2;
-        this.cropRectDisplay = { x: newCropX, y: newCropY, width: newW, height: newH };
-    }
-    
-    setDefaultMaximizedCropRectForDoubleSplit() { 
-        if (!this.currentImageObject) return;
-        const { displayX, displayY, displayWidth, displayHeight } = this.getImageDisplayDimensions();
-        const targetRatioVal = 9 / 4; 
-        let newW, newH;
-        if (displayWidth / displayHeight > targetRatioVal) { newH = displayHeight; newW = newH * targetRatioVal; } 
+        if (displayWidth / displayHeight > targetRatioVal) { newH = displayHeight; newW = newH * targetRatioVal; }
         else { newW = displayWidth; newH = newW / targetRatioVal; }
         const newCropX = displayX + (displayWidth - newW) / 2;
         const newCropY = displayY + (displayHeight - newH) / 2;
         this.cropRectDisplay = { x: newCropX, y: newCropY, width: newW, height: newH };
     }
 
-    getImageDisplayDimensions() { 
+    setDefaultMaximizedCropRectForDoubleSplit() {
+        if (!this.currentImageObject) return;
+        const { displayX, displayY, displayWidth, displayHeight } = this.getImageDisplayDimensions();
+        const targetRatioVal = 9 / 4;
+        let newW, newH;
+        if (displayWidth / displayHeight > targetRatioVal) { newH = displayHeight; newW = newH * targetRatioVal; }
+        else { newW = displayWidth; newH = newW / targetRatioVal; }
+        const newCropX = displayX + (displayWidth - newW) / 2;
+        const newCropY = displayY + (displayHeight - newH) / 2;
+        this.cropRectDisplay = { x: newCropX, y: newCropY, width: newW, height: newH };
+    }
+
+    getImageDisplayDimensions() {
         if (!this.currentImageObject || !this.canvasElement.width || !this.canvasElement.height) {
-            return { displayX:0, displayY:0, displayWidth:0, displayHeight:0, imageScale: 1};
+            return { displayX: 0, displayY: 0, displayWidth: 0, displayHeight: 0, imageScale: 1 };
         }
         const canvasWidth = this.canvasElement.width, canvasHeight = this.canvasElement.height;
         const imgWidth = this.currentImageObject.naturalWidth || this.currentImageObject.width;
         const imgHeight = this.currentImageObject.naturalHeight || this.currentImageObject.height;
-        if (imgWidth === 0 || imgHeight === 0) return { displayX:0, displayY:0, displayWidth:0, displayHeight:0, imageScale: 1};
+        if (imgWidth === 0 || imgHeight === 0) return { displayX: 0, displayY: 0, displayWidth: 0, displayHeight: 0, imageScale: 1 };
         const scaleX = canvasWidth / imgWidth, scaleY = canvasHeight / imgHeight;
         const imageScale = Math.min(scaleX, scaleY);
         const displayWidth = imgWidth * imageScale, displayHeight = imgHeight * imageScale;
         const displayX = (canvasWidth - displayWidth) / 2, displayY = (canvasHeight - displayHeight) / 2;
         return { displayX, displayY, displayWidth, displayHeight, imageScale };
     }
-    
-    adjustCropRectToAspectRatio() { 
+
+    adjustCropRectToAspectRatio() {
         if (!this.cropRectDisplay || !this.currentImageObject || this.saveMode !== 'crop') return;
         const { displayX, displayY, displayWidth, displayHeight } = this.getImageDisplayDimensions();
         let targetRatioVal;
-        if (this.currentAspectRatioName === 'free') { 
+        if (this.currentAspectRatioName === 'free') {
             this.cropRectDisplay.x = Math.max(displayX, this.cropRectDisplay.x);
             this.cropRectDisplay.y = Math.max(displayY, this.cropRectDisplay.y);
             this.cropRectDisplay.width = Math.min(this.cropRectDisplay.width, displayX + displayWidth - this.cropRectDisplay.x);
             this.cropRectDisplay.height = Math.min(this.cropRectDisplay.height, displayY + displayHeight - this.cropRectDisplay.y);
-            return; 
+            return;
         }
-        else if (this.currentAspectRatioName === '6:4split') targetRatioVal = 6 / 4; 
-        else if (this.currentAspectRatioName === '9:4doublesplit') targetRatioVal = 9 / 4; 
+        else if (this.currentAspectRatioName === '6:4split') targetRatioVal = 6 / 4;
+        else if (this.currentAspectRatioName === '9:4doublesplit') targetRatioVal = 9 / 4;
         else { const parts = this.currentAspectRatioName.split(':').map(Number); targetRatioVal = parts[0] / parts[1]; }
         let newWidth = this.cropRectDisplay.width;
         let newHeight = this.cropRectDisplay.height;
         const centerX = this.cropRectDisplay.x + newWidth / 2;
         const centerY = this.cropRectDisplay.y + newHeight / 2;
-        if (newWidth / newHeight > targetRatioVal) { newWidth = newHeight * targetRatioVal; } 
+        if (newWidth / newHeight > targetRatioVal) { newWidth = newHeight * targetRatioVal; }
         else { newHeight = newWidth / targetRatioVal; }
         if (newWidth > displayWidth) { newWidth = displayWidth; newHeight = newWidth / targetRatioVal; }
         if (newHeight > displayHeight) { newHeight = displayHeight; newWidth = newHeight * targetRatioVal; }
@@ -1522,22 +1566,22 @@ class CroppingManager {
         newWidth = Math.min(newWidth, displayX + displayWidth - newX);
         newHeight = Math.min(newHeight, displayY + displayHeight - newY);
         if (Math.abs(newWidth / newHeight - targetRatioVal) > 0.001) {
-             if (newWidth / targetRatioVal <= displayHeight - newY) { newHeight = newWidth / targetRatioVal; } 
-             else { newWidth = newHeight * targetRatioVal; }
+            if (newWidth / targetRatioVal <= displayHeight - newY) { newHeight = newWidth / targetRatioVal; }
+            else { newWidth = newHeight * targetRatioVal; }
         }
-        this.cropRectDisplay.x = newX; 
+        this.cropRectDisplay.x = newX;
         this.cropRectDisplay.y = newY;
-        this.cropRectDisplay.width = newWidth; 
+        this.cropRectDisplay.width = newWidth;
         this.cropRectDisplay.height = newHeight;
     }
 
-    updatePreview() { 
-        this.previewContainer.classList.remove('split-active', 'double-split-active'); 
+    updatePreview() {
+        this.previewContainer.classList.remove('split-active', 'double-split-active');
         this.previewLeft.src = 'about:blank'; this.previewLeft.style.display = 'none';
         this.previewCenter.src = 'about:blank'; this.previewCenter.style.display = 'none';
         this.previewRight.src = 'about:blank'; this.previewRight.style.display = 'none';
         if (!this.currentImageObject) return;
-        
+
         const tempCanvas = document.createElement('canvas'), tempCtx = tempCanvas.getContext('2d');
         if (this.saveMode === 'white_bars') {
             const { finalWidth, finalHeight, pasteX, pasteY } = this.calculateWhiteBarDimensions();
@@ -1547,20 +1591,20 @@ class CroppingManager {
             this.previewLeft.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH, PREVIEW_HEIGHT, 'lightgrey'); this.previewLeft.style.display = 'block';
         } else if (this.saveMode === 'crop' && this.cropRectDisplay) {
             const { sx, sy, sWidth, sHeight } = this.getCropSourceCoordinates();
-            if (sWidth <=0 || sHeight <=0) return;
+            if (sWidth <= 0 || sHeight <= 0) return;
             if (this.splitModeState === 1) {
-                this.previewContainer.classList.add('split-active'); 
+                this.previewContainer.classList.add('split-active');
                 const sWidthLeft = Math.floor(sWidth / 2);
-                const sWidthRight = sWidth - sWidthLeft; 
+                const sWidthRight = sWidth - sWidthLeft;
                 tempCanvas.width = sWidthLeft; tempCanvas.height = sHeight;
                 if (tempCanvas.width > 0 && tempCanvas.height > 0) {
                     this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0, 0, sWidthLeft, sHeight, sx, sy, sWidthLeft, sHeight);
-                    this.previewLeft.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH / 2 - 4, PREVIEW_HEIGHT, 'lightgrey'); 
+                    this.previewLeft.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH / 2 - 4, PREVIEW_HEIGHT, 'lightgrey');
                     this.previewLeft.style.display = 'inline-block';
                 }
-                tempCanvas.width = sWidthRight; tempCanvas.height = sHeight; 
+                tempCanvas.width = sWidthRight; tempCanvas.height = sHeight;
                 if (tempCanvas.width > 0 && tempCanvas.height > 0) {
-                    tempCtx.clearRect(0,0,tempCanvas.width, tempCanvas.height);
+                    tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
                     this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0, 0, sWidthRight, sHeight, sx + sWidthLeft, sy, sWidthRight, sHeight);
                     this.previewRight.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH / 2 - 4, PREVIEW_HEIGHT, 'lightgrey');
                     this.previewRight.style.display = 'inline-block';
@@ -1572,36 +1616,37 @@ class CroppingManager {
                 const sWidthRight = sWidth - sWidthLeft - sWidthMid;
                 if (sWidthLeft > 0) {
                     tempCanvas.width = sWidthLeft; tempCanvas.height = sHeight;
-                    this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0,0, sWidthLeft, sHeight, sx, sy, sWidthLeft, sHeight);
+                    this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0, 0, sWidthLeft, sHeight, sx, sy, sWidthLeft, sHeight);
                     this.previewLeft.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH / 3 - 6, PREVIEW_HEIGHT, 'lightgrey');
                     this.previewLeft.style.display = 'inline-block';
                 }
                 if (sWidthMid > 0) {
-                    tempCanvas.width = sWidthMid; tempCanvas.height = sHeight; tempCtx.clearRect(0,0,tempCanvas.width,tempCanvas.height);
-                    this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0,0, sWidthMid, sHeight, sx + sWidthLeft, sy, sWidthMid, sHeight);
+                    tempCanvas.width = sWidthMid; tempCanvas.height = sHeight; tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+                    this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0, 0, sWidthMid, sHeight, sx + sWidthLeft, sy, sWidthMid, sHeight);
                     this.previewCenter.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH / 3 - 6, PREVIEW_HEIGHT, 'lightgrey');
                     this.previewCenter.style.display = 'inline-block';
                 }
                 if (sWidthRight > 0) {
-                    tempCanvas.width = sWidthRight; tempCanvas.height = sHeight; tempCtx.clearRect(0,0,tempCanvas.width,tempCanvas.height);
-                    this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0,0, sWidthRight, sHeight, sx + sWidthLeft + sWidthMid, sy, sWidthRight, sHeight);
+                    tempCanvas.width = sWidthRight; tempCanvas.height = sHeight; tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
+                    this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0, 0, sWidthRight, sHeight, sx + sWidthLeft + sWidthMid, sy, sWidthRight, sHeight);
                     this.previewRight.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH / 3 - 6, PREVIEW_HEIGHT, 'lightgrey');
                     this.previewRight.style.display = 'inline-block';
                 }
-            } else { 
-                tempCanvas.width = sWidth; tempCanvas.height = sHeight; 
-                this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0,0, sWidth, sHeight, sx, sy, sWidth, sHeight);
-                this.previewLeft.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH, PREVIEW_HEIGHT, 'lightgrey'); 
+            } else {
+                tempCanvas.width = sWidth; tempCanvas.height = sHeight;
+                this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0, 0, sWidth, sHeight, sx, sy, sWidth, sHeight);
+                this.previewLeft.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH, PREVIEW_HEIGHT, 'lightgrey');
                 this.previewLeft.style.display = 'block';
-                this.previewCenter.style.display = 'none'; 
-                this.previewRight.style.display = 'none'; 
+                this.previewCenter.style.display = 'none';
+                this.previewRight.style.display = 'none';
             }
         }
     }
-    
-    drawFlippedIfNeeded(ctx, image, dx, dy, dWidth, dHeight, sx, sy, sWidth, sHeight) { 
+
+    drawFlippedIfNeeded(ctx, image, dx, dy, dWidth, dHeight, sx, sy, sWidth, sHeight) {
         ctx.save();
-        if (this.flippedH) { ctx.translate(dx + dWidth, dy); ctx.scale(-1, 1);
+        if (this.flippedH) {
+            ctx.translate(dx + dWidth, dy); ctx.scale(-1, 1);
             if (sx !== undefined) ctx.drawImage(image, sx, sy, sWidth, sHeight, 0, 0, dWidth, dHeight); else ctx.drawImage(image, 0, 0, dWidth, dHeight);
         } else {
             if (sx !== undefined) ctx.drawImage(image, sx, sy, sWidth, sHeight, dx, dy, dWidth, dHeight); else ctx.drawImage(image, dx, dy, dWidth, dHeight);
@@ -1609,9 +1654,9 @@ class CroppingManager {
         ctx.restore();
     }
 
-    getCropSourceCoordinates() { 
-        if (!this.cropRectDisplay || !this.currentImageObject) return { sx:0, sy:0, sWidth:0, sHeight:0 };
-        const { displayX, displayY, imageScale } = this.getImageDisplayDimensions(); if(imageScale === 0) return { sx:0, sy:0, sWidth:0, sHeight:0 };
+    getCropSourceCoordinates() {
+        if (!this.cropRectDisplay || !this.currentImageObject) return { sx: 0, sy: 0, sWidth: 0, sHeight: 0 };
+        const { displayX, displayY, imageScale } = this.getImageDisplayDimensions(); if (imageScale === 0) return { sx: 0, sy: 0, sWidth: 0, sHeight: 0 };
         let sx = (this.cropRectDisplay.x - displayX) / imageScale, sy = (this.cropRectDisplay.y - displayY) / imageScale;
         let sWidth = this.cropRectDisplay.width / imageScale, sHeight = this.cropRectDisplay.height / imageScale;
         const imgNaturalWidth = this.currentImageObject.naturalWidth, imgNaturalHeight = this.currentImageObject.naturalHeight;
@@ -1619,22 +1664,22 @@ class CroppingManager {
         sWidth = Math.max(1, Math.round(Math.min(sWidth, imgNaturalWidth - sx))); sHeight = Math.max(1, Math.round(Math.min(sHeight, imgNaturalHeight - sy)));
         return { sx, sy, sWidth, sHeight };
     }
-    
-    onRatioChanged(newRatioName) { 
-        if (this.splitModeState > 0 && newRatioName !== '6:4split' && newRatioName !== '9:4doublesplit') { 
+
+    onRatioChanged(newRatioName) {
+        if (this.splitModeState > 0 && newRatioName !== '6:4split' && newRatioName !== '9:4doublesplit') {
             this.splitModeState = 0;
             this.showSplitLineCount = 0;
             this.splitLineBtn.title = "Diviser l'image pour un carrousel";
             this.splitLineBtn.classList.remove('active-crop-btn');
-            this.aspectRatioSelect.disabled = false; 
-            this.whiteBarsBtn.disabled = false; 
+            this.aspectRatioSelect.disabled = false;
+            this.whiteBarsBtn.disabled = false;
         }
         this.currentAspectRatioName = newRatioName;
-        this.whiteBarsBtn.disabled = (this.splitModeState > 0); 
-        if(this.whiteBarsBtn.disabled) this.whiteBarsBtn.classList.remove('active-crop-btn');
-        if (this.saveMode === 'white_bars') { 
-            this.saveMode = 'crop'; 
-            this.aspectRatioSelect.disabled = (this.splitModeState > 0); 
+        this.whiteBarsBtn.disabled = (this.splitModeState > 0);
+        if (this.whiteBarsBtn.disabled) this.whiteBarsBtn.classList.remove('active-crop-btn');
+        if (this.saveMode === 'white_bars') {
+            this.saveMode = 'crop';
+            this.aspectRatioSelect.disabled = (this.splitModeState > 0);
             this.whiteBarsBtn.classList.remove('active-crop-btn');
         }
         if (this.saveMode === 'crop' && this.currentImageObject) {
@@ -1648,57 +1693,57 @@ class CroppingManager {
 
     toggleSplitMode() {
         if (!this.currentImageObject) return;
-        this.splitModeState = (this.splitModeState + 1) % 3; 
-        this.whiteBarsBtn.classList.remove('active-crop-btn'); 
-        this.saveMode = 'crop'; 
-        if (this.splitModeState === 1) { 
-            this.currentAspectRatioName = '6:4split'; 
+        this.splitModeState = (this.splitModeState + 1) % 3;
+        this.whiteBarsBtn.classList.remove('active-crop-btn');
+        this.saveMode = 'crop';
+        if (this.splitModeState === 1) {
+            this.currentAspectRatioName = '6:4split';
             this.aspectRatioSelect.disabled = true;
-            this.whiteBarsBtn.disabled = true; 
+            this.whiteBarsBtn.disabled = true;
             this.showSplitLineCount = 1;
-            this.setDefaultMaximizedCropRectForSplit(); 
+            this.setDefaultMaximizedCropRectForSplit();
             this.splitLineBtn.title = "Diviser en 2 images";
             this.splitLineBtn.classList.add('active-crop-btn');
-        } else if (this.splitModeState === 2) { 
-            this.currentAspectRatioName = '9:4doublesplit'; 
+        } else if (this.splitModeState === 2) {
+            this.currentAspectRatioName = '9:4doublesplit';
             this.aspectRatioSelect.disabled = true;
-            this.whiteBarsBtn.disabled = true; 
+            this.whiteBarsBtn.disabled = true;
             this.showSplitLineCount = 2;
-            this.setDefaultMaximizedCropRectForDoubleSplit(); 
+            this.setDefaultMaximizedCropRectForDoubleSplit();
             this.splitLineBtn.title = "Diviser en 3 images";
-            this.splitLineBtn.classList.add('active-crop-btn'); 
-        } else { 
+            this.splitLineBtn.classList.add('active-crop-btn');
+        } else {
             this.aspectRatioSelect.disabled = false;
             this.whiteBarsBtn.disabled = false;
             this.showSplitLineCount = 0;
             this.splitLineBtn.title = "Diviser l'image pour un carrousel";
             this.splitLineBtn.classList.remove('active-crop-btn');
-            const currentSelectedRatio = this.aspectRatioSelect.value || '3:4'; 
-            this.onRatioChanged(currentSelectedRatio); 
+            const currentSelectedRatio = this.aspectRatioSelect.value || '3:4';
+            this.onRatioChanged(currentSelectedRatio);
         }
         this.redrawCanvasOnly();
         this.debouncedUpdatePreview();
     }
 
-    toggleFlip() { 
-        if (!this.currentImageObject) return; this.flippedH = !this.flippedH; 
+    toggleFlip() {
+        if (!this.currentImageObject) return; this.flippedH = !this.flippedH;
         this.redrawCanvasOnly();
         this.debouncedUpdatePreview();
     }
-    
-    calculateWhiteBarDimensions() { 
-        if (!this.currentImageObject) return { finalWidth:0, finalHeight:0, pasteX:0, pasteY:0 };
+
+    calculateWhiteBarDimensions() {
+        if (!this.currentImageObject) return { finalWidth: 0, finalHeight: 0, pasteX: 0, pasteY: 0 };
         const imgWidth = this.currentImageObject.naturalWidth, imgHeight = this.currentImageObject.naturalHeight;
-        const targetRatio = 3 / 4; 
+        const targetRatio = 3 / 4;
         let finalWidth, finalHeight, pasteX, pasteY;
-        if (imgWidth / imgHeight > targetRatio) { 
-            finalWidth = imgWidth; 
-            finalHeight = Math.round(imgWidth / targetRatio); 
-        } else { 
-            finalHeight = imgHeight; 
-            finalWidth = Math.round(imgHeight * targetRatio); 
+        if (imgWidth / imgHeight > targetRatio) {
+            finalWidth = imgWidth;
+            finalHeight = Math.round(imgWidth / targetRatio);
+        } else {
+            finalHeight = imgHeight;
+            finalWidth = Math.round(imgHeight * targetRatio);
         }
-        pasteX = Math.round((finalWidth - imgWidth) / 2); 
+        pasteX = Math.round((finalWidth - imgWidth) / 2);
         pasteY = Math.round((finalHeight - imgHeight) / 2);
         return { finalWidth, finalHeight, pasteX, pasteY };
     }
@@ -1739,16 +1784,16 @@ class CroppingManager {
         this.redrawCanvasOnly();
         this.debouncedUpdatePreview();
     }
-    
-    async applyAndSaveCurrentImage() { 
+
+    async applyAndSaveCurrentImage() {
         if (this.ignoreSaveForThisImage || !this.currentImageObject || this.currentImageIndex < 0) return;
         const currentImgInfoForCropper = this.imagesToCrop[this.currentImageIndex];
-        const originalImageId = currentImgInfoForCropper.originalReferenceId; 
-        const currentImageIdInJour = currentImgInfoForCropper.currentImageId; 
+        const originalImageId = currentImgInfoForCropper.originalReferenceId;
+        const currentImageIdInJour = currentImgInfoForCropper.currentImageId;
         const galleryIdForAPI = this.currentJourFrameInstance.galleryId;
         const saveCanvas = document.createElement('canvas');
         const saveCtx = saveCanvas.getContext('2d');
-        let cropOperationsPayloads = []; 
+        let cropOperationsPayloads = [];
         try {
             if (this.saveMode === 'white_bars') {
                 const { finalWidth, finalHeight, pasteX, pasteY } = this.calculateWhiteBarDimensions();
@@ -1758,50 +1803,50 @@ class CroppingManager {
                 saveCanvas.width = finalWidth; saveCanvas.height = finalHeight;
                 saveCtx.fillStyle = 'white'; saveCtx.fillRect(0, 0, finalWidth, finalHeight);
                 this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, pasteX, pasteY, this.currentImageObject.naturalWidth, this.currentImageObject.naturalHeight);
-                const newDataURL = saveCanvas.toDataURL('image/jpeg', 0.92); 
-                cropOperationsPayloads.push({ imageDataUrl: newDataURL, cropInfo: 'barres_3x4', filenameSuffix: 'barres_3x4' }); 
+                const newDataURL = saveCanvas.toDataURL('image/jpeg', 0.92);
+                cropOperationsPayloads.push({ imageDataUrl: newDataURL, cropInfo: 'barres_3x4', filenameSuffix: 'barres_3x4' });
             } else if (this.saveMode === 'crop' && this.cropRectDisplay) {
                 const { sx, sy, sWidth, sHeight } = this.getCropSourceCoordinates();
                 if (sWidth <= 0 || sHeight <= 0) {
                     this.infoLabel.textContent = `Recadrage ignoré (dimensions invalides).`;
                     return;
                 }
-                if (this.splitModeState === 1) { 
+                if (this.splitModeState === 1) {
                     const sWidthLeft = Math.floor(sWidth / 2);
-                    const sWidthRight = sWidth - sWidthLeft; 
-                    if (sWidthLeft > 0) { 
+                    const sWidthRight = sWidth - sWidthLeft;
+                    if (sWidthLeft > 0) {
                         saveCanvas.width = sWidthLeft; saveCanvas.height = sHeight;
-                        this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthLeft, sHeight, sx, sy, sWidthLeft, sHeight);
-                        cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_gauche_3x4', filenameSuffix: 'gauche_3x4' }); 
+                        this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0, 0, sWidthLeft, sHeight, sx, sy, sWidthLeft, sHeight);
+                        cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_gauche_3x4', filenameSuffix: 'gauche_3x4' });
                     }
-                    if (sWidthRight > 0) { 
-                        saveCanvas.width = sWidthRight; saveCanvas.height = sHeight; saveCtx.clearRect(0,0, saveCanvas.width, saveCanvas.height);
-                        this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthRight, sHeight, sx + sWidthLeft, sy, sWidthRight, sHeight);
-                        cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_droite_3x4', filenameSuffix: 'droite_3x4' }); 
+                    if (sWidthRight > 0) {
+                        saveCanvas.width = sWidthRight; saveCanvas.height = sHeight; saveCtx.clearRect(0, 0, saveCanvas.width, saveCanvas.height);
+                        this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0, 0, sWidthRight, sHeight, sx + sWidthLeft, sy, sWidthRight, sHeight);
+                        cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_droite_3x4', filenameSuffix: 'droite_3x4' });
                     }
-                } else if (this.splitModeState === 2) { 
+                } else if (this.splitModeState === 2) {
                     const sWidthThird = Math.floor(sWidth / 3);
                     const sWidthLeft = sWidthThird, sWidthMid = sWidthThird;
                     const sWidthRight = sWidth - sWidthLeft - sWidthMid;
                     if (sWidthLeft > 0) {
-                        saveCanvas.width = sWidthLeft; saveCanvas.height = sHeight; saveCtx.clearRect(0,0,saveCanvas.width,saveCanvas.height);
-                        this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthLeft, sHeight, sx, sy, sWidthLeft, sHeight);
-                        cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_gauche_3x4_sur3', filenameSuffix: 'g_3x4_3' }); 
+                        saveCanvas.width = sWidthLeft; saveCanvas.height = sHeight; saveCtx.clearRect(0, 0, saveCanvas.width, saveCanvas.height);
+                        this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0, 0, sWidthLeft, sHeight, sx, sy, sWidthLeft, sHeight);
+                        cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_gauche_3x4_sur3', filenameSuffix: 'g_3x4_3' });
                     }
                     if (sWidthMid > 0) {
-                        saveCanvas.width = sWidthMid; saveCanvas.height = sHeight; saveCtx.clearRect(0,0,saveCanvas.width,saveCanvas.height);
-                        this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthMid, sHeight, sx + sWidthLeft, sy, sWidthMid, sHeight);
-                        cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_milieu_3x4_sur3', filenameSuffix: 'm_3x4_3' }); 
+                        saveCanvas.width = sWidthMid; saveCanvas.height = sHeight; saveCtx.clearRect(0, 0, saveCanvas.width, saveCanvas.height);
+                        this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0, 0, sWidthMid, sHeight, sx + sWidthLeft, sy, sWidthMid, sHeight);
+                        cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_milieu_3x4_sur3', filenameSuffix: 'm_3x4_3' });
                     }
                     if (sWidthRight > 0) {
-                        saveCanvas.width = sWidthRight; saveCanvas.height = sHeight; saveCtx.clearRect(0,0,saveCanvas.width,saveCanvas.height);
-                        this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidthRight, sHeight, sx + sWidthLeft + sWidthMid, sy, sWidthRight, sHeight);
-                        cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_droite_3x4_sur3', filenameSuffix: 'd_3x4_3' }); 
+                        saveCanvas.width = sWidthRight; saveCanvas.height = sHeight; saveCtx.clearRect(0, 0, saveCanvas.width, saveCanvas.height);
+                        this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0, 0, sWidthRight, sHeight, sx + sWidthLeft + sWidthMid, sy, sWidthRight, sHeight);
+                        cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: 'split_droite_3x4_sur3', filenameSuffix: 'd_3x4_3' });
                     }
-                } else { 
+                } else {
                     saveCanvas.width = sWidth; saveCanvas.height = sHeight;
-                    this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0,0, sWidth, sHeight, sx, sy, sWidth, sHeight);
-                    const suffix = this.currentAspectRatioName.replace(':','x'); 
+                    this.drawFlippedIfNeeded(saveCtx, this.currentImageObject, 0, 0, sWidth, sHeight, sx, sy, sWidth, sHeight);
+                    const suffix = this.currentAspectRatioName.replace(':', 'x');
                     cropOperationsPayloads.push({ imageDataUrl: saveCanvas.toDataURL('image/jpeg', 0.92), cropInfo: `recadre_${suffix}`, filenameSuffix: `rec_${suffix}` });
                 }
             }
@@ -1818,7 +1863,7 @@ class CroppingManager {
                         const errText = await response.text();
                         throw new Error(`Crop save to backend failed: ${response.statusText} - ${errText}`);
                     }
-                    const newImageDoc = await response.json(); 
+                    const newImageDoc = await response.json();
                     backendResults.push(newImageDoc);
                     if (!this.organizer.gridItemsDict[newImageDoc._id]) {
                         const newGridItem = new GridItemBackend(newImageDoc, this.organizer.currentThumbSize, this.organizer);
@@ -1838,7 +1883,7 @@ class CroppingManager {
         }
     }
 
-    async nextImage(skipSave = false) { 
+    async nextImage(skipSave = false) {
         if (!skipSave && this.currentImageIndex >= 0 && this.currentImageIndex < this.imagesToCrop.length) {
             await this.applyAndSaveCurrentImage();
         }
@@ -1846,47 +1891,47 @@ class CroppingManager {
             this.currentImageIndex++;
             await this.loadCurrentImage();
         } else {
-            await this.finishAndApply(); 
+            await this.finishAndApply();
         }
     }
 
-    async prevImage() { 
+    async prevImage() {
         if (this.currentImageIndex > 0) {
             this.currentImageIndex--;
-            this.ignoreSaveForThisImage = true; 
+            this.ignoreSaveForThisImage = true;
             await this.loadCurrentImage();
         } else {
             this.infoLabel.textContent = "Ceci est la première image.";
         }
     }
-    
-    getMousePos(event) { 
-        const rect = this.canvasElement.getBoundingClientRect(); return { x: event.clientX - rect.left, y: event.clientY - rect.top }; 
+
+    getMousePos(event) {
+        const rect = this.canvasElement.getBoundingClientRect(); return { x: event.clientX - rect.left, y: event.clientY - rect.top };
     }
-    
-    getHandleAtPos(mouseX, mouseY) { 
+
+    getHandleAtPos(mouseX, mouseY) {
         if (!this.cropRectDisplay) return null;
-        const {x,y,width,height} = this.cropRectDisplay; const H_detect = this.handleDetectionOffset;
+        const { x, y, width, height } = this.cropRectDisplay; const H_detect = this.handleDetectionOffset;
         if (mouseX >= x - H_detect && mouseX <= x + H_detect && mouseY >= y - H_detect && mouseY <= y + H_detect) return 'nw';
         if (mouseX >= x + width - H_detect && mouseX <= x + width + H_detect && mouseY >= y - H_detect && mouseY <= y + H_detect) return 'ne';
         if (mouseX >= x + width - H_detect && mouseX <= x + width + H_detect && mouseY >= y + height - H_detect && mouseY <= y + height + H_detect) return 'se';
         if (mouseX >= x - H_detect && mouseX <= x + H_detect && mouseY >= y + height - H_detect && mouseY <= y + height + H_detect) return 'sw';
-        if (mouseX >= x + width/2 - H_detect && mouseX <= x + width/2 + H_detect && mouseY >= y - H_detect && mouseY <= y + H_detect) return 'n';
-        if (mouseX >= x + width - H_detect && mouseX <= x + width + H_detect && mouseY >= y + height/2 - H_detect && mouseY <= y + height/2 + H_detect) return 'e';
-        if (mouseX >= x + width/2 - H_detect && mouseX <= x + width/2 + H_detect && mouseY >= y + height - H_detect && mouseY <= y + height + H_detect) return 's';
-        if (mouseX >= x - H_detect && mouseX <= x + H_detect && mouseY >= y + height/2 - H_detect && mouseY <= y + height/2 + H_detect) return 'w';
+        if (mouseX >= x + width / 2 - H_detect && mouseX <= x + width / 2 + H_detect && mouseY >= y - H_detect && mouseY <= y + H_detect) return 'n';
+        if (mouseX >= x + width - H_detect && mouseX <= x + width + H_detect && mouseY >= y + height / 2 - H_detect && mouseY <= y + height / 2 + H_detect) return 'e';
+        if (mouseX >= x + width / 2 - H_detect && mouseX <= x + width / 2 + H_detect && mouseY >= y + height - H_detect && mouseY <= y + height + H_detect) return 's';
+        if (mouseX >= x - H_detect && mouseX <= x + H_detect && mouseY >= y + height / 2 - H_detect && mouseY <= y + height / 2 + H_detect) return 'w';
         return null;
     }
 
-    onCanvasMouseMoveHover(event) { 
+    onCanvasMouseMoveHover(event) {
         if (this.isDragging || this.saveMode !== 'crop' || !this.currentImageObject || !this.cropRectDisplay) { if (!this.isDragging && this.saveMode !== 'crop') this.canvasElement.style.cursor = 'default'; return; }
         const mousePos = this.getMousePos(event), handle = this.getHandleAtPos(mousePos.x, mousePos.y);
         if (handle) this.canvasElement.style.cursor = `${handle}-resize`;
         else if (mousePos.x >= this.cropRectDisplay.x && mousePos.x <= this.cropRectDisplay.x + this.cropRectDisplay.width && mousePos.y >= this.cropRectDisplay.y && mousePos.y <= this.cropRectDisplay.y + this.cropRectDisplay.height) this.canvasElement.style.cursor = 'move';
         else this.canvasElement.style.cursor = 'crosshair';
     }
-    
-    onCanvasMouseDown(event) { 
+
+    onCanvasMouseDown(event) {
         if (this.saveMode !== 'crop' || !this.currentImageObject || !this.cropRectDisplay) return;
         const mousePos = this.getMousePos(event); this.dragMode = this.getHandleAtPos(mousePos.x, mousePos.y);
         if (this.dragMode) { this.isDragging = true; this.canvasElement.style.cursor = `${this.dragMode}-resize`; }
@@ -1901,12 +1946,12 @@ class CroppingManager {
         const dx = mousePos.x - this.dragStart.x;
         const dy = mousePos.y - this.dragStart.y;
         const { displayX, displayY, displayWidth, displayHeight } = this.getImageDisplayDimensions();
-        const minDim = this.handleSize * 1.5; 
+        const minDim = this.handleSize * 1.5;
         let newX = this.dragStart.cropX, newY = this.dragStart.cropY, newW = this.dragStart.cropW, newH = this.dragStart.cropH;
         if (this.dragMode === 'move') {
             newX = Math.max(displayX, Math.min(this.dragStart.cropX + dx, displayX + displayWidth - newW));
             newY = Math.max(displayY, Math.min(this.dragStart.cropY + dy, displayY + displayHeight - newH));
-        } else { 
+        } else {
             if (this.dragMode.includes('e')) newW = Math.max(minDim, this.dragStart.cropW + dx);
             if (this.dragMode.includes('w')) {
                 const tempNewX = this.dragStart.cropX + dx;
@@ -1921,7 +1966,7 @@ class CroppingManager {
             if (this.dragMode.includes('n')) {
                 const tempNewY = this.dragStart.cropY + dy;
                 newH = Math.max(minDim, this.dragStart.cropH - dy);
-                 if (newH === minDim && this.dragStart.cropY + this.dragStart.cropH - tempNewY < minDim) {
+                if (newH === minDim && this.dragStart.cropY + this.dragStart.cropH - tempNewY < minDim) {
                     newY = this.dragStart.cropY + this.dragStart.cropH - minDim;
                 } else {
                     newY = tempNewY;
@@ -1935,20 +1980,20 @@ class CroppingManager {
             if (this.dragMode.includes('n')) newY = Math.min(newY, this.dragStart.cropY + this.dragStart.cropH - minDim);
             if (this.currentAspectRatioName !== 'free') {
                 let targetRatio;
-                if (this.currentAspectRatioName === '6:4split') targetRatio = 6/4; 
-                else if (this.currentAspectRatioName === '9:4doublesplit') targetRatio = 9/4; 
+                if (this.currentAspectRatioName === '6:4split') targetRatio = 6 / 4;
+                else if (this.currentAspectRatioName === '9:4doublesplit') targetRatio = 9 / 4;
                 else { const parts = this.currentAspectRatioName.split(':').map(Number); targetRatio = parts[0] / parts[1]; }
-                if (this.dragMode.includes('e') || this.dragMode.includes('w')) { newH = newW / targetRatio; } 
-                else if (this.dragMode.includes('s') || this.dragMode.includes('n')) { newW = newH * targetRatio; } 
+                if (this.dragMode.includes('e') || this.dragMode.includes('w')) { newH = newW / targetRatio; }
+                else if (this.dragMode.includes('s') || this.dragMode.includes('n')) { newW = newH * targetRatio; }
                 else { if (Math.abs(dx) > Math.abs(dy)) newH = newW / targetRatio; else newW = newH * targetRatio; }
                 if (this.dragMode.includes('n')) newY = this.dragStart.cropY + this.dragStart.cropH - newH;
                 if (this.dragMode.includes('w')) newX = this.dragStart.cropX + this.dragStart.cropW - newW;
                 newX = Math.max(displayX, Math.min(newX, displayX + displayWidth - newW));
                 newY = Math.max(displayY, Math.min(newY, displayY + displayHeight - newH));
-                newW = Math.min(newW, displayX + displayWidth - newX); 
-                newH = Math.min(newH, displayY + displayHeight - newY); 
-                if (Math.abs(newW / newH - targetRatio) > 0.01) { 
-                    if (newW / targetRatio <= displayHeight - newY && newW / targetRatio >= minDim) { newH = newW / targetRatio; } 
+                newW = Math.min(newW, displayX + displayWidth - newX);
+                newH = Math.min(newH, displayY + displayHeight - newY);
+                if (Math.abs(newW / newH - targetRatio) > 0.01) {
+                    if (newW / targetRatio <= displayHeight - newY && newW / targetRatio >= minDim) { newH = newW / targetRatio; }
                     else if (newH * targetRatio <= displayWidth - newX && newH * targetRatio >= minDim) { newW = newH * targetRatio; }
                 }
             }
@@ -1961,19 +2006,19 @@ class CroppingManager {
         this.cropRectDisplay.y = Math.round(newY);
         this.cropRectDisplay.width = Math.round(Math.max(minDim, newW));
         this.cropRectDisplay.height = Math.round(Math.max(minDim, newH));
-        this.redrawCanvasOnly(); 
+        this.redrawCanvasOnly();
     }
-    
-    onDocumentMouseUp(event) { 
-        if (this.isDragging) { 
-            this.isDragging = false; 
-            this.onCanvasMouseMoveHover(event); 
+
+    onDocumentMouseUp(event) {
+        if (this.isDragging) {
+            this.isDragging = false;
+            this.onCanvasMouseMoveHover(event);
             if (this.saveMode === 'crop' && this.cropRectDisplay) {
-                 this.adjustCropRectToAspectRatio(); 
-                 this.redrawCanvasOnly(); 
-                 this.debouncedUpdatePreview(); 
+                this.adjustCropRectToAspectRatio();
+                this.redrawCanvasOnly();
+                this.debouncedUpdatePreview();
             }
-        } 
+        }
     }
 }
 
@@ -2002,7 +2047,7 @@ class DescriptionManager {
             if (!this.currentSelectedJourFrame) return;
             this.debouncedSave();
         });
-        
+
         this.jourListElement.addEventListener('click', (e) => {
             const li = e.target.closest('li');
             if (li && li.dataset.jourId) {
@@ -2025,7 +2070,7 @@ class DescriptionManager {
             const stillExists = this.organizerApp.jourFrames.find(jf => jf.id === this.currentSelectedJourFrame.id);
             if (stillExists) {
                 this.loadDescriptionForJour(this.currentSelectedJourFrame);
-            } else { 
+            } else {
                 this.clearEditor();
                 if (this.organizerApp.jourFrames.length > 0) {
                     this.selectJour(this.organizerApp.jourFrames[0]);
@@ -2056,7 +2101,7 @@ class DescriptionManager {
         this.descriptionHashtagsElement.value = jourFrame.descriptionHashtags || '';
         this.editorContentElement.style.display = 'block';
         this.editorPlaceholderElement.style.display = 'none';
-        
+
         this.imagesPreviewBanner.innerHTML = '';
         if (jourFrame.imagesData && jourFrame.imagesData.length > 0) {
             jourFrame.imagesData.forEach(imgData => {
@@ -2092,12 +2137,12 @@ class DescriptionManager {
         if (!this.currentSelectedJourFrame || !app.currentGalleryId) {
             return;
         }
-        
+
         const jourToUpdate = this.currentSelectedJourFrame;
         jourToUpdate.descriptionText = this.descriptionTextElement.value;
         jourToUpdate.descriptionHashtags = this.descriptionHashtagsElement.value;
-        
-        const success = await jourToUpdate.save(); 
+
+        const success = await jourToUpdate.save();
         if (success) {
             this.organizerApp.refreshSidePanels();
         }
@@ -2108,7 +2153,7 @@ class CalendarPage {
     constructor(parentElement, organizerApp) {
         this.parentElement = parentElement;
         this.organizerApp = organizerApp;
-        this.currentDate = new Date(); 
+        this.currentDate = new Date();
         this.calendarGridElement = this.parentElement.querySelector('#calendarGrid');
         this.monthYearLabelElement = this.parentElement.querySelector('#monthYearLabel');
         this.jourListElement = this.parentElement.querySelector('#calendarJourList');
@@ -2118,28 +2163,28 @@ class CalendarPage {
         this.contextPreviewImages = document.getElementById('calendarContextImages');
         this.runAutoScheduleBtn = document.getElementById('runAutoScheduleBtn');
         this.autoScheduleInfo = document.getElementById('auto-schedule-info');
-        this.dragData = {}; 
+        this.dragData = {};
         this._initListeners();
-        this.debouncedChangeMonth = Utils.debounce(this.changeMonth.bind(this), 100); 
+        this.debouncedChangeMonth = Utils.debounce(this.changeMonth.bind(this), 100);
     }
 
     _initListeners() {
         this.parentElement.querySelector('#todayBtn').addEventListener('click', () => this.goToToday());
         this.calendarGridElement.addEventListener('wheel', (event) => {
-            event.preventDefault(); 
-            if (event.deltaY < 0) { 
+            event.preventDefault();
+            if (event.deltaY < 0) {
                 this.debouncedChangeMonth(-1);
-            } else { 
+            } else {
                 this.debouncedChangeMonth(1);
             }
         }, { passive: false });
         this.contextPreviewModal.addEventListener('mouseleave', (e) => {
             setTimeout(() => {
-                 if (!this.contextPreviewModal.matches(':hover')) this._hideContextPreview();
+                if (!this.contextPreviewModal.matches(':hover')) this._hideContextPreview();
             }, 100);
         });
         document.addEventListener('click', (e) => {
-            if (this.contextPreviewModal.style.display === 'block' && !this.contextPreviewModal.contains(e.target) && !e.target.closest('.scheduled-item')) { 
+            if (this.contextPreviewModal.style.display === 'block' && !this.contextPreviewModal.contains(e.target) && !e.target.closest('.scheduled-item')) {
                 this._hideContextPreview();
             }
         });
@@ -2169,11 +2214,11 @@ class CalendarPage {
     }
 
     changeMonth(monthDelta) {
-        this.currentDate.setDate(1); 
+        this.currentDate.setDate(1);
         this.currentDate.setMonth(this.currentDate.getMonth() + monthDelta);
         this.buildCalendarUI();
     }
-    
+
     formatDateKey(dateObj) {
         const year = dateObj.getFullYear();
         const month = (dateObj.getMonth() + 1).toString().padStart(2, '0');
@@ -2182,8 +2227,8 @@ class CalendarPage {
     }
 
     buildCalendarUI() {
-        this.calendarGridElement.innerHTML = ''; 
-        if (!app.currentGalleryId) { 
+        this.calendarGridElement.innerHTML = '';
+        if (!app.currentGalleryId) {
             this.calendarGridElement.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 20px;">Chargez une galerie pour voir le calendrier.</p>';
             this.monthYearLabelElement.textContent = "Calendrier";
             this.populateJourList();
@@ -2193,7 +2238,7 @@ class CalendarPage {
         this.populateJourList();
         this.buildUnscheduledJoursList();
         const year = this.currentDate.getFullYear();
-        const month = this.currentDate.getMonth(); 
+        const month = this.currentDate.getMonth();
         this.monthYearLabelElement.textContent = `${this.currentDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`;
         const daysOfWeekFr = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
         daysOfWeekFr.forEach(dayName => {
@@ -2204,11 +2249,11 @@ class CalendarPage {
         });
         const firstDayOfMonth = new Date(year, month, 1);
         const lastDayOfMonth = new Date(year, month + 1, 0);
-        let dayOfWeekOfFirst = firstDayOfMonth.getDay(); 
-        if (dayOfWeekOfFirst === 0) dayOfWeekOfFirst = 7; 
+        let dayOfWeekOfFirst = firstDayOfMonth.getDay();
+        if (dayOfWeekOfFirst === 0) dayOfWeekOfFirst = 7;
         const daysInPrevMonth = (dayOfWeekOfFirst - 1);
         const today = new Date();
-        today.setHours(0,0,0,0); 
+        today.setHours(0, 0, 0, 0);
         for (let i = 0; i < daysInPrevMonth; i++) {
             const prevMonthDay = new Date(year, month, 1 - (daysInPrevMonth - i));
             this.createDayCell(prevMonthDay, true, false, prevMonthDay < today);
@@ -2218,7 +2263,7 @@ class CalendarPage {
             this.createDayCell(currentDateInLoop, false, currentDateInLoop.getTime() === today.getTime(), currentDateInLoop < today && currentDateInLoop.getTime() !== today.getTime());
         }
         const totalCellsSoFar = daysInPrevMonth + lastDayOfMonth.getDate();
-        const remainingCells = (7 - (totalCellsSoFar % 7)) % 7; 
+        const remainingCells = (7 - (totalCellsSoFar % 7)) % 7;
         for (let i = 1; i <= remainingCells; i++) {
             const nextMonthDay = new Date(year, month + 1, i);
             this.createDayCell(nextMonthDay, true, false, nextMonthDay < today);
@@ -2228,7 +2273,7 @@ class CalendarPage {
     populateJourList() {
         this.organizerApp._populateSharedJourList(this.jourListElement, null, 'calendar');
     }
-    
+
     createDayCell(dateObj, isOtherMonth, isToday = false, isPast = false) {
         const dayCell = document.createElement('div');
         dayCell.className = 'calendar-day-cell';
@@ -2247,13 +2292,13 @@ class CalendarPage {
             const itemsOnDay = scheduleData[dateKey];
             const sortedLetters = Object.keys(itemsOnDay).sort();
             sortedLetters.forEach(letter => {
-                const itemData = itemsOnDay[letter]; 
+                const itemData = itemsOnDay[letter];
                 const pubItemElement = document.createElement('div');
                 pubItemElement.className = 'scheduled-item';
                 pubItemElement.draggable = true;
                 const colorIndex = letter.charCodeAt(0) - 'A'.charCodeAt(0);
                 pubItemElement.style.borderColor = JOUR_COLORS[colorIndex % JOUR_COLORS.length];
-                const textSpan = document.createElement('span'); 
+                const textSpan = document.createElement('span');
                 textSpan.className = 'scheduled-item-text';
                 textSpan.textContent = itemData.label || `Jour ${letter}`;
                 pubItemElement.appendChild(textSpan);
@@ -2297,7 +2342,7 @@ class CalendarPage {
                 }
                 pubItemElement.dataset.jourLetter = letter;
                 pubItemElement.dataset.dateStr = dateKey;
-                pubItemElement.dataset.galleryId = itemData.galleryId; 
+                pubItemElement.dataset.galleryId = itemData.galleryId;
                 pubItemElement.addEventListener('dragstart', (e) => this._onDragStart(e, {
                     type: 'calendar',
                     date: dateKey,
@@ -2309,8 +2354,8 @@ class CalendarPage {
             });
         }
         dayCell.addEventListener('dragover', (e) => {
-             e.preventDefault();
-             dayCell.classList.add('drag-over-day');
+            e.preventDefault();
+            dayCell.classList.add('drag-over-day');
         });
         dayCell.addEventListener('dragleave', (e) => {
             dayCell.classList.remove('drag-over-day');
@@ -2321,7 +2366,7 @@ class CalendarPage {
         });
         this.calendarGridElement.appendChild(dayCell);
     }
-    
+
     buildUnscheduledJoursList() {
         if (!this.unscheduledJoursListElement) return;
         this.unscheduledJoursListElement.innerHTML = '';
@@ -2379,17 +2424,17 @@ class CalendarPage {
                 thumbElement.textContent = "N/A";
             }
         } else {
-            thumbElement.textContent = "?"; 
+            thumbElement.textContent = "?";
         }
     }
-    
-    _onDragStart(event, dragPayload, itemElement) { 
+
+    _onDragStart(event, dragPayload, itemElement) {
         this.dragData = dragPayload;
-        event.dataTransfer.setData("application/json", JSON.stringify(dragPayload)); 
+        event.dataTransfer.setData("application/json", JSON.stringify(dragPayload));
         event.dataTransfer.effectAllowed = "move";
         setTimeout(() => {
             itemElement.classList.add(dragPayload.type === 'calendar' ? 'dragging-schedule-item' : 'dragging-from-list');
-        }, 0); 
+        }, 0);
         const onDragEnd = () => {
             itemElement.classList.remove('dragging-schedule-item', 'dragging-from-list');
             document.removeEventListener('dragend', onDragEnd);
@@ -2419,7 +2464,7 @@ class CalendarPage {
                     scheduleData[targetDateKey] = {};
                 }
                 scheduleData[targetDateKey][sourceLetter] = sourceData;
-                this.saveSchedule(); 
+                this.saveSchedule();
             }
         } catch (e) {
             console.error("Erreur lors du drop sur le calendrier:", e);
@@ -2464,19 +2509,19 @@ class CalendarPage {
         for (const dateKey in scheduleData) {
             const dayEvents = scheduleData[dateKey];
             if (dayEvents[jourLetter] && dayEvents[jourLetter].galleryId === galleryId) {
-                return true; 
+                return true;
             }
         }
         return false;
     }
 
-    async saveSchedule() { 
+    async saveSchedule() {
         if (!app.currentGalleryId) return;
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/schedule`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(this.organizerApp.scheduleContext.schedule) 
+                body: JSON.stringify(this.organizerApp.scheduleContext.schedule)
             });
             if (!response.ok) {
                 throw new Error(`Failed to save schedule: ${response.statusText}`);
@@ -2485,11 +2530,11 @@ class CalendarPage {
             this.buildCalendarUI();
         } catch (e) {
             console.error("Error saving schedule data to backend:", e);
-            alert("Erreur lors de la sauvegarde de la programmation."); 
+            alert("Erreur lors de la sauvegarde de la programmation.");
         }
     }
 
-    addOrUpdatePublicationForDate(dateObj, jourLetter, galleryId, galleryName) { 
+    addOrUpdatePublicationForDate(dateObj, jourLetter, galleryId, galleryName) {
         const dateStr = this.formatDateKey(dateObj);
         const scheduleData = this.organizerApp.scheduleContext.schedule;
         if (!scheduleData[dateStr]) {
@@ -2498,8 +2543,8 @@ class CalendarPage {
         if (scheduleData[dateStr][jourLetter] && scheduleData[dateStr][jourLetter].galleryId === galleryId) {
             return;
         }
-        scheduleData[dateStr][jourLetter] = { label: `Jour ${jourLetter}`, galleryId: galleryId, galleryName: galleryName }; 
-        this.saveSchedule(); 
+        scheduleData[dateStr][jourLetter] = { label: `Jour ${jourLetter}`, galleryId: galleryId, galleryName: galleryName };
+        this.saveSchedule();
     }
 
     removePublicationForDate(dateObj, jourLetter) {
@@ -2530,10 +2575,10 @@ class CalendarPage {
             Object.values(scheduleData).forEach(day => {
                 Object.values(day).forEach(item => {
                     const letter = item.label ? item.label.split(' ')[1] : Object.keys(day).find(k => day[k] === item);
-                    if(letter) scheduledJourIdentifiers.add(`${item.galleryId}-${letter}`);
+                    if (letter) scheduledJourIdentifiers.add(`${item.galleryId}-${letter}`);
                 });
             });
-            let unpublishedJours = allUserJours.filter(jour => 
+            let unpublishedJours = allUserJours.filter(jour =>
                 !scheduledJourIdentifiers.has(`${jour.galleryId}-${jour.letter}`) && this.organizerApp.isJourReadyForPublishing(jour.galleryId, jour.letter)
             );
             if (unpublishedJours.length === 0) {
@@ -2571,12 +2616,12 @@ class CalendarPage {
                 }
             }
             let currentDate = new Date();
-            currentDate.setHours(0, 0, 0, 0); 
+            currentDate.setHours(0, 0, 0, 0);
             let joursPlaced = 0;
             while (unpublishedJours.length > 0) {
                 const dateKey = this.formatDateKey(currentDate);
                 let postsOnThisDay = scheduleData[dateKey] ? Object.keys(scheduleData[dateKey]).length : 0;
-                while(postsOnThisDay < postsPerDay && unpublishedJours.length > 0) {
+                while (postsOnThisDay < postsPerDay && unpublishedJours.length > 0) {
                     const jourToPlace = unpublishedJours.shift();
                     if (!scheduleData[dateKey]) {
                         scheduleData[dateKey] = {};
@@ -2590,9 +2635,9 @@ class CalendarPage {
                     joursPlaced++;
                 }
                 if (postsOnThisDay > 0 || everyXDays > 1) {
-                     currentDate.setDate(currentDate.getDate() + everyXDays);
+                    currentDate.setDate(currentDate.getDate() + everyXDays);
                 } else {
-                     currentDate.setDate(currentDate.getDate() + 1);
+                    currentDate.setDate(currentDate.getDate() + 1);
                 }
             }
             this.autoScheduleInfo.textContent = `${joursPlaced} jour(s) planifié(s).`;
@@ -2609,21 +2654,21 @@ class CalendarPage {
 
 class PublicationOrganizer {
     constructor() {
-        this.currentGalleryId = null; 
-        this.currentThumbSize = { width: 200, height: 200 }; 
+        this.currentGalleryId = null;
+        this.currentThumbSize = { width: 200, height: 200 };
         this.minThumbSize = { width: 50, height: 50 };
         this.maxThumbSize = { width: 300, height: 300 };
         this.zoomStep = 25;
-        this.gridItems = []; 
-        this.gridItemsDict = {}; 
-        this.jourFrames = []; 
+        this.gridItems = [];
+        this.gridItemsDict = {};
+        this.jourFrames = [];
         this.currentJourFrame = null;
-        this.nextJourIndex = 0; 
-        this.galleryCache = {}; 
-        this.activeUploadXHR = null; 
+        this.nextJourIndex = 0;
+        this.galleryCache = {};
+        this.activeUploadXHR = null;
         this.activeCallingButton = null;
         this.scheduleContext = { schedule: {}, allUserJours: [] };
-        this.imageSelectorInput = document.getElementById('imageSelector'); 
+        this.imageSelectorInput = document.getElementById('imageSelector');
         this.switchToGalleriesBtn = document.getElementById('switchToGalleriesBtn');
         this.addNewImagesBtn = document.getElementById('addNewImagesBtn');
         this.addPhotosToPreviewGalleryBtn = document.getElementById('addPhotosToPreviewGalleryBtn');
@@ -2646,7 +2691,7 @@ class PublicationOrganizer {
         this.galleriesTabContent = document.getElementById('galleries');
         this.galleriesListElement = document.getElementById('galleriesList');
         this.createNewGalleryBtn = document.getElementById('createNewGalleryBtn');
-        this.newGalleryForm = document.getElementById('newGalleryForm'); 
+        this.newGalleryForm = document.getElementById('newGalleryForm');
         this.newGalleryNameInput = document.getElementById('newGalleryNameInput');
         this.confirmNewGalleryBtn = document.getElementById('confirmNewGalleryBtn');
         this.cancelNewGalleryBtn = document.getElementById('cancelNewGalleryBtn');
@@ -2661,10 +2706,10 @@ class PublicationOrganizer {
         this.tabContents = document.querySelectorAll('.tab-content');
         this.croppingPage = new CroppingPage(this);
         this.calendarPage = null;
-        this.descriptionManager = null; 
+        this.descriptionManager = null;
         this._initListeners();
         this.updateAddPhotosPlaceholderVisibility();
-        this.updateUIToNoGalleryState(); 
+        this.updateUIToNoGalleryState();
     }
 
     _initListeners() {
@@ -2679,19 +2724,19 @@ class PublicationOrganizer {
                 if (!this.activeCallingButton) {
                     this.activeCallingButton = this.galleryPreviewGridElement.querySelector('.add-photos-preview-btn');
                 }
-            } 
+            }
             else if (document.getElementById('currentGallery').classList.contains('active') && this.currentGalleryId) {
                 targetGalleryId = this.currentGalleryId;
-                 if (!this.activeCallingButton) {
+                if (!this.activeCallingButton) {
                     this.activeCallingButton = this.addNewImagesBtn.style.display !== 'none' ? this.addNewImagesBtn : this.addPhotosPlaceholderBtn;
-                 }
+                }
             }
-            
+
             if (targetGalleryId) {
                 this.handleFileSelection(event.target.files, targetGalleryId);
             } else {
                 alert("Veuillez sélectionner une galerie avant d'ajouter des images.");
-                this.imageSelectorInput.value = ""; 
+                this.imageSelectorInput.value = "";
                 if (this.activeCallingButton) this.activeCallingButton.disabled = false;
                 this.activeCallingButton = null;
             }
@@ -2707,9 +2752,9 @@ class PublicationOrganizer {
             }
         });
         this.addNewImagesBtn.addEventListener('click', () => {
-             if (!this.currentGalleryId) { alert("Veuillez d'abord charger ou créer une galerie."); return; }
-             this.activeCallingButton = this.addNewImagesBtn; 
-             this.imageSelectorInput.click()
+            if (!this.currentGalleryId) { alert("Veuillez d'abord charger ou créer une galerie."); return; }
+            this.activeCallingButton = this.addNewImagesBtn;
+            this.imageSelectorInput.click()
         });
         this.addPhotosToPreviewGalleryBtn.addEventListener('click', () => {
             if (!this.selectedGalleryForPreviewId) { alert("Veuillez sélectionner une galerie pour y ajouter des images."); return; }
@@ -2717,16 +2762,16 @@ class PublicationOrganizer {
             this.imageSelectorInput.click();
         });
         this.addPhotosPlaceholderBtn.addEventListener('click', () => {
-             if (!this.currentGalleryId) { alert("Veuillez d'abord charger ou créer une galerie."); return; }
-             this.activeCallingButton = this.addPhotosPlaceholderBtn; 
+            if (!this.currentGalleryId) { alert("Veuillez d'abord charger ou créer une galerie."); return; }
+            this.activeCallingButton = this.addPhotosPlaceholderBtn;
             this.imageSelectorInput.click()
         });
         this.zoomOutBtn.addEventListener('click', () => this.zoomOut());
         this.zoomInBtn.addEventListener('click', () => this.zoomIn());
         this.sortOptionsSelect.addEventListener('change', () => this.sortGridItemsAndReflow());
-        this.clearPreviewGalleryImagesBtn.addEventListener('click', () => this.clearAllGalleryImages()); 
+        this.clearPreviewGalleryImagesBtn.addEventListener('click', () => this.clearAllGalleryImages());
         this.addJourFrameBtn.addEventListener('click', () => this.addJourFrame());
-        
+
         const downloadAllBtn = document.getElementById('downloadAllScheduledBtn');
         if (downloadAllBtn) {
             downloadAllBtn.addEventListener('click', () => this.downloadAllScheduledJours());
@@ -2734,17 +2779,17 @@ class PublicationOrganizer {
 
         this.createNewGalleryBtn.addEventListener('click', () => {
             this.newGalleryForm.style.display = this.newGalleryForm.style.display === 'none' ? 'flex' : 'none';
-            this.newGalleryNameInput.value = ''; 
+            this.newGalleryNameInput.value = '';
             this.newGalleryNameInput.focus();
         });
         this.cancelNewGalleryBtn.addEventListener('click', () => {
             this.newGalleryForm.style.display = 'none';
             this.newGalleryNameInput.value = '';
         });
-        
+
         this.tabs.forEach(tab => {
             tab.addEventListener('click', () => {
-                this.activateTab(tab.dataset.tab); 
+                this.activateTab(tab.dataset.tab);
             });
         });
     }
@@ -2770,8 +2815,8 @@ class PublicationOrganizer {
             const iconsDiv = document.createElement('div');
             iconsDiv.className = 'jour-list-item-icons';
             const isCropped = jourFrame.hasBeenProcessedByCropper;
-            const hasDescription = (jourFrame.descriptionText && jourFrame.descriptionText.trim() !== '') || 
-                                 (jourFrame.descriptionHashtags && jourFrame.descriptionHashtags.trim() !== '');
+            const hasDescription = (jourFrame.descriptionText && jourFrame.descriptionText.trim() !== '') ||
+                (jourFrame.descriptionHashtags && jourFrame.descriptionHashtags.trim() !== '');
             const isScheduled = this.calendarPage ? this.calendarPage.isJourScheduled(jourFrame.galleryId, jourFrame.letter) : false;
             const cropIcon = document.createElement('img');
             cropIcon.className = 'status-icon crop-icon';
@@ -2814,7 +2859,7 @@ class PublicationOrganizer {
             this.descriptionManager.populateJourList();
         }
     }
-    
+
     async downloadAllScheduledJours() {
         if (!this.calendarPage || !this.scheduleContext.schedule) {
             alert("Les données du calendrier ne sont pas chargées.");
@@ -2869,13 +2914,13 @@ class PublicationOrganizer {
             downloadBtn.disabled = false;
         }
     }
-    
+
     updateUIToNoGalleryState() {
         const noGalleryActive = !this.currentGalleryId;
-        this.createNewGalleryBtn.disabled = false; 
+        this.createNewGalleryBtn.disabled = false;
         const currentGalleryTabContent = document.getElementById('currentGallery');
         currentGalleryTabContent.querySelectorAll('button, select, input[type="file"]').forEach(el => {
-            if (el.id !== 'imageSelector') el.disabled = noGalleryActive; 
+            if (el.id !== 'imageSelector') el.disabled = noGalleryActive;
         });
         if (this.switchToEditorBtn) {
             this.switchToEditorBtn.disabled = noGalleryActive;
@@ -2885,10 +2930,10 @@ class PublicationOrganizer {
             this.jourFramesContainer.innerHTML = '<p style="text-align:center;">Chargez ou créez une galerie pour gérer les jours.</p>';
             this.addPhotosPlaceholderBtn.style.display = 'none';
             this.statsLabelText.textContent = "Aucune galerie chargée";
-            if(this.currentGalleryUploadProgressContainer) this.currentGalleryUploadProgressContainer.style.display = 'none';
+            if (this.currentGalleryUploadProgressContainer) this.currentGalleryUploadProgressContainer.style.display = 'none';
             document.getElementById('currentGalleryNameDisplay').textContent = '';
         } else {
-            this.updateAddPhotosPlaceholderVisibility(); 
+            this.updateAddPhotosPlaceholderVisibility();
         }
         const calendarTab = document.getElementById('calendar');
         const calendarSidebar = calendarTab.querySelector('#calendar-sidebar');
@@ -2900,13 +2945,13 @@ class PublicationOrganizer {
             calendarMain.querySelectorAll('button').forEach(el => el.disabled = noGalleryActive);
         }
         if (this.calendarPage) {
-             if (noGalleryActive) {
+            if (noGalleryActive) {
                 this.scheduleContext = { schedule: {}, allUserJours: [] };
                 this.calendarPage.buildCalendarUI();
                 this.calendarPage.monthYearLabelElement.textContent = "Calendrier";
-             } else {
-                this.calendarPage.buildCalendarUI(); 
-             }
+            } else {
+                this.calendarPage.buildCalendarUI();
+            }
         }
         const croppingTabContent = document.getElementById('cropping');
         croppingTabContent.querySelectorAll('button, select').forEach(el => {
@@ -2927,13 +2972,13 @@ class PublicationOrganizer {
         if (this.descriptionManager) {
             if (noGalleryActive) {
                 this.descriptionManager.clearEditor();
-                this.descriptionManager.populateJourList(); 
+                this.descriptionManager.populateJourList();
             } else if (descriptionTabContent.classList.contains('active')) {
-                this.descriptionManager.show(); 
+                this.descriptionManager.show();
             }
         }
         if (noGalleryActive && !document.getElementById('galleries').classList.contains('active')) {
-             this.activateTab('galleries');
+            this.activateTab('galleries');
         }
     }
 
@@ -2977,16 +3022,16 @@ class PublicationOrganizer {
                 if (!this.calendarPage) {
                     this.calendarPage = new CalendarPage(tabContent, this);
                 }
-                 if (this.currentGalleryId) {
-                    this.calendarPage.buildCalendarUI(); 
+                if (this.currentGalleryId) {
+                    this.calendarPage.buildCalendarUI();
                 }
             }
-        } else { 
+        } else {
             this.tabs[0]?.classList.add('active');
             const firstTabId = this.tabs[0]?.dataset.tab;
             if (firstTabId) {
-                 document.getElementById(firstTabId)?.classList.add('active');
-                 if (firstTabId === 'galleries') this.loadGalleriesList(); 
+                document.getElementById(firstTabId)?.classList.add('active');
+                if (firstTabId === 'galleries') this.loadGalleriesList();
             }
         }
         this.updateUIToNoGalleryState();
@@ -2999,20 +3044,20 @@ class PublicationOrganizer {
             const response = await fetch(`${BASE_API_URL}/api/galleries?sort=name_asc`);
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
             const galleries = await response.json();
-            this.galleryCache = {}; 
+            this.galleryCache = {};
             galleries.forEach(g => this.galleryCache[g._id] = g.name);
-            this.galleriesListElement.innerHTML = ''; 
+            this.galleriesListElement.innerHTML = '';
             if (galleries.length === 0) {
                 this.galleriesListElement.innerHTML = '<li>Aucune galerie. Créez-en une !</li>';
-                this.clearGalleryPreview(); 
-                this.updateUIToNoGalleryState(); 
+                this.clearGalleryPreview();
+                this.updateUIToNoGalleryState();
                 return;
             }
             galleries.forEach(gallery => {
                 const li = document.createElement('li');
                 li.className = 'gallery-list-item';
                 li.dataset.galleryId = gallery._id;
-                if (gallery._id === this.selectedGalleryForPreviewId) { 
+                if (gallery._id === this.selectedGalleryForPreviewId) {
                     li.classList.add('selected-for-preview');
                 }
                 const nameSpan = document.createElement('span');
@@ -3026,7 +3071,7 @@ class PublicationOrganizer {
                 }
                 nameSpan.onclick = () => {
                     this.showGalleryPreview(gallery._id, gallery.name);
-                }; 
+                };
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'gallery-actions';
                 const renameBtn = document.createElement('button');
@@ -3051,7 +3096,7 @@ class PublicationOrganizer {
         } catch (error) {
             console.error("Erreur lors du chargement de la liste des galeries:", error);
             this.galleriesListElement.innerHTML = `<li>Erreur de chargement: ${error.message}</li>`;
-            this.clearGalleryPreview(); 
+            this.clearGalleryPreview();
         }
     }
 
@@ -3061,7 +3106,7 @@ class PublicationOrganizer {
         this.galleryPreviewHeader.style.display = 'flex';
         this.galleryPreviewNameElement.textContent = galleryName;
         this.galleryPreviewGridElement.innerHTML = '<p>Chargement des images...</p>';
-        this.galleriesUploadProgressContainer.style.display = 'none'; 
+        this.galleriesUploadProgressContainer.style.display = 'none';
         this.galleriesListElement.querySelectorAll('.gallery-list-item').forEach(item => {
             item.classList.remove('selected-for-preview');
             if (item.dataset.galleryId === galleryId) {
@@ -3083,7 +3128,7 @@ class PublicationOrganizer {
             if (galleryDetails.images && galleryDetails.images.length > 0) {
                 galleryDetails.images.forEach(imgData => {
                     const itemDiv = document.createElement('div');
-                    itemDiv.className = 'grid-item'; 
+                    itemDiv.className = 'grid-item';
                     itemDiv.style.width = `150px`;
                     itemDiv.style.height = `150px`;
                     const imgElement = document.createElement('img');
@@ -3096,22 +3141,22 @@ class PublicationOrganizer {
                     deleteBtnPreview.className = 'grid-item-delete-btn';
                     deleteBtnPreview.innerHTML = '&times;';
                     deleteBtnPreview.title = "Supprimer cette image de la galerie";
-                    deleteBtnPreview.style.opacity = '1'; 
+                    deleteBtnPreview.style.opacity = '1';
                     deleteBtnPreview.onclick = (e) => {
                         e.stopPropagation();
                         this.handleDeleteImageFromPreview(galleryId, imgData._id, imgData.originalFilename);
                     };
                     itemDiv.appendChild(imgElement);
-                    itemDiv.appendChild(deleteBtnPreview); 
+                    itemDiv.appendChild(deleteBtnPreview);
                     this.galleryPreviewGridElement.appendChild(itemDiv);
                 });
             } else {
                 const addPhotosBtn = document.createElement('button');
-                addPhotosBtn.innerHTML = '<img src="assets/add-button.png" alt="Icône ajouter" class="btn-icon"> Ajouter des Photos'; 
+                addPhotosBtn.innerHTML = '<img src="assets/add-button.png" alt="Icône ajouter" class="btn-icon"> Ajouter des Photos';
                 addPhotosBtn.className = 'add-photos-preview-btn';
                 addPhotosBtn.onclick = () => {
                     if (this.selectedGalleryForPreviewId) {
-                        this.activeCallingButton = addPhotosBtn; 
+                        this.activeCallingButton = addPhotosBtn;
                         this.imageSelectorInput.click();
                     }
                 };
@@ -3122,7 +3167,7 @@ class PublicationOrganizer {
             this.galleryPreviewGridElement.innerHTML = `<p>Erreur: ${error.message}</p>`;
         }
     }
-    
+
     async handleDeleteImageFromPreview(previewGalleryId, imageId, imageNameForConfirm) {
         if (!confirm(`Voulez-vous vraiment supprimer l'image "${imageNameForConfirm}" de la galerie "${this.galleryCache[previewGalleryId] || previewGalleryId}" ?\nCeci affectera aussi les Jours et le Calendrier si l'image y est utilisée.`)) {
             return;
@@ -3174,39 +3219,39 @@ class PublicationOrganizer {
 
 
     async handleCreateNewGallery() {
-        const galleryName = this.newGalleryNameInput.value.trim() || `Galerie du ${new Date().toLocaleDateString('fr-FR')}`; 
+        const galleryName = this.newGalleryNameInput.value.trim() || `Galerie du ${new Date().toLocaleDateString('fr-FR')}`;
         this.newGalleryForm.style.display = 'none';
         this.newGalleryNameInput.value = '';
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name: galleryName }) 
+                body: JSON.stringify({ name: galleryName })
             });
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status} - ${await response.text()}`);
             const newGallery = await response.json();
-            this.galleryCache[newGallery._id] = newGallery.name; 
-            await this.loadGalleriesList(); 
-            this.showGalleryPreview(newGallery._id, newGallery.name); 
+            this.galleryCache[newGallery._id] = newGallery.name;
+            await this.loadGalleriesList();
+            this.showGalleryPreview(newGallery._id, newGallery.name);
             if (!this.currentGalleryId) {
-                 this.handleLoadGallery(newGallery._id);
+                this.handleLoadGallery(newGallery._id);
             } else {
-                 this.activateTab('galleries'); 
+                this.activateTab('galleries');
             }
-            this.updateUIToNoGalleryState(); 
+            this.updateUIToNoGalleryState();
         } catch (error) {
             console.error("Erreur lors de la création de la galerie:", error);
             alert(`Impossible de créer la galerie: ${error.message}`);
         }
     }
-    
+
     async handleLoadGallery(galleryId) {
         if (this.currentGalleryId === galleryId && document.getElementById('currentGallery').classList.contains('active')) {
-            this.activateTab('currentGallery'); 
+            this.activateTab('currentGallery');
             return;
         }
-        if(this.currentGalleryId && this.currentGalleryId !== galleryId) {
-            await this.saveAppState(); 
+        if (this.currentGalleryId && this.currentGalleryId !== galleryId) {
+            await this.saveAppState();
         }
         this.currentGalleryId = galleryId;
         localStorage.setItem('publicationOrganizer_lastGalleryId', this.currentGalleryId);
@@ -3219,15 +3264,15 @@ class PublicationOrganizer {
         this.scheduleContext = { schedule: {}, allUserJours: [] };
         if (this.descriptionManager) this.descriptionManager.clearEditor();
         if (this.croppingPage) this.croppingPage.clearEditor();
-        if(this.galleriesUploadProgressContainer) this.galleriesUploadProgressContainer.style.display = 'none';
-        if(this.currentGalleryUploadProgressContainer) this.currentGalleryUploadProgressContainer.style.display = 'none';
-        await this.loadState(); 
+        if (this.galleriesUploadProgressContainer) this.galleriesUploadProgressContainer.style.display = 'none';
+        if (this.currentGalleryUploadProgressContainer) this.currentGalleryUploadProgressContainer.style.display = 'none';
+        await this.loadState();
         if (this.selectedGalleryForPreviewId) {
             this.switchToEditorBtn.disabled = (this.selectedGalleryForPreviewId !== this.currentGalleryId);
         }
-        this.activateTab('currentGallery'); 
-        await this.loadGalleriesList(); 
-        this.updateUIToNoGalleryState(); 
+        this.activateTab('currentGallery');
+        await this.loadGalleriesList();
+        this.updateUIToNoGalleryState();
     }
 
     async loadState() {
@@ -3289,7 +3334,7 @@ class PublicationOrganizer {
             this.updateStatsLabel();
             this.updateAddPhotosPlaceholderVisibility();
             this.updateGridItemStyles();
-            this.updateUIToNoGalleryState(); 
+            this.updateUIToNoGalleryState();
             const activeTab = galleryState.activeTab || 'currentGallery';
             this.activateTab(activeTab);
         } catch (error) {
@@ -3297,7 +3342,7 @@ class PublicationOrganizer {
             loadingOverlay.querySelector('p').innerHTML = `Erreur de chargement: ${error.message}<br/>Veuillez rafraîchir.`;
         } finally {
             if (loadingOverlay.style.display === 'flex') {
-                 loadingOverlay.style.display = 'none';
+                loadingOverlay.style.display = 'none';
             }
         }
     }
@@ -3312,9 +3357,9 @@ class PublicationOrganizer {
                     body: JSON.stringify({ name: newName.trim() })
                 });
                 if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
-                this.galleryCache[galleryId] = newName.trim(); 
-                await this.loadGalleriesList(); 
-                if (this.selectedGalleryForPreviewId === galleryId) { 
+                this.galleryCache[galleryId] = newName.trim();
+                await this.loadGalleriesList();
+                if (this.selectedGalleryForPreviewId === galleryId) {
                     this.showGalleryPreview(galleryId, newName.trim());
                 }
             } catch (error) {
@@ -3323,7 +3368,7 @@ class PublicationOrganizer {
             }
         }
     }
-    
+
     async handleDeleteGallery(galleryId, galleryName) {
         if (!confirm(`Êtes-vous sûr de vouloir supprimer la galerie "${galleryName || galleryId}" et toutes ses données ?\nCETTE ACTION EST IRRÉVERSIBLE.`)) {
             return;
@@ -3331,8 +3376,8 @@ class PublicationOrganizer {
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryId}`, { method: 'DELETE' });
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status} - ${await response.text()}`);
-            delete this.galleryCache[galleryId]; 
-            if (this.selectedGalleryForPreviewId === galleryId) { 
+            delete this.galleryCache[galleryId];
+            if (this.selectedGalleryForPreviewId === galleryId) {
                 this.clearGalleryPreview();
             }
             const wasCurrentGallery = (this.currentGalleryId === galleryId);
@@ -3350,17 +3395,17 @@ class PublicationOrganizer {
                 if (this.descriptionManager) this.descriptionManager.clearEditor();
                 if (this.croppingPage) this.croppingPage.clearEditor();
             }
-            await this.loadGalleriesList(); 
+            await this.loadGalleriesList();
             const galleryListItems = this.galleriesListElement.querySelectorAll('li');
             const noGalleriesLeft = galleryListItems.length === 0 || (galleryListItems.length === 1 && galleryListItems[0].textContent.includes("Aucune galerie"));
             if (noGalleriesLeft) {
-                 this.currentGalleryId = null; 
-                 localStorage.removeItem('publicationOrganizer_lastGalleryId');
-                 this.activateTab('galleries');
+                this.currentGalleryId = null;
+                localStorage.removeItem('publicationOrganizer_lastGalleryId');
+                this.activateTab('galleries');
             } else if (wasCurrentGallery) {
-                this.activateTab('galleries'); 
+                this.activateTab('galleries');
             }
-            this.updateUIToNoGalleryState(); 
+            this.updateUIToNoGalleryState();
         } catch (error) {
             console.error("Erreur lors de la suppression de la galerie:", error);
             alert(`Impossible de supprimer la galerie: ${error.message}`);
@@ -3368,23 +3413,23 @@ class PublicationOrganizer {
     }
 
     updateAddPhotosPlaceholderVisibility() {
-        if (!this.currentGalleryId) { 
+        if (!this.currentGalleryId) {
             this.addPhotosPlaceholderBtn.style.display = 'none';
             this.imageGridElement.innerHTML = '<p style="text-align:center; margin-top:20px;">Chargez ou créez une galerie pour voir les images.</p>';
-            this.imageGridElement.style.display = 'block'; 
+            this.imageGridElement.style.display = 'block';
             return;
         }
         if (this.gridItems.length === 0) {
             this.addPhotosPlaceholderBtn.style.display = 'block';
-            this.imageGridElement.style.display = 'none'; 
+            this.imageGridElement.style.display = 'none';
         } else {
             this.addPhotosPlaceholderBtn.style.display = 'none';
-            this.imageGridElement.style.display = 'grid'; 
+            this.imageGridElement.style.display = 'grid';
         }
     }
 
     async handleFileSelection(filesArray, targetGalleryIdForUpload) {
-        const callingButtonElement = this.activeCallingButton; 
+        const callingButtonElement = this.activeCallingButton;
         if (!targetGalleryIdForUpload) {
             alert("Veuillez sélectionner une galerie pour y ajouter des images.");
             this.imageSelectorInput.value = "";
@@ -3398,10 +3443,10 @@ class PublicationOrganizer {
             this.activeCallingButton = null;
             return;
         }
-        const BATCH_SIZE = 30; 
+        const BATCH_SIZE = 30;
         const totalFiles = filesArray.length;
         let filesUploadedSuccessfully = 0;
-        let allNewImageDocs = []; 
+        let allNewImageDocs = [];
         let progressContainer, progressTextEl, progressBarInnerEl;
         const isGalleryTabActive = document.getElementById('galleries').classList.contains('active');
         if (isGalleryTabActive && this.galleriesUploadProgressContainer) {
@@ -3432,7 +3477,7 @@ class PublicationOrganizer {
             const totalBatches = Math.ceil(totalFiles / BATCH_SIZE);
             const imageFilesInBatch = batchFiles.filter(f => f.type.startsWith('image/'));
             if (imageFilesInBatch.length === 0) {
-                continue; 
+                continue;
             }
             const formData = new FormData();
             for (const file of imageFilesInBatch) {
@@ -3451,18 +3496,18 @@ class PublicationOrganizer {
                 });
                 if (batchResult && Array.isArray(batchResult)) {
                     allNewImageDocs.push(...batchResult);
-                    filesUploadedSuccessfully += batchResult.length; 
+                    filesUploadedSuccessfully += batchResult.length;
                     if (targetGalleryIdForUpload === this.currentGalleryId) {
-                        this.addImagesToGrid(batchResult); 
+                        this.addImagesToGrid(batchResult);
                     } else if (targetGalleryIdForUpload === this.selectedGalleryForPreviewId && isGalleryTabActive) {
                         await this.showGalleryPreview(this.selectedGalleryForPreviewId, this.galleryCache[this.selectedGalleryForPreviewId] || "Galerie");
                     }
                 }
-                progressBarInnerEl.style.backgroundColor = '#007bff'; 
+                progressBarInnerEl.style.backgroundColor = '#007bff';
             } catch (error) {
                 console.error(`[CLIENT] Erreur lors de l'envoi du lot ${batchNumber}:`, error);
-                progressTextEl.textContent = `Erreur sur lot ${batchNumber}. ${error.message ? String(error.message).substring(0,40) : 'Erreur'}.`;
-                progressBarInnerEl.style.backgroundColor = '#dc3545'; 
+                progressTextEl.textContent = `Erreur sur lot ${batchNumber}. ${error.message ? String(error.message).substring(0, 40) : 'Erreur'}.`;
+                progressBarInnerEl.style.backgroundColor = '#dc3545';
                 if (callingButtonElement) callingButtonElement.disabled = false;
                 this.imageSelectorInput.disabled = false;
                 if (!isGalleryTabActive) {
@@ -3471,7 +3516,7 @@ class PublicationOrganizer {
                 }
                 this.imageSelectorInput.value = "";
                 this.activeCallingButton = null;
-                return; 
+                return;
             }
         }
         progressBarInnerEl.style.width = '100%';
@@ -3481,18 +3526,18 @@ class PublicationOrganizer {
             progressBarInnerEl.style.backgroundColor = '#28a745';
         } else if (filesUploadedSuccessfully > 0) {
             progressTextEl.textContent = `Terminé: ${filesUploadedSuccessfully}/${totalFiles} images. Vérifiez console pour détails.`;
-            progressBarInnerEl.style.backgroundColor = '#ffc107'; 
+            progressBarInnerEl.style.backgroundColor = '#ffc107';
         } else {
-             progressTextEl.textContent = `Échec. Aucune image ajoutée. Vérifiez console.`;
+            progressTextEl.textContent = `Échec. Aucune image ajoutée. Vérifiez console.`;
             progressBarInnerEl.style.backgroundColor = '#dc3545';
         }
         if (targetGalleryIdForUpload === this.currentGalleryId) {
-             this.sortGridItemsAndReflow(); 
-             this.updateGridUsage();
+            this.sortGridItemsAndReflow();
+            this.updateGridUsage();
         }
         if (callingButtonElement) callingButtonElement.disabled = false;
         this.imageSelectorInput.disabled = false;
-        this.imageSelectorInput.value = ""; 
+        this.imageSelectorInput.value = "";
         if (!isGalleryTabActive) {
             if (this.addNewImagesBtn) this.addNewImagesBtn.disabled = false;
             if (this.addPhotosPlaceholderBtn) this.addPhotosPlaceholderBtn.disabled = false;
@@ -3501,10 +3546,10 @@ class PublicationOrganizer {
             progressContainer.style.display = 'none';
             this.updateStatsLabel();
             this.updateAddPhotosPlaceholderVisibility();
-        }, 5000); 
+        }, 5000);
         this.activeCallingButton = null;
     }
-    
+
     addImagesToGrid(imagesDataArray) {
         if (!Array.isArray(imagesDataArray) || imagesDataArray.length === 0) return;
         let addedCount = 0;
@@ -3524,14 +3569,14 @@ class PublicationOrganizer {
                         e.dataTransfer.effectAllowed = "copy";
                     });
                     this.imageGridElement.appendChild(gridItem.element);
-                    this.gridItems.push(gridItem); 
+                    this.gridItems.push(gridItem);
                     this.gridItemsDict[imgData._id] = gridItem;
                     addedCount++;
                 }
             }
         });
         if (addedCount > 0) {
-            this.updateGridUsage(); 
+            this.updateGridUsage();
             this.updateAddPhotosPlaceholderVisibility();
             this.updateStatsLabel();
         }
@@ -3553,7 +3598,7 @@ class PublicationOrganizer {
                         reject(new Error("Réponse serveur invalide pour le lot."));
                     }
                 } else {
-                    const errorMsg = `Échec du lot (${xhr.status} ${xhr.statusText}). Réponse: ${xhr.responseText.substring(0,100)}`;
+                    const errorMsg = `Échec du lot (${xhr.status} ${xhr.statusText}). Réponse: ${xhr.responseText.substring(0, 100)}`;
                     reject(new Error(errorMsg));
                 }
             };
@@ -3581,7 +3626,7 @@ class PublicationOrganizer {
                 const errorText = await response.text();
                 throw new Error(`Échec de la suppression de l'image: ${response.statusText} - ${errorText}`);
             }
-            const result = await response.json(); 
+            const result = await response.json();
             result.deletedImageIds.forEach(idToDelete => {
                 const itemInGrid = this.gridItemsDict[idToDelete];
                 if (itemInGrid) {
@@ -3590,10 +3635,10 @@ class PublicationOrganizer {
                     delete this.gridItemsDict[idToDelete];
                 }
                 this.jourFrames.forEach(jf => {
-                    jf.removeImageById(idToDelete); 
+                    jf.removeImageById(idToDelete);
                 });
             });
-            this.updateGridUsage(); 
+            this.updateGridUsage();
             this.updateStatsLabel();
             this.updateAddPhotosPlaceholderVisibility();
         } catch (error) {
@@ -3624,11 +3669,11 @@ class PublicationOrganizer {
                 this.gridItems = [];
                 this.gridItemsDict = {};
                 this.jourFrames.forEach(jf => {
-                    jf.imagesData = []; 
-                    jf.syncDataArrayFromDOM(); 
+                    jf.imagesData = [];
+                    jf.syncDataArrayFromDOM();
                 });
-                this.updateGridUsage(); 
-                this.updateStatsLabel(); 
+                this.updateGridUsage();
+                this.updateStatsLabel();
                 this.updateAddPhotosPlaceholderVisibility();
                 if (this.calendarPage && document.getElementById('calendar').classList.contains('active')) {
                     this.scheduleContext.schedule = {};
@@ -3640,15 +3685,15 @@ class PublicationOrganizer {
             alert(`Erreur lors du vidage de la galerie : ${error.message}`);
         }
     }
-    
+
     updateGridItemStyles() {
-        this.imageGridElement.style.gridTemplateColumns = `repeat(auto-fill, minmax(${this.currentThumbSize.width + parseInt(getComputedStyle(this.imageGridElement).gap || '5px')}px, 1fr))`; 
+        this.imageGridElement.style.gridTemplateColumns = `repeat(auto-fill, minmax(${this.currentThumbSize.width + parseInt(getComputedStyle(this.imageGridElement).gap || '5px')}px, 1fr))`;
         this.gridItems.forEach(item => item.updateSize(this.currentThumbSize));
     }
-    
+
     zoomIn() {
         const newWidth = this.currentThumbSize.width + this.zoomStep;
-        const newHeight = this.currentThumbSize.height + this.zoomStep; 
+        const newHeight = this.currentThumbSize.height + this.zoomStep;
         if (newWidth <= this.maxThumbSize.width && newHeight <= this.maxThumbSize.height) {
             this.currentThumbSize = { width: newWidth, height: newHeight };
             this.updateGridItemStyles();
@@ -3677,27 +3722,29 @@ class PublicationOrganizer {
                 case 'date_asc': case 'date_desc':
                     valA = a.datetimeOriginalTs !== null ? a.datetimeOriginalTs : a.fileModTimeTs;
                     valB = b.datetimeOriginalTs !== null ? b.datetimeOriginalTs : b.fileModTimeTs;
-                                        if (valA === null) return sortValue.endsWith('_asc') ? 1 : -1; 
-                    if (valB === null) return sortValue.endsWith('_asc') ? -1 : 1; 
+                    if (valA === null) return sortValue.endsWith('_asc') ? 1 : -1;
+                    if (valB === null) return sortValue.endsWith('_asc') ? -1 : 1;
                     const dateComparison = valA - valB;
                     return sortValue.endsWith('_asc') ? dateComparison : -dateComparison;
                 default: return 0;
             }
         });
         this.gridItems.forEach(item => this.imageGridElement.appendChild(item.element));
-        this.updateGridUsage(); 
+        this.updateGridUsage();
         this.saveAppState();
     }
 
-    onGridItemClick(gridItem) { 
-        if (!gridItem || !gridItem.isValid) return; 
+    onGridItemClick(gridItem) {
+        if (!gridItem || !gridItem.isValid) return;
         if (!this.currentJourFrame) {
             alert("Veuillez d'abord sélectionner ou ajouter un Jour de publication actif.");
             return;
         }
         const alreadyInCurrentJourFrame = this.currentJourFrame.imagesData.some(imgData => imgData.imageId === gridItem.id);
-        if (alreadyInCurrentJourFrame) { 
+        if (alreadyInCurrentJourFrame) {
             this.currentJourFrame.removeImageById(gridItem.id);
+            // Mise à jour immédiate de la liste des jours à planifier après suppression
+            this.currentJourFrame.updateUnscheduledJoursList();
         } else {
             const combinedUsage = this.getCombinedUsageMapForMultiDay();
             const originalId = gridItem.parentImageId || gridItem.id;
@@ -3707,20 +3754,34 @@ class PublicationOrganizer {
                 alert("Une image ne peut pas être sélectionnée dans plus de 4 jours différents.");
                 return;
             }
-            const newElement = this.currentJourFrame.createJourItemElement({
+                     
+            // --- DÉBUT DE LA CORRECTION ---
+            const newItemData = {
                 imageId: gridItem.id,
                 originalReferencePath: gridItem.parentImageId || gridItem.id,
                 dataURL: gridItem.thumbnailPath,
                 isCropped: gridItem.isCroppedVersion
-            });
+            };
+             
+            // 1. Mettre à jour le modèle de données d'abord
+            this.currentJourFrame.imagesData.push(newItemData);
+             
+            // 2. Créer et ajouter le nouvel élément DOM
+            const newElement = this.currentJourFrame.createJourItemElement(newItemData);
             this.currentJourFrame.canvasWrapper.appendChild(newElement);
-            this.currentJourFrame.syncDataArrayFromDOM();
+             
+            // 3. Appeler directement les fonctions de mise à jour (au lieu de syncDataArrayFromDOM)
+            this.updateGridUsage();
+            this.currentJourFrame.debouncedSave();
+            this.currentJourFrame.checkAndApplyCroppedStyle();
+            this.currentJourFrame.updateUnscheduledJoursList();
+            // --- FIN DE LA CORRECTION ---
         }
     }
 
     updateGridUsage() {
-        const combinedUsage = this.getCombinedUsageMapForMultiDay(); 
-        for (const imageId in this.gridItemsDict) { 
+        const combinedUsage = this.getCombinedUsageMapForMultiDay();
+        for (const imageId in this.gridItemsDict) {
             const gridItem = this.gridItemsDict[imageId];
             const originalIdToCompare = gridItem.parentImageId || gridItem.id;
             const usageArray = combinedUsage.get(originalIdToCompare);
@@ -3735,6 +3796,11 @@ class PublicationOrganizer {
             }
         }
         this.updateStatsLabel();
+
+        // Mettre à jour le calendrier si l'onglet calendrier est actif
+        if (this.calendarPage && document.getElementById('calendar').classList.contains('active')) {
+            this.calendarPage.buildCalendarUI();
+        }
     }
 
     getCombinedUsageMapForMultiDay() {
@@ -3760,41 +3826,41 @@ class PublicationOrganizer {
             this.statsLabelText.textContent = "Aucune galerie chargée";
             return;
         }
-        const numGridImages = this.gridItems.filter(item => item.isValid).length; 
+        const numGridImages = this.gridItems.filter(item => item.isValid).length;
         const numJourImages = this.jourFrames.reduce((sum, jf) => sum + jf.imagesData.length, 0);
         this.statsLabelText.textContent = `Grille: ${numGridImages} | Jours: ${numJourImages}`;
     }
 
     async addJourFrame() {
         if (!this.currentGalleryId) { alert("Aucune galerie active."); return; }
-        this.recalculateNextJourIndex(); 
+        this.recalculateNextJourIndex();
         if (this.nextJourIndex >= 26) { alert("Maximum de Jours (A-Z) atteint."); return; }
-        this.addJourFrameBtn.disabled = true; 
+        this.addJourFrameBtn.disabled = true;
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/jours`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
             });
             if (!response.ok) {
-                 let errorBody = await response.text();
-                 let userMessage = `Erreur lors de la création du Jour : ${response.statusText}`;
-                 try {
-                    const errorJson = JSON.parse(errorBody); 
-                    if (errorJson.message) userMessage = errorJson.message; 
-                 } catch (e) {
+                let errorBody = await response.text();
+                let userMessage = `Erreur lors de la création du Jour : ${response.statusText}`;
+                try {
+                    const errorJson = JSON.parse(errorBody);
+                    if (errorJson.message) userMessage = errorJson.message;
+                } catch (e) {
                     userMessage += ` - ${errorBody}`;
-                 }
-                 throw new Error(userMessage);
+                }
+                throw new Error(userMessage);
             }
-            const newJourData = await response.json(); 
-            const newJourFrame = new JourFrameBackend(this, newJourData); 
-            this.jourFramesContainer.appendChild(newJourFrame.element); 
-            this.jourFrames.push(newJourFrame); 
-            this.jourFrames.sort((a, b) => a.index - b.index); 
+            const newJourData = await response.json();
+            const newJourFrame = new JourFrameBackend(this, newJourData);
+            this.jourFramesContainer.appendChild(newJourFrame.element);
+            this.jourFrames.push(newJourFrame);
+            this.jourFrames.sort((a, b) => a.index - b.index);
             this.setCurrentJourFrame(newJourFrame);
             this.recalculateNextJourIndex();
             this.updateStatsLabel();
-            this.saveAppState(); 
+            this.saveAppState();
             if (this.calendarPage) {
                 const newJourContext = {
                     _id: newJourData._id,
@@ -3812,7 +3878,7 @@ class PublicationOrganizer {
             console.error("Error adding JourFrame:", error);
             alert(error.message);
         } finally {
-            this.addJourFrameBtn.disabled = false; 
+            this.addJourFrameBtn.disabled = false;
         }
     }
 
@@ -3825,17 +3891,17 @@ class PublicationOrganizer {
             this.currentJourFrame.element.classList.add('current');
         }
     }
-    
-    async closeJourFrame(jourFrameToClose) { 
+
+    async closeJourFrame(jourFrameToClose) {
         if (!confirm(`Voulez-vous vraiment supprimer le Jour ${jourFrameToClose.letter} ?`)) return;
         const index = this.jourFrames.indexOf(jourFrameToClose);
         if (index > -1) {
-            await jourFrameToClose.destroy(); 
+            await jourFrameToClose.destroy();
             this.jourFrames.splice(index, 1);
             if (this.currentJourFrame === jourFrameToClose) {
-                this.setCurrentJourFrame(this.jourFrames[index] || this.jourFrames[index-1] || (this.jourFrames.length > 0 ? this.jourFrames[0] : null));
+                this.setCurrentJourFrame(this.jourFrames[index] || this.jourFrames[index - 1] || (this.jourFrames.length > 0 ? this.jourFrames[0] : null));
             }
-            this.recalculateNextJourIndex(); 
+            this.recalculateNextJourIndex();
             this.updateGridUsage();
             this.updateStatsLabel();
             this.saveAppState();
@@ -3843,7 +3909,7 @@ class PublicationOrganizer {
                 const datesToRemove = [];
                 for (const dateStr in this.scheduleContext.schedule) {
                     if (this.scheduleContext.schedule[dateStr][jourFrameToClose.letter] && this.scheduleContext.schedule[dateStr][jourFrameToClose.letter].galleryId === jourFrameToClose.galleryId) {
-                        datesToRemove.push(new Date(dateStr + 'T00:00:00')); 
+                        datesToRemove.push(new Date(dateStr + 'T00:00:00'));
                     }
                 }
                 datesToRemove.forEach(dateObj => {
@@ -3853,24 +3919,44 @@ class PublicationOrganizer {
             this.refreshSidePanels();
         }
     }
-    
+
     recalculateNextJourIndex() {
         if (this.jourFrames.length === 0) { this.nextJourIndex = 0; return; }
         const existingIndices = new Set(this.jourFrames.map(jf => jf.index));
         let smallestAvailable = 0;
-        while(existingIndices.has(smallestAvailable) && smallestAvailable < 26) { 
+        while (existingIndices.has(smallestAvailable) && smallestAvailable < 26) {
             smallestAvailable++;
         }
         this.nextJourIndex = smallestAvailable;
     }
 
-    addOrUpdateJourInCalendar(jourFrame) {
-        if (this.calendarPage && document.getElementById('calendar').classList.contains('active')) {
-            this.calendarPage.buildCalendarUI(); 
+    ensureJourInAllUserJours(jourFrame) {
+        const jourKey = `${jourFrame.galleryId}-${jourFrame.letter}`;
+        const existingJour = this.scheduleContext.allUserJours.find(j =>
+            j.galleryId === jourFrame.galleryId && j.letter === jourFrame.letter
+        );
+
+        if (!existingJour) {
+            console.log(`➕ Ajout du jour ${jourFrame.letter} à allUserJours`);
+            const newJourContext = {
+                _id: jourFrame.id,
+                letter: jourFrame.letter,
+                galleryId: jourFrame.galleryId.toString(),
+                galleryName: this.getCurrentGalleryName()
+            };
+            this.scheduleContext.allUserJours.push(newJourContext);
+        } else {
+            console.log(`✅ Jour ${jourFrame.letter} déjà dans allUserJours`);
         }
     }
 
-    getCurrentGalleryName() { 
+    addOrUpdateJourInCalendar(jourFrame) {
+        if (this.calendarPage && document.getElementById('calendar').classList.contains('active')) {
+            this.calendarPage.buildCalendarUI();
+        }
+    }
+
+    getCurrentGalleryName() {
         return this.galleryCache[this.currentGalleryId] || 'Galerie';
     }
     getCachedGalleryName(galleryId) {
@@ -3880,14 +3966,14 @@ class PublicationOrganizer {
     isJourReadyForPublishing(galleryId, letter) {
         return true;
     }
-    
+
     async saveAppState() {
         if (!this.currentGalleryId) return;
         const appState = {
             currentThumbSize: this.currentThumbSize,
             sortOption: this.sortOptionsSelect.value,
             activeTab: document.querySelector('.tab-button.active')?.dataset.tab || 'galleries',
-            nextJourIndex: this.nextJourIndex 
+            nextJourIndex: this.nextJourIndex
         };
         try {
             await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/state`, {
@@ -3905,16 +3991,16 @@ class PublicationOrganizer {
             const foundInData = jour.imagesData.find(img => img.imageId === imageId);
             if (foundInData) {
                 if (returnFullObject) {
-                    return this.gridItemsDict[imageId] || { 
+                    return this.gridItemsDict[imageId] || {
                         _id: foundInData.imageId,
-                        galleryId: jour.galleryId, 
-                        path: Utils.getFilenameFromURL(foundInData.dataURL).replace('thumb-',''), 
-                        thumbnailPath: Utils.getFilenameFromURL(foundInData.dataURL), 
+                        galleryId: jour.galleryId,
+                        path: Utils.getFilenameFromURL(foundInData.dataURL).replace('thumb-', ''),
+                        thumbnailPath: Utils.getFilenameFromURL(foundInData.dataURL),
                         originalFilename: `Image ${foundInData.imageId}`,
                         isCroppedVersion: foundInData.isCropped
                     };
                 }
-                return foundInData; 
+                return foundInData;
             }
         }
         return null;
@@ -3957,7 +4043,7 @@ async function startApp() {
     try {
         if (!app) {
             app = new PublicationOrganizer();
-            window.pubApp = app; 
+            window.pubApp = app;
         }
         let galleryIdToLoad = localStorage.getItem('publicationOrganizer_lastGalleryId');
         if (!galleryIdToLoad) {
@@ -3975,7 +4061,7 @@ async function startApp() {
     } catch (error) {
         console.error("Erreur critique lors du démarrage de l'application:", error);
         loadingOverlay.querySelector('p').innerHTML = `Erreur d'initialisation: ${error.message}`;
-        return; 
+        return;
     }
     loadingOverlay.style.display = 'none';
 }
