@@ -1353,7 +1353,7 @@ button.small-cancel-btn:hover {
     gap: 15px;
     overflow: hidden;
     margin-bottom: 15px;
-    align-items: flex-start; /* Changed from center */
+    align-items: stretch; /* <<-- CORRECTION APPLIQUÉE */
 }
 .cropper-canvas-container {
     flex-grow: 1;

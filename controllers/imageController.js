@@ -206,15 +206,21 @@ exports.serveImage = async (req, res) => {
         
         const imagePath = path.join(UPLOAD_DIR, cleanGalleryId, cleanImageName);
 
+        // [LOG] Log pour vérifier le chemin de l'image demandée
+        console.log(`[imageController] SERVING IMAGE: Tentative de servir ${imagePath}`);
+
         try {
             await fs.access(imagePath);
+            // [LOG] Log de succès
+            console.log(`[imageController] ✅ Fichier trouvé. Envoi de : ${imagePath}`);
             res.sendFile(imagePath);
         } catch (accessError) {
-            console.error(`File not found at ${imagePath}: `, accessError);
+            // [LOG] Log d'erreur si le fichier n'est pas trouvé
+            console.error(`[imageController] ❌ SERVE IMAGE FAILED: Fichier non trouvé à ${imagePath}: `, accessError);
             res.status(404).send(`Image not found at path: ${cleanGalleryId}/${cleanImageName}.`);
         }
     } catch (error) { 
-         console.error("Server error serving image:", error);
+         console.error("[imageController] Erreur serveur en servant l'image:", error);
          res.status(500).send('Server error serving image.');
     }
 };

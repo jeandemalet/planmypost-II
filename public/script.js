@@ -15,12 +15,29 @@ let app = null;
 
 class Utils {
     static async loadImage(urlOrFile) {
+        // [LOG] Log au début du chargement de l'image
+        console.log('[Utils.loadImage] Demande de chargement pour:', typeof urlOrFile === 'string' ? urlOrFile : urlOrFile.name);
         return new Promise((resolve, reject) => {
             const img = new Image();
             img.crossOrigin = "Anonymous";
-            img.onload = () => resolve(img);
+            img.onload = () => {
+                // [LOG] Log lorsque l'événement onload est déclenché
+                console.log(`[Utils.loadImage] 'onload' déclenché pour: ${img.src.substring(0, 100)}...`);
+
+                // [CORRECTION] VÉRIFICATION CRUCIALE des dimensions de l'image.
+                // Un `onload` peut se déclencher même si l'image est corrompue ou non décodée,
+                // résultant en des dimensions de 0x0, ce qui cause un canvas noir.
+                if (img.naturalWidth === 0 || img.naturalHeight === 0) {
+                    console.error(`❌ [Utils.loadImage] ERREUR : L'image s'est chargée mais avec des dimensions invalides de 0x0.`, "Source:", typeof urlOrFile === 'string' ? urlOrFile : urlOrFile.name);
+                    reject(new Error('L\'image s\'est chargée mais ses dimensions sont invalides (0x0).'));
+                } else {
+                    console.log(`✅ [Utils.loadImage] Image validée avec dimensions: ${img.naturalWidth}x${img.naturalHeight}`);
+                    resolve(img);
+                }
+            };
             img.onerror = (err) => {
-                console.error("Utils.loadImage error:", err, "Source:", typeof urlOrFile === 'string' ? urlOrFile : urlOrFile.name);
+                // [LOG] Log détaillé en cas d'erreur de chargement réseau.
+                console.error("❌ [Utils.loadImage] ERREUR 'onerror' déclenchée:", err, "Source:", typeof urlOrFile === 'string' ? urlOrFile : urlOrFile.name);
                 reject(err);
             };
             if (urlOrFile instanceof File) {
@@ -402,7 +419,7 @@ class JourFrameBackend {
                             insertIndex = idx;
                         }
                     }
-                                     
+
                     // 2. Mettre à jour le modèle de données d'abord
                     this.imagesData.splice(insertIndex, 0, newItemData);
 
@@ -416,7 +433,7 @@ class JourFrameBackend {
                     this.checkAndApplyCroppedStyle();
                     this.updateUnscheduledJoursList();
                 }
-            // --- FIN DE LA CORRECTION ---
+                // --- FIN DE LA CORRECTION ---
             } else if (data.sourceType === 'jour') {
                 const sourceJourFrame = this.organizer.jourFrames.find(jf => jf.id === data.sourceJourId);
                 const draggedElement = document.querySelector('.dragging-jour-item');
@@ -489,9 +506,8 @@ class JourFrameBackend {
         const newElement = this.createJourItemElement(imageItemData);
         this.canvasWrapper.appendChild(newElement);
 
-        // Mettre à jour la grille et la liste des jours à planifier
+        // Mettre à jour la grille
         this.organizer.updateGridUsage();
-        this.updateUnscheduledJoursList();
     }
 
     createJourItemElement(imageItemData) {
@@ -772,6 +788,7 @@ class AutoCropper {
         this.isRunning = true;
         this.runBtn.disabled = true;
         this.progressElement.style.display = 'block';
+        this.progressElement.textContent = `Préparation...`;
 
         const settings = {
             vertical: document.querySelector('input[name="vertical_treatment"]:checked').value,
@@ -779,20 +796,21 @@ class AutoCropper {
         };
 
         for (const jour of joursToProcess) {
+            let jourNeedsUpdate = false;
             const modifiedDataMap = {};
-            const imagesToProcess = [...jour.imagesData];
+            const newImagesData = [];
 
-            if (imagesToProcess.length === 0) continue;
+            if (jour.imagesData.length === 0) continue;
 
-            for (let i = 0; i < imagesToProcess.length; i++) {
-                const imgData = imagesToProcess[i];
-                if (imgData.isCropped) continue;
+            for (let i = 0; i < jour.imagesData.length; i++) {
+                const imgData = jour.imagesData[i];
 
-                this.progressElement.textContent = `Traitement Jour ${jour.letter} (${i + 1}/${imagesToProcess.length})...`;
+                this.progressElement.textContent = `Traitement Jour ${jour.letter} (${i + 1}/${jour.imagesData.length})...`;
 
                 const originalGridItem = this.organizerApp.gridItemsDict[imgData.originalReferencePath];
                 if (!originalGridItem) {
                     console.warn(`Image originale ${imgData.originalReferencePath} non trouvée.`);
+                    newImagesData.push(imgData); // Conserve l'image telle quelle
                     continue;
                 }
 
@@ -800,7 +818,25 @@ class AutoCropper {
                     const image = await Utils.loadImage(originalGridItem.imagePath);
                     const isVertical = image.naturalHeight > image.naturalWidth * 1.02;
                     const setting = isVertical ? settings.vertical : settings.horizontal;
-                    if (setting === 'none') continue;
+
+                    if (setting === 'none') {
+                        if (imgData.isCropped) {
+                            // C'est une image recadrée, on la restaure à l'originale
+                            const originalData = jour.createImageItemDataFromBackendDoc(originalGridItem);
+                            newImagesData.push(originalData);
+                            jourNeedsUpdate = true;
+                        } else {
+                            // C'est déjà l'originale, on ne fait rien
+                            newImagesData.push(imgData);
+                        }
+                        continue; // Passe à l'image suivante
+                    }
+
+                    // Si l'image est déjà recadrée et que le réglage n'est pas "none", on la saute
+                    if (imgData.isCropped) {
+                        newImagesData.push(imgData);
+                        continue;
+                    }
 
                     let dataURL = null;
                     let cropInfo = '';
@@ -855,14 +891,34 @@ class AutoCropper {
                             this.organizerApp.gridItemsDict[newImageDoc._id] = newGridItem;
                         }
                         modifiedDataMap[imgData.imageId] = newImageDoc;
+                        newImagesData.push(jour.createImageItemDataFromBackendDoc(newImageDoc));
+                        jourNeedsUpdate = true;
+                    } else {
+                        // Si aucun recadrage n'a été appliqué, on garde l'ancienne data
+                        newImagesData.push(imgData);
                     }
                 } catch (err) {
                     console.error(`Erreur auto-crop pour ${originalGridItem.basename}:`, err);
                     this.progressElement.textContent = `Erreur sur l'image ${i + 1} du Jour ${jour.letter}.`;
                     await new Promise(resolve => setTimeout(resolve, 1500));
+                    newImagesData.push(imgData);
                 }
             }
-            jour.updateImagesFromCropper(modifiedDataMap);
+
+            if (jourNeedsUpdate) {
+                jour.imagesData = newImagesData;
+
+                // Rafraîchit le DOM du JourFrame
+                jour.canvasWrapper.innerHTML = '';
+                jour.imagesData.forEach(data => {
+                    const el = jour.createJourItemElement(data);
+                    jour.canvasWrapper.appendChild(el);
+                });
+
+                jour.debouncedSave();
+                jour.checkAndApplyCroppedStyle();
+                jour.updateUnscheduledJoursList();
+            }
         }
 
         this.organizerApp.refreshSidePanels();
@@ -943,7 +999,7 @@ class CroppingPage {
         }
     }
 
-    selectJour(jourFrame, preventStart = false) {
+    async selectJour(jourFrame, preventStart = false) {
         if (this.isAllPhotosViewActive) {
             this.toggleAllPhotosView(false); // Should switch to editor view
         }
@@ -956,7 +1012,7 @@ class CroppingPage {
         this.autoCropper.loadSettingsForJour(jourFrame);
 
         if (!preventStart) {
-            this.startCroppingForJour(jourFrame);
+            await this.startCroppingForJour(jourFrame);
         } else {
             this.showEditor();
             this.editorTitleElement.textContent = `Recadrage pour Jour ${jourFrame.letter}`;
@@ -1061,12 +1117,12 @@ class CroppingPage {
         });
     }
 
-    switchToCropperForImage(jourFrame, imageIndex) {
+    async switchToCropperForImage(jourFrame, imageIndex) {
         this.toggleAllPhotosView(false);
-        this.startCroppingForJour(jourFrame, imageIndex);
+        await this.startCroppingForJour(jourFrame, imageIndex);
     }
 
-    startCroppingForJour(jourFrame, startIndex = 0) {
+    async startCroppingForJour(jourFrame, startIndex = 0) {
         if (!jourFrame.imagesData || jourFrame.imagesData.length === 0) {
             this.clearEditor();
             this.editorTitleElement.textContent = `Jour ${jourFrame.letter}`;
@@ -1074,21 +1130,59 @@ class CroppingPage {
             this.editorPlaceholderElement.style.display = 'block';
             return;
         }
+
         this.showEditor();
         this.editorTitleElement.textContent = `Recadrage pour Jour ${jourFrame.letter}`;
-        this._populateThumbnailStrip(jourFrame);
-        const imageInfosForCropper = jourFrame.imagesData.map(imgData => {
-            const originalImageInGrid = this.organizerApp.gridItemsDict[imgData.originalReferencePath];
-            const baseImageToCropFromDataURL = originalImageInGrid ? originalImageInGrid.imagePath : imgData.dataURL;
+
+        // Préparer les données pour le cropper
+        const imageInfosForCropper = jourFrame.imagesData.map(imgDataInJour => {
+            const currentImageId = imgDataInJour.imageId;
+            const currentGridItem = this.organizerApp.gridItemsDict[currentImageId];
+
+            if (!currentGridItem) {
+                console.warn(`Image ID ${currentImageId} du Jour ${jourFrame.letter} non trouvée.`);
+                return null;
+            }
+
+            const originalImageId = currentGridItem.parentImageId || currentGridItem.id;
+            const originalGridItem = this.organizerApp.gridItemsDict[originalImageId];
+
+            if (!originalGridItem) {
+                console.warn(`Image originale ID ${originalImageId} non trouvée pour l'image ${currentImageId}.`);
+                return null;
+            }
+
             return {
-                pathForCropper: imgData.imageId,
-                dataURL: imgData.dataURL,
-                originalReferenceId: imgData.originalReferencePath,
-                baseImageToCropFromDataURL,
-                currentImageId: imgData.imageId
+                pathForCropper: currentImageId,
+                dataURL: imgDataInJour.dataURL,
+                originalReferenceId: originalImageId,
+                baseImageToCropFromDataURL: originalGridItem.imagePath,
+                currentImageId: currentImageId
             };
-        });
-        this.croppingManager.startCropping(imageInfosForCropper, jourFrame, startIndex);
+        }).filter(info => info !== null);
+
+        if (imageInfosForCropper.length === 0) {
+            this.clearEditor();
+            this.editorPlaceholderElement.textContent = `Aucune image valide à recadrer pour le Jour ${jourFrame.letter}.`;
+            this.editorPlaceholderElement.style.display = 'block';
+            return;
+        }
+
+        // --- DÉBUT DE LA CORRECTION CRUCIALE ---
+
+        // 1. D'abord, on lance le chargement de l'image principale.
+        //    Cela envoie la requête réseau la plus importante en premier.
+        await this.croppingManager.startCropping(imageInfosForCropper, jourFrame, startIndex);
+
+        // 2. ENSUITE, et seulement après que la première image soit gérée,
+        //    on peuple la bande de vignettes. Le navigateur peut maintenant
+        //    charger ces images secondaires sans annuler la requête principale.
+        this._populateThumbnailStrip(jourFrame);
+
+        // 3. On met à jour le surlignage de la vignette active.
+        this._updateThumbnailStripHighlight(this.croppingManager.currentImageIndex);
+
+        // --- FIN DE LA CORRECTION CRUCIALE ---
     }
 
     _populateThumbnailStrip(jourFrame) {
@@ -1212,13 +1306,21 @@ class CroppingManager {
     }
 
     refreshLayout() {
+        // [LOG] Log pour voir quand le layout est rafraîchi
+        console.log('[CroppingManager] refreshLayout() appelé.');
         if (this.currentImageObject) {
             this._handleResize();
         }
     }
 
     _handleResize() {
-        if (!this.editorPanel.style.display || this.editorPanel.style.display === 'none' || !this.currentImageObject) return;
+        // [LOG] Log pour tracer le redimensionnement du canvas
+        console.log('[CroppingManager] _handleResize() appelé.');
+        if (!this.canvasElement.offsetParent || !this.currentImageObject) {
+            console.warn('[CroppingManager] _handleResize() stoppé : canvas non visible ou pas d\'image chargée.');
+            return;
+        }
+
         let relativeCrop = null;
         if (this.cropRectDisplay) {
             const oldImageDims = this.getImageDisplayDimensions();
@@ -1231,21 +1333,26 @@ class CroppingManager {
                 };
             }
         }
+
+        // [LOG] Log avant de changer les dimensions du canvas
+        console.log('[CroppingManager] Redimensionnement du canvas en cours...');
         this.setCanvasDimensions();
+
+        const newImageDims = this.getImageDisplayDimensions();
+
         if (relativeCrop) {
-            const newImageDims = this.getImageDisplayDimensions();
             this.cropRectDisplay = {
                 x: newImageDims.displayX + (relativeCrop.x * newImageDims.displayWidth),
                 y: newImageDims.displayY + (relativeCrop.y * newImageDims.displayHeight),
                 width: relativeCrop.width * newImageDims.displayWidth,
                 height: relativeCrop.height * newImageDims.displayHeight
             };
-        } else if (this.currentImageObject) {
+            this.redrawCanvasOnly();
+            this.debouncedUpdatePreview();
+        } else {
+            console.log('[CroppingManager] Pas de recadrage précédent, initialisation avec smartcrop.');
             this.initializeCropWithSmartCrop();
-            return;
         }
-        this.redrawCanvasOnly();
-        this.debouncedUpdatePreview();
     }
 
     async initializeCropWithSmartCrop() {
@@ -1322,14 +1429,25 @@ class CroppingManager {
             this.ctx.restore();
         } else {
             const { displayX, displayY, displayWidth, displayHeight } = this.getImageDisplayDimensions();
+            // [LOG] Log critique juste avant le dessin
+            console.log('[CroppingManager._internalRedraw] Dessin de l\'image avec les paramètres:', { displayX, displayY, displayWidth, displayHeight });
+
+            if (displayWidth <= 0 || displayHeight <= 0) {
+                console.error('❌ ERREUR DE DESSIN : Dimensions de l\'image invalides (<= 0). Le canvas restera noir.');
+                return;
+            }
+
             this.ctx.save();
             if (this.flippedH) { this.ctx.translate(this.canvasElement.width, 0); this.ctx.scale(-1, 1); const adjustedDisplayX = this.canvasElement.width - displayX - displayWidth; this.ctx.drawImage(this.currentImageObject, adjustedDisplayX, displayY, displayWidth, displayHeight); }
             else { this.ctx.drawImage(this.currentImageObject, displayX, displayY, displayWidth, displayHeight); }
             this.ctx.restore();
+
             this.ctx.strokeStyle = 'rgba(0,0,0,0.3)';
             this.ctx.lineWidth = 1;
             this.ctx.strokeRect(displayX - 0.5, displayY - 0.5, displayWidth + 1, displayHeight + 1);
             if (this.cropRectDisplay) {
+                // [LOG] Log des coordonnées de la boite de recadrage
+                console.log('[CroppingManager._internalRedraw] Dessin de la boite de recadrage:', this.cropRectDisplay);
                 this.ctx.strokeStyle = 'rgba(255, 255, 255, 0.9)';
                 this.ctx.lineWidth = 2;
                 this.ctx.strokeRect(this.cropRectDisplay.x, this.cropRectDisplay.y, this.cropRectDisplay.width, this.cropRectDisplay.height);
@@ -1389,12 +1507,28 @@ class CroppingManager {
     }
 
     setCanvasDimensions() {
+        // [CORRECTION] Sécurise le redimensionnement si le conteneur n'est pas encore visible.
         const container = this.canvasElement.parentElement;
-        this.canvasElement.width = container.clientWidth;
-        this.canvasElement.height = container.clientHeight;
+        const containerWidth = container.clientWidth;
+        const containerHeight = container.clientHeight;
+
+        if (containerWidth === 0 || containerHeight === 0) {
+            console.warn('⚠️ [CroppingManager] Le conteneur du canvas a des dimensions de 0. Utilisation de valeurs par défaut (800x600).');
+            this.canvasElement.width = 800;
+            this.canvasElement.height = 600;
+        } else {
+            this.canvasElement.width = containerWidth;
+            this.canvasElement.height = containerHeight;
+        }
+
+        // [LOG] Log crucial pour vérifier les dimensions finales du canvas
+        console.log(`📐 [CroppingManager] Canvas redimensionné à : ${this.canvasElement.width}x${this.canvasElement.height}`);
     }
 
     async startCropping(images, callingJourFrame, startIndex = 0) {
+        // [LOG] Log de démarrage de toute l'opération de recadrage.
+        console.log(`[CroppingManager] startCropping appelé pour Jour ${callingJourFrame.letter}, début à l'index ${startIndex}.`);
+
         this.imagesToCrop = images;
         this.currentJourFrameInstance = callingJourFrame;
         this.currentImageIndex = startIndex;
@@ -1448,26 +1582,39 @@ class CroppingManager {
     }
 
     async loadCurrentImage() {
+        // [LOG] Log au début du chargement d'une image spécifique
+        console.log(`[CroppingManager] --- Début de loadCurrentImage pour l'index ${this.currentImageIndex} ---`);
         this.ignoreSaveForThisImage = false;
         this.flippedH = false;
         this.cropRectDisplay = null;
         this.isDragging = false;
         this.dragMode = null;
         this.canvasElement.style.cursor = 'crosshair';
+
         if (this.currentImageIndex < 0 || this.currentImageIndex >= this.imagesToCrop.length) {
             this.currentImageObject = null;
             this.ctx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
             this.infoLabel.textContent = "Toutes les images traitées.";
             this.updatePreview(null, null);
             if (this.imagesToCrop.length > 0) this.finishBtn.focus();
+            console.log('[CroppingManager] Fin du recadrage, plus d\'images à charger.');
             return;
         }
+
         const imgInfo = this.imagesToCrop[this.currentImageIndex];
         const originalGridItem = this.organizer.gridItemsDict[imgInfo.originalReferenceId];
         const displayName = originalGridItem ? originalGridItem.basename : `Image ID ${imgInfo.originalReferenceId}`;
         this.infoLabel.textContent = `Chargement ${displayName}...`;
+
         try {
+            // [LOG] Log de l'URL exacte qui sera chargée
+            console.log(`[CroppingManager] Tentative de chargement de l'URL : ${imgInfo.baseImageToCropFromDataURL}`);
+
             this.currentImageObject = await Utils.loadImage(imgInfo.baseImageToCropFromDataURL);
+
+            // [LOG] Log en cas de succès avec les dimensions
+            console.log(`[CroppingManager] ✅ Image chargée avec succès. Dimensions: ${this.currentImageObject.naturalWidth}x${this.currentImageObject.naturalHeight}`);
+
             let defaultRatio;
             const imgWidth = this.currentImageObject.naturalWidth || this.currentImageObject.width;
             const imgHeight = this.currentImageObject.naturalHeight || this.currentImageObject.height;
@@ -1475,19 +1622,30 @@ class CroppingManager {
             else if (imgHeight > imgWidth * 1.05) { defaultRatio = '3:4'; }
             else { defaultRatio = '1:1'; }
             this.aspectRatioSelect.value = defaultRatio;
-            await this.initializeCropWithSmartCrop();
+
+            // Il est crucial d'appeler _handleResize ici pour s'assurer que le canvas a les bonnes dimensions
+            // AVANT d'essayer de dessiner ou de calculer le smartcrop.
+            this._handleResize();
+
         } catch (e) {
-            console.error(`Erreur chargement: ${displayName}:`, e);
-            this.infoLabel.textContent = `Erreur chargement: ${displayName}`;
+            // [LOG] Log en cas d'échec
+            console.error(`❌ ERREUR CRITIQUE: Échec du chargement de l'image pour le recadrage : ${displayName}`, e);
+            console.error(`URL qui a échoué :`, imgInfo.baseImageToCropFromDataURL);
+            this.infoLabel.textContent = `Erreur chargement: ${displayName}. L'image est peut-être corrompue.`;
             this.currentImageObject = null;
+            this.ctx.fillStyle = CROPPER_BACKGROUND_GRAY;
+            this.ctx.fillRect(0, 0, this.canvasElement.width, this.canvasElement.height);
             this.updatePreview(null, null);
             return;
         }
+
         this.aspectRatioSelect.disabled = this.splitModeState > 0 || this.saveMode === 'white_bars';
         this.whiteBarsBtn.disabled = this.splitModeState > 0;
         this.splitLineBtn.disabled = this.saveMode === 'white_bars';
         this.infoLabel.textContent = `${displayName}`;
         this.croppingPage._updateThumbnailStripHighlight(this.currentImageIndex);
+
+        console.log(`[CroppingManager] --- Fin de loadCurrentImage pour l'index ${this.currentImageIndex} ---`);
     }
 
     setDefaultCropRect() {
@@ -2370,8 +2528,15 @@ class CalendarPage {
     buildUnscheduledJoursList() {
         if (!this.unscheduledJoursListElement) return;
         this.unscheduledJoursListElement.innerHTML = '';
+
         const scheduleData = this.organizerApp.scheduleContext.schedule;
         const allUserJours = this.organizerApp.scheduleContext.allUserJours;
+
+        if (!allUserJours || allUserJours.length === 0) {
+            this.unscheduledJoursListElement.innerHTML = '<p class="sidebar-info">Aucun jour à planifier.</p>';
+            return;
+        }
+
         const scheduledSet = new Set();
         for (const date in scheduleData) {
             for (const letter in scheduleData[date]) {
@@ -2379,40 +2544,60 @@ class CalendarPage {
                 scheduledSet.add(`${item.galleryId}-${letter}`);
             }
         }
+
         const unscheduled = allUserJours.filter(jour => !scheduledSet.has(`${jour.galleryId}-${jour.letter}`));
+
         if (unscheduled.length === 0) {
             this.unscheduledJoursListElement.innerHTML = '<p class="sidebar-info">Tous les jours sont planifiés !</p>';
             return;
         }
+
+        // --- DÉBUT DE LA LOGIQUE CORRIGÉE ---
         unscheduled.forEach(jour => {
             const itemElement = document.createElement('div');
             itemElement.className = 'unscheduled-jour-item';
             itemElement.draggable = true;
+
             const contentDiv = document.createElement('div');
             contentDiv.className = 'unscheduled-jour-item-content';
+
             const letterSpan = document.createElement('span');
             letterSpan.className = 'unscheduled-jour-item-letter';
             letterSpan.textContent = jour.letter;
             const colorIndex = jour.letter.charCodeAt(0) - 'A'.charCodeAt(0);
             letterSpan.style.backgroundColor = JOUR_COLORS[colorIndex % JOUR_COLORS.length];
+
             const thumbDiv = document.createElement('div');
             thumbDiv.className = 'unscheduled-jour-item-thumb';
-            const jourFrame = this.organizerApp.jourFrames.find(jf => jf.galleryId === jour.galleryId && jf.letter === jour.letter);
-            if (jourFrame && jourFrame.imagesData.length > 0) {
-                thumbDiv.style.backgroundImage = `url(${jourFrame.imagesData[0].dataURL})`;
-            } else {
-                thumbDiv.textContent = '...';
+
+            // On essaie de trouver le JourFrame correspondant UNIQUEMENT s'il est de la galerie active
+            let thumbFound = false;
+            if (jour.galleryId === this.organizerApp.currentGalleryId) {
+                const jourFrame = this.organizerApp.jourFrames.find(jf => jf.id === jour._id);
+                if (jourFrame && jourFrame.imagesData.length > 0) {
+                    thumbDiv.style.backgroundImage = `url(${jourFrame.imagesData[0].dataURL})`;
+                    thumbFound = true;
+                }
             }
+
+            if (!thumbFound) {
+                thumbDiv.textContent = '...'; // Placeholder si la vignette n'est pas dispo
+            }
+
             const gallerySpan = document.createElement('span');
             gallerySpan.className = 'unscheduled-jour-item-gallery';
             gallerySpan.textContent = jour.galleryName;
+
             contentDiv.appendChild(letterSpan);
             contentDiv.appendChild(thumbDiv);
             contentDiv.appendChild(gallerySpan);
             itemElement.appendChild(contentDiv);
+
             itemElement.addEventListener('dragstart', e => this._onDragStart(e, { type: 'unscheduled', ...jour }, itemElement));
+
             this.unscheduledJoursListElement.appendChild(itemElement);
         });
+        // --- FIN DE LA LOGIQUE CORRIGÉE ---
     }
 
     async loadCalendarThumb(thumbElement, jourLetter, galleryIdForJour) {
@@ -2667,6 +2852,7 @@ class PublicationOrganizer {
         this.galleryCache = {};
         this.activeUploadXHR = null;
         this.activeCallingButton = null;
+        this.isLoadingGallery = false;
         this.scheduleContext = { schedule: {}, allUserJours: [] };
         this.imageSelectorInput = document.getElementById('imageSelector');
         this.switchToGalleriesBtn = document.getElementById('switchToGalleriesBtn');
@@ -2705,7 +2891,7 @@ class PublicationOrganizer {
         this.tabs = document.querySelectorAll('.tab-button');
         this.tabContents = document.querySelectorAll('.tab-content');
         this.croppingPage = new CroppingPage(this);
-        
+
         this.calendarPage = null;
         this.descriptionManager = null;
         this._initListeners();
@@ -2722,7 +2908,7 @@ class PublicationOrganizer {
                 this.calendarPage = new CalendarPage(calendarTabContent, this);
             }
         }
-        
+
         // Initialiser DescriptionManager si pas encore fait
         if (!this.descriptionManager) {
             const descriptionTabContent = document.getElementById('description');
@@ -3025,12 +3211,16 @@ class PublicationOrganizer {
                     this.clearGalleryPreview();
                 }
             } else if (tabId === 'cropping') {
+                // --- DÉBUT DE LA CORRECTION ---
                 if (this.currentGalleryId) {
-                    this.croppingPage.show();
+                    // On diffère l'exécution pour s'assurer que le DOM est visible et a des dimensions
                     requestAnimationFrame(() => {
+                        this.croppingPage.show();
+                        // On force une mise à jour du layout au cas où
                         this.croppingPage.croppingManager.refreshLayout();
                     });
                 }
+                // --- FIN DE LA CORRECTION ---
             } else if (tabId === 'description') {
                 if (!this.descriptionManager) {
                     this.descriptionManager = new DescriptionManager(this);
@@ -3303,6 +3493,10 @@ class PublicationOrganizer {
         const loadingOverlay = document.getElementById('loadingOverlay');
         loadingOverlay.style.display = 'flex';
         loadingOverlay.querySelector('p').textContent = 'Chargement de la galerie...';
+
+        // Flag pour éviter les mises à jour redondantes pendant le chargement
+        this.isLoadingGallery = true;
+
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}`);
             if (!response.ok) {
@@ -3347,9 +3541,21 @@ class PublicationOrganizer {
                 schedule: data.schedule || {},
                 allUserJours: data.scheduleContext.allUserJours || []
             };
+
+            // ▼▼▼ AJOUT DE LA SECTION CORRIGÉE ▼▼▼
+            // Maintenant que TOUS les Jours sont initialisés et dans app.jourFrames,
+            // on peut lancer la mise à jour de l'UI du calendrier en toute sécurité.
             if (this.calendarPage) {
+                // S'assure que tous les jours de la galerie actuelle sont bien dans le contexte global
+                this.jourFrames.forEach(jf => this.ensureJourInAllUserJours(jf));
+                // Construit l'affichage du calendrier ET de la liste des jours non planifiés
                 this.calendarPage.buildCalendarUI();
             }
+            // ▲▲▲ FIN DE LA SECTION AJOUTÉE ▲▲▲
+
+            // Désactiver le flag de chargement avant les mises à jour finales
+            this.isLoadingGallery = false;
+
             this.updateGridUsage();
             this.updateStatsLabel();
             this.updateAddPhotosPlaceholderVisibility();
@@ -3361,6 +3567,9 @@ class PublicationOrganizer {
             console.error("Erreur critique lors du chargement de l'état de la galerie:", error);
             loadingOverlay.querySelector('p').innerHTML = `Erreur de chargement: ${error.message}<br/>Veuillez rafraîchir.`;
         } finally {
+            // S'assurer que le flag est désactivé même en cas d'erreur
+            this.isLoadingGallery = false;
+
             if (loadingOverlay.style.display === 'flex') {
                 loadingOverlay.style.display = 'none';
             }
@@ -3785,7 +3994,7 @@ class PublicationOrganizer {
                 alert("Une image ne peut pas être sélectionnée dans plus de 4 jours différents.");
                 return;
             }
-                     
+
             // --- DÉBUT DE LA CORRECTION ---
             const newItemData = {
                 imageId: gridItem.id,
@@ -3793,14 +4002,14 @@ class PublicationOrganizer {
                 dataURL: gridItem.thumbnailPath,
                 isCropped: gridItem.isCroppedVersion
             };
-             
+
             // 1. Mettre à jour le modèle de données d'abord
             this.currentJourFrame.imagesData.push(newItemData);
-             
+
             // 2. Créer et ajouter le nouvel élément DOM
             const newElement = this.currentJourFrame.createJourItemElement(newItemData);
             this.currentJourFrame.canvasWrapper.appendChild(newElement);
-             
+
             // 3. Appeler directement les fonctions de mise à jour (au lieu de syncDataArrayFromDOM)
             this.updateGridUsage();
             this.currentJourFrame.debouncedSave();
@@ -3829,7 +4038,8 @@ class PublicationOrganizer {
         this.updateStatsLabel();
 
         // Mettre à jour le calendrier si l'onglet calendrier est actif
-        if (this.calendarPage && document.getElementById('calendar').classList.contains('active')) {
+        // MAIS seulement si on n'est pas en train de charger une galerie
+        if (this.calendarPage && document.getElementById('calendar').classList.contains('active') && !this.isLoadingGallery) {
             this.calendarPage.buildCalendarUI();
         }
     }
