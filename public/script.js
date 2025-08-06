@@ -681,11 +681,15 @@ class JourFrameBackend {
     }
 
     createImageItemDataFromBackendDoc(imageDoc) {
+        // Gère à la fois les documents bruts de l'API (avec _id) et les instances
+        // de la classe GridItemBackend (avec id).
+        const id = imageDoc._id || imageDoc.id;
+        
         return {
-            imageId: imageDoc._id,
-            originalReferencePath: imageDoc.parentImageId || imageDoc._id,
+            imageId: id,
+            originalReferencePath: imageDoc.parentImageId || id,
             dataURL: `${BASE_API_URL}/api/uploads/${imageDoc.galleryId}/${Utils.getFilenameFromURL(imageDoc.thumbnailPath)}`,
-            isCropped: imageDoc.isCroppedVersion
+            isCropped: imageDoc.isCroppedVersion || false
         };
     }
 
@@ -984,15 +988,32 @@ class AutoCropper {
 
                     if (setting === 'none') {
                         if (imgData.isCropped) {
-                            // C'est une image recadrée, on la restaure à l'originale
-                            const originalData = jour.createImageItemDataFromBackendDoc(originalGridItem);
-                            newImagesData.push(originalData);
-                            jourNeedsUpdate = true;
+                            // Il s'agit d'une image recadrée, nous devons la restaurer à l'originale.
+                            const originalGridItem = this.organizerApp.gridItemsDict[imgData.originalReferencePath];
+                            
+                            if (originalGridItem) {
+                                // On reconstruit manuellement l'objet de données pour le Jour
+                                // en utilisant les propriétés de l'instance GridItemBackend de l'original.
+                                // C'est la correction cruciale pour garantir la cohérence des données.
+                                const restoredImageData = {
+                                    imageId: originalGridItem.id,
+                                    originalReferencePath: originalGridItem.parentImageId || originalGridItem.id,
+                                    dataURL: originalGridItem.thumbnailPath,
+                                    isCropped: originalGridItem.isCroppedVersion
+                                };
+                                newImagesData.push(restoredImageData);
+                                jourNeedsUpdate = true;
+                            } else {
+                                // Sécurité : si l'original est introuvable, on garde la version recadrée
+                                // pour éviter la perte de données (l'image qui disparaît).
+                                console.warn(`Image originale ${imgData.originalReferencePath} non trouvée pour la restauration. Conservation de la version recadrée.`);
+                                newImagesData.push(imgData);
+                            }
                         } else {
-                            // C'est déjà l'originale, on ne fait rien
+                            // C'est déjà l'image originale, on la conserve telle quelle.
                             newImagesData.push(imgData);
                         }
-                        continue; // Passe à l'image suivante
+                        continue; // On passe à l'image suivante du jour.
                     }
 
                     // Si l'image est déjà recadrée et que le réglage n'est pas "none", on la saute
@@ -1082,6 +1103,11 @@ class AutoCropper {
                 jour.checkAndApplyCroppedStyle();
                 jour.updateUnscheduledJoursList();
             }
+        }
+
+        // On s'assure de rafraîchir la vue principale si elle est affichée.
+        if (this.croppingPage.isAllPhotosViewActive) {
+            this.croppingPage.renderAllPhotosGroupedView();
         }
 
         this.organizerApp.refreshSidePanels();
@@ -3568,17 +3594,6 @@ class PublicationOrganizer {
                     width: 100%;
                 `;
                 
-                const message = document.createElement('div');
-                message.className = 'empty-gallery-message';
-                message.innerHTML = `
-                    <p style="margin-bottom: 15px; font-size: 1.1em; color: #6c757d;">
-                        Cette galerie est vide
-                    </p>
-                    <p style="margin-bottom: 20px; color: #6c757d;">
-                        Ajoutez vos premières photos pour commencer
-                    </p>
-                `;
-                
                 const addPhotosBtn = document.createElement('button');
                 addPhotosBtn.innerHTML = '<img src="assets/add-button.png" alt="Icône ajouter" class="btn-icon"> Ajouter des Photos';
                 addPhotosBtn.className = 'add-photos-preview-btn add-btn-green';
@@ -3593,7 +3608,6 @@ class PublicationOrganizer {
                     }
                 };
                 
-                emptyContainer.appendChild(message);
                 emptyContainer.appendChild(addPhotosBtn);
                 this.galleryPreviewGridElement.appendChild(emptyContainer);
                 
@@ -3998,14 +4012,19 @@ class PublicationOrganizer {
     updateAddPhotosPlaceholderVisibility() {
         if (!this.currentGalleryId) {
             this.addPhotosPlaceholderBtn.style.display = 'none';
+            this.addNewImagesBtn.style.display = 'none';
             this.imageGridElement.innerHTML = '<p style="text-align:center; margin-top:20px;">Chargez ou créez une galerie pour voir les images.</p>';
             this.imageGridElement.style.display = 'block';
             return;
         }
         if (this.gridItems.length === 0) {
+            // Galerie vide : masquer le bouton du header, afficher le bouton central
+            this.addNewImagesBtn.style.display = 'none';
             this.addPhotosPlaceholderBtn.style.display = 'block';
             this.imageGridElement.style.display = 'none';
         } else {
+            // Galerie avec photos : afficher le bouton du header, masquer le bouton central
+            this.addNewImagesBtn.style.display = 'block';
             this.addPhotosPlaceholderBtn.style.display = 'none';
             this.imageGridElement.style.display = 'grid';
         }
