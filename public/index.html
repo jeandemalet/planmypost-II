@@ -62,8 +62,8 @@
                 <div id="galleryPreviewArea">
                     <div id="galleryPreviewHeader" style="display:none;">
                         <h3 id="galleryPreviewName"></h3>
-                        <div style="display: flex !important; gap: 10px; margin-left: auto !important;">
-                            <button id="addPhotosToPreviewGalleryBtn" class="add-btn-green">
+                        <div class="gallery-header-actions">
+                            <button id="addPhotosToPreviewGalleryBtn" class="add-btn-green header-add-btn">
                                 <img src="/assets/add-button.png" alt="" class="btn-icon"> <span class="btn-text">Ajouter des photos</span>
                             </button>
                         </div>
@@ -83,9 +83,6 @@
         <div id="currentGallery" class="tab-content">
             <div class="controls-bar">
                 <span id="currentGalleryNameDisplay" style="margin-right: 10px; font-weight: bold;"></span>
-                <button id="switchToGalleriesBtn" class="secondary-action">
-                    <img src="/assets/gallery.png" alt="" class="btn-icon"> Changer de galerie
-                </button>
                 <button id="addNewImagesBtn" class="add-btn-green">
                     <img src="/assets/add-button.png" alt="" class="btn-icon"> Ajouter
                 </button>
@@ -96,8 +93,8 @@
                     <button id="zoomInBtn" class="zoom-btn-round">+</button>
                 </div>
                 <div class="sort-controls">
-                    <label for="sortOptions">Trier par:</label>
                     <select id="sortOptions">
+                        <option value="" disabled selected>Trier par...</option>
                         <option value="name_asc">Nom (A-Z)</option>
                         <option value="name_desc">Nom (Z-A)</option>
                         <option value="date_desc">Date Prise (Plus Récente)</option>

@@ -3042,7 +3042,6 @@ class PublicationOrganizer {
         this.isLoadingGallery = false;
         this.scheduleContext = { schedule: {}, allUserJours: [] };
         this.imageSelectorInput = document.getElementById('imageSelector');
-        this.switchToGalleriesBtn = document.getElementById('switchToGalleriesBtn');
         this.addNewImagesBtn = document.getElementById('addNewImagesBtn');
         this.addPhotosToPreviewGalleryBtn = document.getElementById('addPhotosToPreviewGalleryBtn');
         this.addPhotosPlaceholderBtn = document.getElementById('addPhotosPlaceholderBtn');
@@ -3131,7 +3130,6 @@ class PublicationOrganizer {
                 this.activeCallingButton = null;
             }
         });
-        this.switchToGalleriesBtn.addEventListener('click', () => this.activateTab('galleries'));
         // Bouton "Trier" retiré - la sélection d'une galerie charge automatiquement l'onglet Tri
         this.addNewImagesBtn.addEventListener('click', () => {
             if (!this.currentGalleryId) { alert("Veuillez d'abord charger ou créer une galerie."); return; }
@@ -3497,13 +3495,23 @@ class PublicationOrganizer {
         }
     }
 
-    async showGalleryPreview(galleryId, galleryName) {
+    async showGalleryPreview(galleryId, galleryName, isNewGallery = false) {
         this.selectedGalleryForPreviewId = galleryId;
         this.galleryPreviewPlaceholder.style.display = 'none';
         this.galleryPreviewHeader.style.display = 'flex';
         this.galleryPreviewNameElement.textContent = galleryName;
         this.galleryPreviewGridElement.innerHTML = '<p>Chargement des images...</p>';
         this.galleriesUploadProgressContainer.style.display = 'none';
+        
+        // Marquer comme nouvelle galerie (style discret)
+        const galleryPreviewArea = document.getElementById('galleryPreviewArea');
+        if (isNewGallery) {
+            galleryPreviewArea.classList.add('gallery-just-created');
+            setTimeout(() => {
+                galleryPreviewArea.classList.remove('gallery-just-created');
+            }, 5000);
+        }
+        
         this.galleriesListElement.querySelectorAll('.gallery-list-item').forEach(item => {
             item.classList.remove('selected-for-preview');
             if (item.dataset.galleryId === galleryId) {
@@ -3521,6 +3529,8 @@ class PublicationOrganizer {
             this.galleryCache[galleryId] = galleryDetails.galleryState.name;
             this.galleryPreviewGridElement.innerHTML = '';
             if (galleryDetails.images && galleryDetails.images.length > 0) {
+                // Marquer la grille comme ayant des photos
+                this.galleryPreviewGridElement.classList.add('has-photos');
                 galleryDetails.images.forEach(imgData => {
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'grid-item';
@@ -3546,16 +3556,49 @@ class PublicationOrganizer {
                     this.galleryPreviewGridElement.appendChild(itemDiv);
                 });
             } else {
+                // Créer un conteneur centré pour le message et le bouton
+                const emptyContainer = document.createElement('div');
+                emptyContainer.className = 'empty-gallery-container';
+                emptyContainer.style.cssText = `
+                    position: absolute;
+                    top: 50%;
+                    left: 50%;
+                    transform: translate(-50%, -50%);
+                    text-align: center;
+                    width: 100%;
+                `;
+                
+                const message = document.createElement('div');
+                message.className = 'empty-gallery-message';
+                message.innerHTML = `
+                    <p style="margin-bottom: 15px; font-size: 1.1em; color: #6c757d;">
+                        Cette galerie est vide
+                    </p>
+                    <p style="margin-bottom: 20px; color: #6c757d;">
+                        Ajoutez vos premières photos pour commencer
+                    </p>
+                `;
+                
                 const addPhotosBtn = document.createElement('button');
                 addPhotosBtn.innerHTML = '<img src="assets/add-button.png" alt="Icône ajouter" class="btn-icon"> Ajouter des Photos';
-                addPhotosBtn.className = 'add-photos-preview-btn';
+                addPhotosBtn.className = 'add-photos-preview-btn add-btn-green';
+                addPhotosBtn.style.cssText = `
+                    font-size: 1.1em;
+                    padding: 12px 20px;
+                `;
                 addPhotosBtn.onclick = () => {
                     if (this.selectedGalleryForPreviewId) {
                         this.activeCallingButton = addPhotosBtn;
                         this.imageSelectorInput.click();
                     }
                 };
-                this.galleryPreviewGridElement.appendChild(addPhotosBtn);
+                
+                emptyContainer.appendChild(message);
+                emptyContainer.appendChild(addPhotosBtn);
+                this.galleryPreviewGridElement.appendChild(emptyContainer);
+                
+                // Marquer la grille comme vide pour les styles CSS
+                this.galleryPreviewGridElement.classList.remove('has-photos');
             }
         } catch (error) {
             console.error("Erreur lors du chargement de l'aperçu de la galerie:", error);
@@ -3622,19 +3665,27 @@ class PublicationOrganizer {
         // Créer l'élément de nouvelle galerie
         const li = document.createElement('li');
         li.className = 'gallery-list-item new-gallery-item';
-        li.style.backgroundColor = '#f0f8ff';
-        li.style.border = '2px dashed #007bff';
+        li.style.cssText = `
+            background-color: #f0f8ff;
+            border: 2px dashed #007bff;
+        `;
 
         // Créer le champ de saisie
         const input = document.createElement('input');
         input.type = 'text';
         input.className = 'new-gallery-input';
         input.placeholder = 'Nom de la nouvelle galerie';
-        input.style.flex = '1';
-        input.style.border = 'none';
-        input.style.background = 'transparent';
-        input.style.fontSize = '14px';
-        input.style.padding = '5px';
+        input.style.cssText = `
+            flex: 1;
+            border: none;
+            background: rgba(255, 255, 255, 0.9);
+            font-size: 14px;
+            padding: 6px 10px;
+            border-radius: 4px;
+            outline: none;
+            font-weight: normal;
+            color: #333;
+        `;
 
         // Créer les boutons d'action
         const actionsDiv = document.createElement('div');
@@ -3696,8 +3747,8 @@ class PublicationOrganizer {
             // Recharger la liste (qui sera triée alphabétiquement)
             await this.loadGalleriesList();
             
-            // Sélectionner la nouvelle galerie
-            this.showGalleryPreview(newGallery._id, newGallery.name);
+            // Sélectionner la nouvelle galerie avec animation
+            this.showGalleryPreview(newGallery._id, newGallery.name, true);
             
             if (!this.currentGalleryId) {
                 this.handleLoadGallery(newGallery._id);
@@ -3805,7 +3856,8 @@ class PublicationOrganizer {
             this.galleryCache[this.currentGalleryId] = galleryState.name || 'Galerie sans nom';
             document.getElementById('currentGalleryNameDisplay').textContent = `Galerie : ${this.getCurrentGalleryName()}`;
             this.currentThumbSize = galleryState.currentThumbSize || { width: 150, height: 150 };
-            this.sortOptionsSelect.value = galleryState.sortOption || 'date_desc';
+            const savedSortOption = galleryState.sortOption || 'date_desc';
+            this.sortOptionsSelect.value = savedSortOption;
             this.nextJourIndex = galleryState.nextJourIndex || 0;
             if (data.images && data.images.length > 0) {
                 this.addImagesToGrid(data.images);
@@ -4212,7 +4264,13 @@ class PublicationOrganizer {
     }
 
     sortGridItemsAndReflow() {
-        const sortValue = this.sortOptionsSelect.value;
+        let sortValue = this.sortOptionsSelect.value;
+        
+        // Si aucune option n'est sélectionnée (placeholder), utiliser le tri par défaut
+        if (!sortValue || sortValue === '') {
+            sortValue = 'date_desc';
+            this.sortOptionsSelect.value = sortValue;
+        }
 
         // --- DÉBUT DE LA CORRECTION ---
         // On ne trie et n'affiche que les images originales dans la grille principale.
