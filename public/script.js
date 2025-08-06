@@ -2715,8 +2715,11 @@ class CalendarPage {
             return;
         }
 
+        // Trier les jours non planifiés par ordre alphabétique pour avoir A en premier
+        unscheduled.sort((a, b) => a.letter.localeCompare(b.letter));
+
         // --- DÉBUT DE LA LOGIQUE CORRIGÉE ---
-        unscheduled.forEach(jour => {
+        unscheduled.forEach((jour, index) => {
             const itemElement = document.createElement('div');
             itemElement.className = 'unscheduled-jour-item';
             itemElement.draggable = true;
@@ -2758,7 +2761,28 @@ class CalendarPage {
 
             itemElement.addEventListener('dragstart', e => this._onDragStart(e, { type: 'unscheduled', ...jour }, itemElement));
 
+            // Ajouter un gestionnaire de clic pour sélectionner le jour dans l'onglet tri
+            itemElement.addEventListener('click', () => {
+                if (jour.galleryId === this.organizerApp.currentGalleryId) {
+                    const jourFrame = this.organizerApp.jourFrames.find(jf => jf.id === jour._id);
+                    if (jourFrame) {
+                        // Activer l'onglet tri et sélectionner ce jour
+                        this.organizerApp.activateTab('currentGallery');
+                        this.organizerApp.setCurrentJourFrame(jourFrame);
+                    }
+                }
+            });
+
             this.unscheduledJoursListElement.appendChild(itemElement);
+
+            // Sélectionner automatiquement le jour A par défaut si c'est le premier jour (A) et qu'on est dans l'onglet tri
+            if (index === 0 && jour.letter === 'A' && jour.galleryId === this.organizerApp.currentGalleryId && 
+                document.getElementById('currentGallery').classList.contains('active')) {
+                const jourFrame = this.organizerApp.jourFrames.find(jf => jf.id === jour._id);
+                if (jourFrame && !this.organizerApp.currentJourFrame) {
+                    this.organizerApp.setCurrentJourFrame(jourFrame);
+                }
+            }
         });
         // --- FIN DE LA LOGIQUE CORRIGÉE ---
     }
@@ -3082,10 +3106,7 @@ class PublicationOrganizer {
     }
 
     _initListeners() {
-        this.newGalleryForm.addEventListener('submit', (e) => {
-            e.preventDefault();
-            this.handleCreateNewGallery();
-        });
+        // Event listener pour l'ancien formulaire supprimé - nouvelle interface intégrée dans la liste
         this.imageSelectorInput.addEventListener('change', (event) => {
             let targetGalleryId = null;
             if (document.getElementById('galleries').classList.contains('active') && this.selectedGalleryForPreviewId) {
@@ -3139,14 +3160,9 @@ class PublicationOrganizer {
         }
 
         this.createNewGalleryBtn.addEventListener('click', () => {
-            this.newGalleryForm.style.display = this.newGalleryForm.style.display === 'none' ? 'flex' : 'none';
-            this.newGalleryNameInput.value = '';
-            this.newGalleryNameInput.focus();
+            this.createNewGalleryInList();
         });
-        this.cancelNewGalleryBtn.addEventListener('click', () => {
-            this.newGalleryForm.style.display = 'none';
-            this.newGalleryNameInput.value = '';
-        });
+        // Event listeners pour l'ancien formulaire supprimés - nouvelle interface intégrée dans la liste
 
         this.tabs.forEach(tab => {
             tab.addEventListener('click', () => {
@@ -3366,6 +3382,21 @@ class PublicationOrganizer {
                 if (!this.selectedGalleryForPreviewId) {
                     this.clearGalleryPreview();
                 }
+            } else if (tabId === 'currentGallery') {
+                // Sélectionner automatiquement le jour A par défaut si aucun jour n'est sélectionné
+                if (this.currentGalleryId && !this.currentJourFrame && this.jourFrames.length > 0) {
+                    // Chercher le jour A
+                    const jourA = this.jourFrames.find(jf => jf.letter === 'A');
+                    if (jourA) {
+                        this.setCurrentJourFrame(jourA);
+                    } else {
+                        // Si pas de jour A, prendre le premier jour disponible
+                        const firstJour = this.jourFrames.sort((a, b) => a.letter.localeCompare(b.letter))[0];
+                        if (firstJour) {
+                            this.setCurrentJourFrame(firstJour);
+                        }
+                    }
+                }
             } else if (tabId === 'cropping') {
                 // --- DÉBUT DE LA CORRECTION ---
                 if (this.currentGalleryId) {
@@ -3581,6 +3612,106 @@ class PublicationOrganizer {
     }
 
 
+    createNewGalleryInList() {
+        // Vérifier s'il y a déjà un élément de création en cours
+        const existingNewItem = this.galleriesListElement.querySelector('.new-gallery-item');
+        if (existingNewItem) {
+            existingNewItem.remove();
+        }
+
+        // Créer l'élément de nouvelle galerie
+        const li = document.createElement('li');
+        li.className = 'gallery-list-item new-gallery-item';
+        li.style.backgroundColor = '#f0f8ff';
+        li.style.border = '2px dashed #007bff';
+
+        // Créer le champ de saisie
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.className = 'new-gallery-input';
+        input.placeholder = 'Nom de la nouvelle galerie';
+        input.style.flex = '1';
+        input.style.border = 'none';
+        input.style.background = 'transparent';
+        input.style.fontSize = '14px';
+        input.style.padding = '5px';
+
+        // Créer les boutons d'action
+        const actionsDiv = document.createElement('div');
+        actionsDiv.className = 'gallery-actions';
+
+        const confirmBtn = document.createElement('button');
+        confirmBtn.innerHTML = '✓';
+        confirmBtn.className = 'small-confirm-btn';
+        confirmBtn.title = 'Créer la galerie';
+        confirmBtn.onclick = () => this.confirmNewGalleryFromList(input.value.trim());
+
+        const cancelBtn = document.createElement('button');
+        cancelBtn.innerHTML = '×';
+        cancelBtn.className = 'small-cancel-btn';
+        cancelBtn.title = 'Annuler';
+        cancelBtn.onclick = () => li.remove();
+
+        actionsDiv.appendChild(confirmBtn);
+        actionsDiv.appendChild(cancelBtn);
+
+        li.appendChild(input);
+        li.appendChild(actionsDiv);
+
+        // Ajouter à la fin de la liste
+        this.galleriesListElement.appendChild(li);
+
+        // Focus sur l'input
+        input.focus();
+
+        // Gérer la validation par Entrée
+        input.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                this.confirmNewGalleryFromList(input.value.trim());
+            } else if (e.key === 'Escape') {
+                li.remove();
+            }
+        });
+    }
+
+    async confirmNewGalleryFromList(galleryName) {
+        const newGalleryItem = this.galleriesListElement.querySelector('.new-gallery-item');
+        if (!newGalleryItem) return;
+
+        const finalName = galleryName || `Galerie du ${new Date().toLocaleDateString('fr-FR')}`;
+        
+        try {
+            const response = await fetch(`${BASE_API_URL}/api/galleries`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: finalName })
+            });
+            if (!response.ok) throw new Error(`Erreur HTTP: ${response.status} - ${await response.text()}`);
+            const newGallery = await response.json();
+            this.galleryCache[newGallery._id] = newGallery.name;
+            
+            // Supprimer l'élément temporaire
+            newGalleryItem.remove();
+            
+            // Recharger la liste (qui sera triée alphabétiquement)
+            await this.loadGalleriesList();
+            
+            // Sélectionner la nouvelle galerie
+            this.showGalleryPreview(newGallery._id, newGallery.name);
+            
+            if (!this.currentGalleryId) {
+                this.handleLoadGallery(newGallery._id);
+            } else {
+                this.activateTab('galleries');
+            }
+            this.updateUIToNoGalleryState();
+        } catch (error) {
+            console.error("Erreur lors de la création de la galerie:", error);
+            alert(`Impossible de créer la galerie: ${error.message}`);
+            newGalleryItem.remove();
+        }
+    }
+
     async handleCreateNewGallery() {
         const galleryName = this.newGalleryNameInput.value.trim() || `Galerie du ${new Date().toLocaleDateString('fr-FR')}`;
         this.newGalleryForm.style.display = 'none';
@@ -3687,6 +3818,20 @@ class PublicationOrganizer {
                     this.jourFrames.push(newJourFrame);
                 });
                 this.recalculateNextJourIndex();
+                
+                // Sélectionner automatiquement le jour A par défaut s'il existe
+                if (!this.currentJourFrame) {
+                    const jourA = this.jourFrames.find(jf => jf.letter === 'A');
+                    if (jourA) {
+                        this.setCurrentJourFrame(jourA);
+                    } else {
+                        // Si pas de jour A, prendre le premier jour disponible
+                        const firstJour = this.jourFrames.sort((a, b) => a.letter.localeCompare(b.letter))[0];
+                        if (firstJour) {
+                            this.setCurrentJourFrame(firstJour);
+                        }
+                    }
+                }
             }
             this.scheduleContext = {
                 schedule: data.schedule || {},
@@ -4225,6 +4370,8 @@ class PublicationOrganizer {
             this.jourFramesContainer.appendChild(newJourFrame.element);
             this.jourFrames.push(newJourFrame);
             this.jourFrames.sort((a, b) => a.index - b.index);
+            
+            // Sélectionner automatiquement le nouveau jour, surtout si c'est le jour A
             this.setCurrentJourFrame(newJourFrame);
             this.recalculateNextJourIndex();
             this.updateStatsLabel();
