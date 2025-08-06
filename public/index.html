@@ -65,12 +65,6 @@
                             <button id="addPhotosToPreviewGalleryBtn" class="add-btn-green">
                                 <img src="/assets/add-button.png" alt="" class="btn-icon"> <span class="btn-text">Ajouter des photos</span>
                             </button>
-                            <button id="clearPreviewGalleryImagesBtn" class="danger-btn" title="Vider la galerie sélectionnée">
-                                <img src="assets/bin.png" alt="Vider la galerie" class="btn-icon"> <span class="btn-text">Vider</span>
-                            </button>
-                            <button id="switchToEditorBtn" class="primary-action" title="Trier la galerie active">
-                                <img src="assets/tri.png" alt="Trier" class="btn-icon"> <span class="btn-text">Trier</span>
-                            </button>
                         </div>
                     </div>
                     <div id="galleriesUploadProgressContainer" class="upload-progress-area" style="display:none; margin-bottom: 10px;">
@@ -254,6 +248,19 @@
                                 
                                 <input type="radio" id="cropScopeDay" name="crop_scope" value="selection">
                                 <label for="cropScopeDay">Sélection</label>
+                            </div>
+                            
+                            <div id="jourSelectionContainer" class="jour-selection-container" style="display: none;">
+                                <div class="jour-selection-header">
+                                    <span class="selection-title">Sélectionner les jours :</span>
+                                    <div class="selection-actions">
+                                        <button type="button" id="selectAllJoursBtn" class="selection-btn">Tout</button>
+                                        <button type="button" id="deselectAllJoursBtn" class="selection-btn">Aucun</button>
+                                    </div>
+                                </div>
+                                <div id="jourCheckboxList" class="jour-checkbox-list">
+                                    <!-- Les checkboxes seront générées dynamiquement ici -->
+                                </div>
                             </div>
                             <div class="auto-crop-actions">
                                 <button id="runAutoCropBtn" class="primary-action" title="Lancer le recadrage automatique">

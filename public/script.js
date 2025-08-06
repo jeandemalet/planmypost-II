@@ -728,14 +728,43 @@ class AutoCropper {
             vertical: document.querySelectorAll('input[name="vertical_treatment"]'),
             horizontal: document.querySelectorAll('input[name="horizontal_treatment"]')
         };
+
+        // Éléments pour la sélection des jours
+        this.scopeRadios = document.querySelectorAll('input[name="crop_scope"]');
+        this.jourSelectionContainer = document.getElementById('jourSelectionContainer');
+        this.jourCheckboxList = document.getElementById('jourCheckboxList');
+        this.selectAllBtn = document.getElementById('selectAllJoursBtn');
+        this.deselectAllBtn = document.getElementById('deselectAllJoursBtn');
+
         this.isRunning = false;
+        this.selectedJourIds = new Set();
         this.debouncedSaveSettings = Utils.debounce(() => this.saveSettings(), 1000);
+
+        this._initEventListeners();
+        this._initJourSelection();
+    }
+
+    _initEventListeners() {
         this.runBtn.addEventListener('click', () => this.run());
+
         Object.values(this.radioGroups).forEach(nodeList => {
             nodeList.forEach(radio => {
                 radio.addEventListener('change', () => this.debouncedSaveSettings());
             });
         });
+
+        // Gestion du changement de portée (Tout/Sélection)
+        this.scopeRadios.forEach(radio => {
+            radio.addEventListener('change', () => this._onScopeChange());
+        });
+
+        // Boutons de sélection/désélection
+        this.selectAllBtn.addEventListener('click', () => this._selectAllJours());
+        this.deselectAllBtn.addEventListener('click', () => this._deselectAllJours());
+    }
+
+    _initJourSelection() {
+        this._onScopeChange(); // Initialise l'affichage selon la sélection actuelle
     }
 
     async saveSettings() {
@@ -766,6 +795,142 @@ class AutoCropper {
         if (horizRadio) horizRadio.checked = true;
     }
 
+    _onScopeChange() {
+        const selectedScope = document.querySelector('input[name="crop_scope"]:checked').value;
+
+        if (selectedScope === 'selection') {
+            this.jourSelectionContainer.style.display = 'block';
+            this._populateJourCheckboxes();
+        } else {
+            this.jourSelectionContainer.style.display = 'none';
+        }
+    }
+
+    _populateJourCheckboxes() {
+        this.jourCheckboxList.innerHTML = '';
+
+        if (!this.organizerApp.jourFrames || this.organizerApp.jourFrames.length === 0) {
+            this.jourCheckboxList.innerHTML = '<div style="padding: 15px; text-align: center; color: #6c757d; font-size: 0.85em;">Aucun jour disponible</div>';
+            return;
+        }
+
+        this.organizerApp.jourFrames.forEach((jourFrame, index) => {
+            const item = document.createElement('div');
+            item.className = 'jour-checkbox-item';
+
+            const checkbox = document.createElement('input');
+            checkbox.type = 'checkbox';
+            checkbox.id = `jour-checkbox-${jourFrame.id}`;
+            checkbox.dataset.jourId = jourFrame.id;
+            checkbox.checked = this.selectedJourIds.has(jourFrame.id);
+
+            const label = document.createElement('label');
+            label.className = 'jour-checkbox-label';
+            label.htmlFor = checkbox.id;
+
+            // Indicateur de couleur du jour
+            const colorIndicator = document.createElement('div');
+            colorIndicator.className = 'jour-color-indicator';
+            const jourColor = JOUR_COLORS[index % JOUR_COLORS.length];
+            colorIndicator.style.backgroundColor = jourColor;
+
+            // Nom du jour
+            const jourName = document.createElement('span');
+            jourName.textContent = `Jour ${jourFrame.letter}`;
+
+            // Nombre d'images
+            const imageCount = document.createElement('span');
+            imageCount.className = 'jour-image-count';
+            imageCount.textContent = jourFrame.imagesData.length;
+
+            label.appendChild(colorIndicator);
+            label.appendChild(jourName);
+            label.appendChild(imageCount);
+
+            item.appendChild(checkbox);
+            item.appendChild(label);
+
+            // Gestion des événements
+            const updateSelection = () => {
+                if (checkbox.checked) {
+                    this.selectedJourIds.add(jourFrame.id);
+                    item.classList.add('selected');
+                    this._highlightJourFrame(jourFrame, true);
+                } else {
+                    this.selectedJourIds.delete(jourFrame.id);
+                    item.classList.remove('selected');
+                    this._highlightJourFrame(jourFrame, false);
+                }
+            };
+
+            checkbox.addEventListener('change', updateSelection);
+            item.addEventListener('click', (e) => {
+                if (e.target !== checkbox) {
+                    checkbox.checked = !checkbox.checked;
+                    updateSelection();
+                }
+            });
+
+            // Appliquer l'état initial
+            if (checkbox.checked) {
+                item.classList.add('selected');
+                this._highlightJourFrame(jourFrame, true);
+            }
+
+            this.jourCheckboxList.appendChild(item);
+        });
+
+    }
+
+    _selectAllJours() {
+        this.organizerApp.jourFrames.forEach(jourFrame => {
+            this.selectedJourIds.add(jourFrame.id);
+            this._highlightJourFrame(jourFrame, true);
+        });
+
+        // Mettre à jour les checkboxes
+        this.jourCheckboxList.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.checked = true;
+            checkbox.closest('.jour-checkbox-item').classList.add('selected');
+        });
+    }
+
+    _deselectAllJours() {
+        this.organizerApp.jourFrames.forEach(jourFrame => {
+            this.selectedJourIds.delete(jourFrame.id);
+            this._highlightJourFrame(jourFrame, false);
+        });
+
+        // Mettre à jour les checkboxes
+        this.jourCheckboxList.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+            checkbox.checked = false;
+            checkbox.closest('.jour-checkbox-item').classList.remove('selected');
+        });
+    }
+
+    _highlightJourFrame(jourFrame, highlight) {
+        if (!jourFrame.element) return;
+
+        if (highlight) {
+            jourFrame.element.style.boxShadow = '0 0 0 3px rgba(33, 150, 243, 0.3)';
+            jourFrame.element.style.borderColor = '#2196f3';
+            jourFrame.element.style.transform = 'scale(1.02)';
+        } else {
+            jourFrame.element.style.boxShadow = '';
+            jourFrame.element.style.borderColor = '';
+            jourFrame.element.style.transform = '';
+        }
+    }
+
+
+
+    // Méthode publique pour rafraîchir la liste des jours (appelée quand des jours sont ajoutés/supprimés)
+    refreshJourSelection() {
+        if (this.jourSelectionContainer.style.display !== 'none') {
+            this._populateJourCheckboxes();
+        }
+    }
+
     async run() {
         const scope = document.querySelector('input[name="crop_scope"]:checked').value;
         let joursToProcess = [];
@@ -773,9 +938,7 @@ class AutoCropper {
         if (scope === 'all') {
             joursToProcess = this.organizerApp.jourFrames;
         } else if (scope === 'selection') {
-            const selectedJourIds = Array.from(document.querySelectorAll('.jour-list-item-checkbox:checked'))
-                .map(cb => cb.dataset.jourId);
-            joursToProcess = this.organizerApp.jourFrames.filter(jf => selectedJourIds.includes(jf.id));
+            joursToProcess = this.organizerApp.jourFrames.filter(jf => this.selectedJourIds.has(jf.id));
         }
 
         if (joursToProcess.length === 0) {
@@ -2863,7 +3026,7 @@ class PublicationOrganizer {
         this.zoomOutBtn = document.getElementById('zoomOutBtn');
         this.zoomInBtn = document.getElementById('zoomInBtn');
         this.sortOptionsSelect = document.getElementById('sortOptions');
-        this.clearPreviewGalleryImagesBtn = document.getElementById('clearPreviewGalleryImagesBtn');
+        // Bouton "Vider" retiré
         this.statsArea = document.getElementById('statsArea');
         this.statsLabelText = document.getElementById('statsLabelText');
         this.galleriesUploadProgressContainer = document.getElementById('galleriesUploadProgressContainer');
@@ -2886,7 +3049,7 @@ class PublicationOrganizer {
         this.galleryPreviewNameElement = document.getElementById('galleryPreviewName');
         this.galleryPreviewGridElement = document.getElementById('galleryPreviewGrid');
         this.galleryPreviewPlaceholder = document.getElementById('galleryPreviewPlaceholder');
-        this.switchToEditorBtn = document.getElementById('switchToEditorBtn');
+        // Bouton "Trier" retiré - la sélection d'une galerie charge automatiquement l'onglet Tri
         this.selectedGalleryForPreviewId = null;
         this.tabs = document.querySelectorAll('.tab-button');
         this.tabContents = document.querySelectorAll('.tab-content');
@@ -2948,15 +3111,7 @@ class PublicationOrganizer {
             }
         });
         this.switchToGalleriesBtn.addEventListener('click', () => this.activateTab('galleries'));
-        this.switchToEditorBtn.addEventListener('click', () => {
-            if (this.selectedGalleryForPreviewId) {
-                this.handleLoadGallery(this.selectedGalleryForPreviewId);
-            } else if (this.currentGalleryId) {
-                this.activateTab('currentGallery');
-            } else {
-                alert("Aucune galerie n'est sélectionnée.");
-            }
-        });
+        // Bouton "Trier" retiré - la sélection d'une galerie charge automatiquement l'onglet Tri
         this.addNewImagesBtn.addEventListener('click', () => {
             if (!this.currentGalleryId) { alert("Veuillez d'abord charger ou créer une galerie."); return; }
             this.activeCallingButton = this.addNewImagesBtn;
@@ -2975,7 +3130,7 @@ class PublicationOrganizer {
         this.zoomOutBtn.addEventListener('click', () => this.zoomOut());
         this.zoomInBtn.addEventListener('click', () => this.zoomIn());
         this.sortOptionsSelect.addEventListener('change', () => this.sortGridItemsAndReflow());
-        this.clearPreviewGalleryImagesBtn.addEventListener('click', () => this.clearAllGalleryImages());
+        // Bouton "Vider" retiré
         this.addJourFrameBtn.addEventListener('click', () => this.addJourFrame());
 
         const downloadAllBtn = document.getElementById('downloadAllScheduledBtn');
@@ -3128,9 +3283,7 @@ class PublicationOrganizer {
         currentGalleryTabContent.querySelectorAll('button, select, input[type="file"]').forEach(el => {
             if (el.id !== 'imageSelector') el.disabled = noGalleryActive;
         });
-        if (this.switchToEditorBtn) {
-            this.switchToEditorBtn.disabled = noGalleryActive;
-        }
+        // Bouton "Trier" retiré
         if (noGalleryActive) {
             this.imageGridElement.innerHTML = '<p style="text-align:center; margin-top:20px;">Chargez ou créez une galerie pour voir les images.</p>';
             this.jourFramesContainer.innerHTML = '<p style="text-align:center;">Chargez ou créez une galerie pour gérer les jours.</p>';
@@ -3189,9 +3342,12 @@ class PublicationOrganizer {
     }
 
     activateTab(tabId) {
-        if (tabId === 'currentGallery' && !this.currentGalleryId && this.selectedGalleryForPreviewId) {
-            this.handleLoadGallery(this.selectedGalleryForPreviewId);
-            return;
+        if (tabId === 'currentGallery' && this.selectedGalleryForPreviewId) {
+            // Charger la galerie sélectionnée dans "Galeries" si elle est différente de la galerie actuelle
+            if (this.currentGalleryId !== this.selectedGalleryForPreviewId) {
+                this.handleLoadGallery(this.selectedGalleryForPreviewId);
+                return;
+            }
         }
         if (tabId === 'currentGallery' && !this.currentGalleryId && !this.selectedGalleryForPreviewId) {
             alert("Aucune galerie n'est sélectionnée. Veuillez en sélectionner une dans l'onglet 'Galeries'.");
@@ -3323,10 +3479,8 @@ class PublicationOrganizer {
                 item.classList.add('selected-for-preview');
             }
         });
-        this.clearPreviewGalleryImagesBtn.disabled = false;
-        this.clearPreviewGalleryImagesBtn.style.display = 'block';
-        this.switchToEditorBtn.style.display = 'block';
-        this.switchToEditorBtn.disabled = false;
+        // Bouton "Vider" retiré
+        // Bouton "Trier" retiré
         this.addPhotosToPreviewGalleryBtn.style.display = 'block';
         this.addPhotosToPreviewGalleryBtn.disabled = false;
         try {
@@ -3421,9 +3575,8 @@ class PublicationOrganizer {
         this.galleriesListElement.querySelectorAll('.gallery-list-item.selected-for-preview').forEach(item => {
             item.classList.remove('selected-for-preview');
         });
-        this.clearPreviewGalleryImagesBtn.disabled = true;
-        this.clearPreviewGalleryImagesBtn.style.display = 'none';
-        this.switchToEditorBtn.style.display = 'none';
+        // Bouton "Vider" retiré
+        // Bouton "Trier" retiré
         this.addPhotosToPreviewGalleryBtn.style.display = 'none';
     }
 
@@ -3477,9 +3630,7 @@ class PublicationOrganizer {
         if (this.galleriesUploadProgressContainer) this.galleriesUploadProgressContainer.style.display = 'none';
         if (this.currentGalleryUploadProgressContainer) this.currentGalleryUploadProgressContainer.style.display = 'none';
         await this.loadState();
-        if (this.selectedGalleryForPreviewId) {
-            this.switchToEditorBtn.disabled = (this.selectedGalleryForPreviewId !== this.currentGalleryId);
-        }
+        // Bouton "Trier" retiré
         this.activateTab('currentGallery');
         await this.loadGalleriesList();
         this.updateUIToNoGalleryState();
@@ -3561,6 +3712,12 @@ class PublicationOrganizer {
             this.updateAddPhotosPlaceholderVisibility();
             this.updateGridItemStyles();
             this.updateUIToNoGalleryState();
+
+            // Rafraîchir la sélection des jours dans l'AutoCropper
+            if (this.croppingPage && this.croppingPage.autoCropper) {
+                this.croppingPage.autoCropper.refreshJourSelection();
+            }
+
             const activeTab = galleryState.activeTab || 'currentGallery';
             this.activateTab(activeTab);
         } catch (error) {
@@ -3729,7 +3886,8 @@ class PublicationOrganizer {
                     if (targetGalleryIdForUpload === this.currentGalleryId) {
                         this.addImagesToGrid(batchResult);
                     } else if (targetGalleryIdForUpload === this.selectedGalleryForPreviewId && isGalleryTabActive) {
-                        await this.showGalleryPreview(this.selectedGalleryForPreviewId, this.galleryCache[this.selectedGalleryForPreviewId] || "Galerie");
+                        // Marquer pour rafraîchir à la fin plutôt que de rafraîchir à chaque lot
+                        this.needsGalleryPreviewRefresh = true;
                     }
                 }
                 progressBarInnerEl.style.backgroundColor = '#007bff';
@@ -3763,6 +3921,12 @@ class PublicationOrganizer {
         if (targetGalleryIdForUpload === this.currentGalleryId) {
             this.sortGridItemsAndReflow();
             this.updateGridUsage();
+        }
+
+        // Rafraîchir la galerie de prévisualisation si nécessaire
+        if (this.needsGalleryPreviewRefresh && targetGalleryIdForUpload === this.selectedGalleryForPreviewId) {
+            await this.showGalleryPreview(this.selectedGalleryForPreviewId, this.galleryCache[this.selectedGalleryForPreviewId] || "Galerie");
+            this.needsGalleryPreviewRefresh = false;
         }
         if (callingButtonElement) callingButtonElement.disabled = false;
         this.imageSelectorInput.disabled = false;
@@ -3876,44 +4040,7 @@ class PublicationOrganizer {
         }
     }
 
-    async clearAllGalleryImages() {
-        const galleryIdToClear = this.selectedGalleryForPreviewId;
-        if (!galleryIdToClear) {
-            alert("Aucune galerie sélectionnée à vider.");
-            return;
-        }
-        const galleryNameToConfirm = this.galleryCache[galleryIdToClear] || galleryIdToClear;
-        if (!confirm(`ÊTES-VOUS SÛR de vouloir supprimer TOUTES les images de la galerie "${galleryNameToConfirm}" ?\nCette action est irréversible.`)) {
-            return;
-        }
-        try {
-            const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryIdToClear}/images`, { method: 'DELETE' });
-            if (!response.ok) {
-                const errorText = await response.text();
-                throw new Error(`Échec du vidage de la galerie: ${response.statusText} - ${errorText}`);
-            }
-            this.showGalleryPreview(galleryIdToClear, galleryNameToConfirm);
-            if (this.currentGalleryId === galleryIdToClear) {
-                this.imageGridElement.innerHTML = '';
-                this.gridItems = [];
-                this.gridItemsDict = {};
-                this.jourFrames.forEach(jf => {
-                    jf.imagesData = [];
-                    jf.syncDataArrayFromDOM();
-                });
-                this.updateGridUsage();
-                this.updateStatsLabel();
-                this.updateAddPhotosPlaceholderVisibility();
-                if (this.calendarPage && document.getElementById('calendar').classList.contains('active')) {
-                    this.scheduleContext.schedule = {};
-                    this.calendarPage.buildCalendarUI();
-                }
-            }
-        } catch (error) {
-            console.error("Error clearing all gallery images:", error);
-            alert(`Erreur lors du vidage de la galerie : ${error.message}`);
-        }
-    }
+    // Fonction clearAllGalleryImages supprimée - bouton "Vider" retiré
 
     updateGridItemStyles() {
         this.imageGridElement.style.gridTemplateColumns = `repeat(auto-fill, minmax(${this.currentThumbSize.width + parseInt(getComputedStyle(this.imageGridElement).gap || '5px')}px, 1fr))`;
@@ -4115,6 +4242,11 @@ class PublicationOrganizer {
                 }
             }
             this.refreshSidePanels();
+
+            // Rafraîchir la sélection des jours dans l'AutoCropper
+            if (this.croppingPage && this.croppingPage.autoCropper) {
+                this.croppingPage.autoCropper.refreshJourSelection();
+            }
         } catch (error) {
             console.error("Error adding JourFrame:", error);
             alert(error.message);
@@ -4158,6 +4290,11 @@ class PublicationOrganizer {
                 });
             }
             this.refreshSidePanels();
+
+            // Rafraîchir la sélection des jours dans l'AutoCropper
+            if (this.croppingPage && this.croppingPage.autoCropper) {
+                this.croppingPage.autoCropper.refreshJourSelection();
+            }
         }
     }
 
