@@ -26,12 +26,6 @@ app.use(express.json({ limit: '500mb' }));
 app.use(express.urlencoded({ extended: true, limit: '500mb', parameterLimit: 100000 }));
 app.use(cookieParser());
 
-// Middleware pour forcer l'encodage UTF-8
-app.use((req, res, next) => {
-    res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    next();
-});
-
 // --- CONNEXION À LA BASE DE DONNÉES ---
 mongoose.connect(MONGODB_URI)
 .then(() => console.log('MongoDB Connected'))
@@ -63,17 +57,17 @@ app.get('*', (req, res) => {
     const token = req.cookies.token;
     
     if (!token) {
-        // Si pas de token, on redirige vers la page de connexion
+        if (req.path === '/welcome.html') {
+            return res.sendFile(path.join(__dirname, 'public', 'welcome.html'));
+        }
         return res.redirect('/welcome.html');
     }
     
     try {
-        // On vérifie si le token est valide
         jwt.verify(token, process.env.JWT_SECRET);
-        // Si le token est valide, on envoie l'application principale
         res.sendFile(path.join(__dirname, 'public', 'index.html'));
     } catch (error) {
-        // Si le token est invalide ou expiré, on redirige aussi vers la connexion
+        res.clearCookie('token');
         res.redirect('/welcome.html');
     }
 });
