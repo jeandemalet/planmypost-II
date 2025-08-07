@@ -1469,6 +1469,9 @@ button.small-cancel-btn:hover {
     min-width: 0;
     background-color: #2e2e2e;
     border-radius: 8px;
+    min-height: 400px; /* Empêche l'effondrement du canvas */
+    min-width: 400px;  /* Empêche l'effondrement du canvas */
+    position: relative; /* Assure le positionnement */
 }
 #cropperCanvas {
     max-width: 100%;
@@ -2336,8 +2339,8 @@ button.small-cancel-btn:hover {
     margin-top: 30px;
     font-size: 1.1em;
 }
-/
-* === STYLES POUR LE CROPPING THUMBNAIL STRIP === */
+
+/* === STYLES POUR LE CROPPING THUMBNAIL STRIP === */
 .cropping-thumbnail-strip {
     display: flex;
     gap: 8px;

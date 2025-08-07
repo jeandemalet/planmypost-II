@@ -1448,6 +1448,7 @@ class CroppingManager {
         this.cropRectDisplay = null;
         this.isDragging = false;
         this.dragMode = null;
+        this.isLoading = false; // Verrouillage anti-race condition
         this.dragStart = {};
         this.currentAspectRatioName = '3:4';
         this.splitModeState = 0;
@@ -1503,6 +1504,14 @@ class CroppingManager {
     _handleResize() {
         // [LOG] Log pour tracer le redimensionnement du canvas
         console.log('[CroppingManager] _handleResize() appelé.');
+        
+        // Vérification de la taille du conteneur pour éviter le layout thrashing
+        const container = this.canvasElement.parentElement;
+        if (!container || container.clientHeight < 100) {
+            console.warn(`[CroppingManager] _handleResize() stoppé car le conteneur est trop petit ou non visible (${container ? container.clientHeight : 'null'}px).`);
+            return;
+        }
+        
         if (!this.canvasElement.offsetParent || !this.currentImageObject) {
             console.warn('[CroppingManager] _handleResize() stoppé : canvas non visible ou pas d\'image chargée.');
             return;
@@ -1713,10 +1722,17 @@ class CroppingManager {
     }
 
     async startCropping(images, callingJourFrame, startIndex = 0) {
+        if (this.isLoading) {
+            console.warn('[CroppingManager] Appel de startCropping ignoré car une opération est déjà en cours.');
+            return;
+        }
+        this.isLoading = true; // Verrouiller
+
         // [LOG] Log de démarrage de toute l'opération de recadrage.
         console.log(`[CroppingManager] startCropping appelé pour Jour ${callingJourFrame.letter}, début à l'index ${startIndex}.`);
 
-        this.imagesToCrop = images;
+        try {
+            this.imagesToCrop = images;
         this.currentJourFrameInstance = callingJourFrame;
         this.currentImageIndex = startIndex;
         this.modifiedDataMap = {};
@@ -1736,6 +1752,9 @@ class CroppingManager {
         this.aspectRatioSelect.value = '3:4';
         this.currentAspectRatioName = '3:4';
         await this.loadCurrentImage();
+        } finally {
+            this.isLoading = false; // Déverrouiller, même en cas d'erreur
+        }
     }
 
     async finishAndApply() {
@@ -1755,6 +1774,7 @@ class CroppingManager {
         this.canvasElement.style.cursor = 'default';
         this.croppingPage.clearEditor();
         this.organizer.refreshSidePanels();
+        this.isLoading = false; // S'assurer que le verrou est libéré
     }
 
     async goToImage(index) {
@@ -3538,15 +3558,27 @@ class PublicationOrganizer {
         this.addPhotosToPreviewGalleryBtn.style.display = 'block';
         this.addPhotosToPreviewGalleryBtn.disabled = false;
         try {
-            const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryId}`);
+            const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryId}?page=1&limit=50`);
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
             const galleryDetails = await response.json();
             this.galleryCache[galleryId] = galleryDetails.galleryState.name;
             this.galleryPreviewGridElement.innerHTML = '';
-            if (galleryDetails.images && galleryDetails.images.length > 0) {
+            // Gestion de la pagination des images (nouveau format) et rétrocompatibilité (ancien format)
+            let imagesToDisplay = [];
+            if (galleryDetails.images) {
+                if (Array.isArray(galleryDetails.images)) {
+                    // Ancien format (rétrocompatibilité)
+                    imagesToDisplay = galleryDetails.images;
+                } else if (galleryDetails.images.docs && Array.isArray(galleryDetails.images.docs)) {
+                    // Nouveau format paginé
+                    imagesToDisplay = galleryDetails.images.docs;
+                }
+            }
+
+            if (imagesToDisplay.length > 0) {
                 // Marquer la grille comme ayant des photos
                 this.galleryPreviewGridElement.classList.add('has-photos');
-                galleryDetails.images.forEach(imgData => {
+                imagesToDisplay.forEach(imgData => {
                     const itemDiv = document.createElement('div');
                     itemDiv.className = 'grid-item';
                     itemDiv.style.width = `150px`;
@@ -3570,6 +3602,22 @@ class PublicationOrganizer {
                     itemDiv.appendChild(deleteBtnPreview);
                     this.galleryPreviewGridElement.appendChild(itemDiv);
                 });
+
+                // Ajouter une indication du nombre total d'images si c'est paginé
+                if (galleryDetails.images && !Array.isArray(galleryDetails.images) && galleryDetails.images.total) {
+                    const paginationInfo = document.createElement('div');
+                    paginationInfo.className = 'gallery-preview-pagination-info';
+                    paginationInfo.style.cssText = `
+                        text-align: center;
+                        padding: 10px;
+                        font-size: 0.9em;
+                        color: #666;
+                        border-top: 1px solid #eee;
+                        margin-top: 10px;
+                    `;
+                    paginationInfo.textContent = `Affichage de ${imagesToDisplay.length} sur ${galleryDetails.images.total} images`;
+                    this.galleryPreviewGridElement.appendChild(paginationInfo);
+                }
             } else {
                 // Créer un conteneur centré pour le message et le bouton
                 const emptyContainer = document.createElement('div');
@@ -3859,12 +3907,24 @@ class PublicationOrganizer {
             this.galleryCache[this.currentGalleryId] = galleryState.name || 'Galerie sans nom';
             document.getElementById('currentGalleryNameDisplay').textContent = `Galerie : ${this.getCurrentGalleryName()}`;
             this.currentThumbSize = galleryState.currentThumbSize || { width: 150, height: 150 };
-            const savedSortOption = galleryState.sortOption || 'date_desc';
+            const savedSortOption = galleryState.sortOption || 'name_asc';
             this.sortOptionsSelect.value = savedSortOption;
             this.nextJourIndex = galleryState.nextJourIndex || 0;
-            if (data.images && data.images.length > 0) {
-                this.addImagesToGrid(data.images);
-                this.sortGridItemsAndReflow();
+            // Pour l'onglet Tri : charger TOUTES les images sans pagination
+            if (data.images) {
+                let imagesToLoad = [];
+                if (Array.isArray(data.images)) {
+                    // Ancien format (rétrocompatibilité)
+                    imagesToLoad = data.images;
+                } else if (data.images.docs && Array.isArray(data.images.docs)) {
+                    // Nouveau format paginé : on prend seulement les docs, pas de pagination ici
+                    imagesToLoad = data.images.docs;
+                }
+                
+                if (imagesToLoad.length > 0) {
+                    this.addImagesToGrid(imagesToLoad);
+                    this.sortGridItemsAndReflow();
+                }
             }
             if (data.jours && data.jours.length > 0) {
                 data.jours.sort((a, b) => a.index - b.index).forEach(jourData => {
@@ -4180,7 +4240,6 @@ class PublicationOrganizer {
         }
     }
 
-
     async sendBatch(formData, galleryId, onProgress) {
         return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
@@ -4276,7 +4335,7 @@ class PublicationOrganizer {
         
         // Si aucune option n'est sélectionnée (placeholder), utiliser le tri par défaut
         if (!sortValue || sortValue === '') {
-            sortValue = 'date_desc';
+            sortValue = 'name_asc';
             this.sortOptionsSelect.value = sortValue;
         }
 

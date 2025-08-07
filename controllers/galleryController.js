@@ -106,30 +106,54 @@ exports.getGalleryDetails = async (req, res) => {
             }
         }
 
-        gallery.lastAccessed = new Date();
-        await gallery.save();
-
-        // ======================= CORRECTION CI-DESSOUS =======================
-        // On supprime le filtre `{ isCroppedVersion: { $ne: true } }` pour
-        // charger TOUTES les images (originales ET recadrées).
-        // Ligne corrigée
-        const images = await Image.find({ galleryId: galleryId })
-                                .sort({ uploadDate: 1 }); 
-
-        const jours = await Jour.find({ galleryId: galleryId })
-                              .populate('images.imageId') 
-                              .sort({ index: 1 });
+        // Pagination conditionnelle : seulement si des paramètres de pagination sont fournis
+        const page = parseInt(req.query.page);
+        const limit = parseInt(req.query.limit);
+        const usePagination = page && limit;
         
+        let imagesQuery = Image.find({ galleryId: galleryId }).sort({ uploadDate: 1 }).lean();
+        let imagesPromise, totalImagesPromise;
+        
+        if (usePagination) {
+            // Mode paginé (pour l'onglet Galeries)
+            const skip = (page - 1) * limit;
+            imagesPromise = imagesQuery.skip(skip).limit(limit);
+            totalImagesPromise = Image.countDocuments({ galleryId: galleryId });
+        } else {
+            // Mode complet (pour l'onglet Tri) - toutes les images
+            imagesPromise = imagesQuery;
+            totalImagesPromise = Promise.resolve(null); // Pas besoin de compter
+        }
+
+        // Mise à jour de lastAccessed et requêtes parallélisées
+        const [images, totalImages, jours, userGalleries] = await Promise.all([
+            imagesPromise,
+            totalImagesPromise,
+            Jour.find({ galleryId: galleryId })
+                 .populate('images.imageId')
+                 .sort({ index: 1 })
+                 .lean(),
+            Gallery.find({ owner: gallery.owner })
+                   .select('_id name')
+                   .lean()
+        ]);
+
+        // Mise à jour de lastAccessed en parallèle (non bloquant)
+        Gallery.findByIdAndUpdate(galleryId, { lastAccessed: new Date() }).exec();
+
         // NOUVELLE LOGIQUE : Récupérer le calendrier pour tout l'utilisateur
-        const userGalleries = await Gallery.find({ owner: gallery.owner }).select('_id name');
         const userGalleryIds = userGalleries.map(g => g._id);
         const galleryNameMap = userGalleries.reduce((acc, g) => {
             acc[g._id.toString()] = g.name;
             return acc;
         }, {});
 
-        const scheduleEntries = await Schedule.find({ galleryId: { $in: userGalleryIds } });
-        const allJoursForUser = await Jour.find({ galleryId: { $in: userGalleryIds } }).select('_id letter galleryId');
+        const [scheduleEntries, allJoursForUser] = await Promise.all([
+            Schedule.find({ galleryId: { $in: userGalleryIds } }).lean(),
+            Jour.find({ galleryId: { $in: userGalleryIds } })
+                .select('_id letter galleryId')
+                .lean()
+        ]);
 
         const scheduleData = scheduleEntries.reduce((acc, entry) => {
             if (!acc[entry.date]) acc[entry.date] = {};
@@ -149,9 +173,25 @@ exports.getGalleryDetails = async (req, res) => {
         }));
 
 
+        // Format de réponse adaptatif selon la pagination
+        let imagesResponse;
+        if (usePagination) {
+            // Format paginé pour l'onglet Galeries
+            imagesResponse = {
+                docs: images,
+                total: totalImages,
+                page: page,
+                limit: limit,
+                totalPages: Math.ceil(totalImages / limit)
+            };
+        } else {
+            // Format simple pour l'onglet Tri (toutes les images)
+            imagesResponse = images;
+        }
+
         res.json({
             galleryState: gallery,
-            images: images,
+            images: imagesResponse,
             jours: jours,
             schedule: scheduleData,
             scheduleContext: {
