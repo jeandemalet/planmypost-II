@@ -290,7 +290,6 @@ class JourFrameBackend {
         this.maxImages = 20;
         this.imagesData = [];
         this.descriptionText = jourData.descriptionText || '';
-        this.descriptionHashtags = jourData.descriptionHashtags || '';
 
         this.element = document.createElement('div');
         this.element.className = 'jour-frame';
@@ -614,8 +613,7 @@ class JourFrameBackend {
         const imagesToSave = this.imagesData.map((imgData, idx) => ({ imageId: imgData.imageId, order: idx }));
         const payload = {
             images: imagesToSave,
-            descriptionText: this.descriptionText,
-            descriptionHashtags: this.descriptionHashtags
+            descriptionText: this.descriptionText
         };
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/jours/${this.id}`, {
@@ -2378,7 +2376,6 @@ class DescriptionManager {
         this.editorContentElement = document.getElementById('descriptionEditorContent');
         this.editorPlaceholderElement = document.getElementById('descriptionEditorPlaceholder');
         this.descriptionTextElement = document.getElementById('descriptionText');
-        this.descriptionHashtagsElement = document.getElementById('descriptionHashtags');
         this.imagesPreviewBanner = document.getElementById('descriptionImagesPreview');
         this.currentSelectedJourFrame = null;
         this.debouncedSave = Utils.debounce(() => this.saveCurrentDescription(), 1500);
@@ -2387,10 +2384,6 @@ class DescriptionManager {
 
     _initListeners() {
         this.descriptionTextElement.addEventListener('input', () => {
-            if (!this.currentSelectedJourFrame) return;
-            this.debouncedSave();
-        });
-        this.descriptionHashtagsElement.addEventListener('input', () => {
             if (!this.currentSelectedJourFrame) return;
             this.debouncedSave();
         });
@@ -2445,7 +2438,6 @@ class DescriptionManager {
         }
         this.editorTitleElement.textContent = `Description pour Jour ${jourFrame.letter}`;
         this.descriptionTextElement.value = jourFrame.descriptionText || '';
-        this.descriptionHashtagsElement.value = jourFrame.descriptionHashtags || '';
         this.editorContentElement.style.display = 'block';
         this.editorPlaceholderElement.style.display = 'none';
 
@@ -2468,7 +2460,6 @@ class DescriptionManager {
     clearEditor() {
         this.editorTitleElement.textContent = "Sélectionnez un jour";
         this.descriptionTextElement.value = '';
-        this.descriptionHashtagsElement.value = '';
         this.currentSelectedJourFrame = null;
         this.editorContentElement.style.display = 'none';
         this.editorPlaceholderElement.textContent = "Aucun jour sélectionné, ou la galerie n'a pas de jours.";
@@ -2487,7 +2478,6 @@ class DescriptionManager {
 
         const jourToUpdate = this.currentSelectedJourFrame;
         jourToUpdate.descriptionText = this.descriptionTextElement.value;
-        jourToUpdate.descriptionHashtags = this.descriptionHashtagsElement.value;
 
         const success = await jourToUpdate.save();
         if (success) {
@@ -3216,8 +3206,7 @@ class PublicationOrganizer {
             const iconsDiv = document.createElement('div');
             iconsDiv.className = 'jour-list-item-icons';
             const isCropped = jourFrame.hasBeenProcessedByCropper;
-            const hasDescription = (jourFrame.descriptionText && jourFrame.descriptionText.trim() !== '') ||
-                (jourFrame.descriptionHashtags && jourFrame.descriptionHashtags.trim() !== '');
+            const hasDescription = (jourFrame.descriptionText && jourFrame.descriptionText.trim() !== '');
             const isScheduled = this.calendarPage ? this.calendarPage.isJourScheduled(jourFrame.galleryId, jourFrame.letter) : false;
             const cropIcon = document.createElement('img');
             cropIcon.className = 'status-icon crop-icon';

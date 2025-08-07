@@ -16,8 +16,7 @@ const createInitialJour = async (galleryId) => {
             letter: 'A',
             index: 0,
             images: [],
-            descriptionText: '',
-            descriptionHashtags: ''
+            descriptionText: ''
         });
         await newJour.save();
 

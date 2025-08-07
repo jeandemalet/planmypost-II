@@ -46,8 +46,7 @@ exports.createJour = async (req, res) => {
             letter,
             index: nextAvailableIndex,
             images: [],
-            descriptionText: '',
-            descriptionHashtags: ''
+            descriptionText: ''
         });
         await newJour.save();
 
@@ -91,7 +90,7 @@ exports.getJoursForGallery = async (req, res) => {
 
 exports.updateJour = async (req, res) => {
     const { galleryId, jourId } = req.params;
-    const { images, descriptionText, descriptionHashtags, autoCropSettings } = req.body;
+    const { images, descriptionText, autoCropSettings } = req.body;
 
     if (images !== undefined && !Array.isArray(images)) {
         return res.status(400).send('Invalid images data format. Expected an array if provided.');
@@ -117,9 +116,6 @@ exports.updateJour = async (req, res) => {
 
     if (typeof descriptionText === 'string') {
         updatePayload.descriptionText = descriptionText;
-    }
-    if (typeof descriptionHashtags === 'string') {
-        updatePayload.descriptionHashtags = descriptionHashtags;
     }
     
     // Gérer la mise à jour des paramètres de recadrage automatique

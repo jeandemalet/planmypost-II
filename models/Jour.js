@@ -55,10 +55,6 @@ const JourSchema = new mongoose.Schema({
     descriptionText: { // MODIFIÉ: Ajout du champ pour le texte de la description
         type: String,
         default: ''
-    },
-    descriptionHashtags: { // MODIFIÉ: Ajout du champ pour les hashtags
-        type: String,
-        default: ''
     }
     // `hasBeenProcessedByCropper` est dérivable côté client en vérifiant si une image
     // dans le tableau `images` (après population) a `isCroppedVersion: true`.
