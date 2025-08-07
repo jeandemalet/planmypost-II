@@ -9,6 +9,38 @@ const mongoose = require('mongoose');
 
 const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
 
+// NOUVEAU : Fonction de nettoyage pour les données orphelines
+/**
+ * Recherche et supprime les Jours et les entrées de Calendrier (Schedule)
+ * qui font référence à des galeries qui n'existent plus.
+ * C'est une opération de maintenance pour garantir la propreté de la base de données.
+ */
+const cleanupOrphanedData = async () => {
+    try {
+        console.log('[CLEANUP] Démarrage du nettoyage des données orphelines...');
+        
+        // 1. Récupérer les IDs de toutes les galeries qui existent encore.
+        const existingGalleries = await Gallery.find({}).select('_id').lean();
+        const existingGalleryIds = new Set(existingGalleries.map(g => g._id.toString()));
+
+        // 2. Supprimer tous les Jours dont le `galleryId` n'est PAS dans la liste des galeries existantes.
+        const jourCleanupResult = await Jour.deleteMany({ galleryId: { $nin: Array.from(existingGalleryIds) } });
+        if (jourCleanupResult.deletedCount > 0) {
+            console.log(`[CLEANUP] ✅ ${jourCleanupResult.deletedCount} Jour(s) orphelin(s) supprimé(s).`);
+        }
+
+        // 3. Supprimer toutes les entrées du calendrier dont le `galleryId` n'est PAS dans la liste.
+        const scheduleCleanupResult = await Schedule.deleteMany({ galleryId: { $nin: Array.from(existingGalleryIds) } });
+        if (scheduleCleanupResult.deletedCount > 0) {
+            console.log(`[CLEANUP] ✅ ${scheduleCleanupResult.deletedCount} entrée(s) de calendrier orpheline(s) supprimée(s).`);
+        }
+
+        console.log('[CLEANUP] Nettoyage terminé.');
+    } catch (error) {
+        console.error('[CLEANUP] Erreur lors du nettoyage des données orphelines:', error);
+    }
+};
+
 const createInitialJour = async (galleryId) => {
     try {
         const newJour = new Jour({
@@ -278,7 +310,7 @@ exports.updateGalleryState = async (req, res) => {
 
 // Supprimer une galerie et ses données associées
 exports.deleteGallery = async (req, res) => {
-    // ... (Logique inchangée, la vérification de propriété est une bonne pratique)
+    // MODIFIÉ : Ajout de l'appel à la fonction de nettoyage
     const { galleryId } = req.params;
 
     try {
@@ -294,14 +326,23 @@ exports.deleteGallery = async (req, res) => {
         }
 
         const galleryUploadDir = path.join(UPLOAD_DIR, galleryId);
-        await fse.remove(galleryUploadDir); 
-
-        await Image.deleteMany({ galleryId: galleryId });
-        await Jour.deleteMany({ galleryId: galleryId });
-        await Schedule.deleteMany({ galleryId: galleryId });
-        await Gallery.findByIdAndDelete(galleryId);
+        
+        // Suppression en parallèle des fichiers et des données en base de données
+        await Promise.all([
+            fse.remove(galleryUploadDir), 
+            Image.deleteMany({ galleryId: galleryId }),
+            Jour.deleteMany({ galleryId: galleryId }),
+            Schedule.deleteMany({ galleryId: galleryId }),
+            Gallery.findByIdAndDelete(galleryId)
+        ]);
 
         res.status(200).send(`Gallery ${galleryId} and all associated data deleted successfully.`);
+
+        // On lance le nettoyage des données orphelines après avoir envoyé la réponse
+        // pour ne pas faire attendre l'utilisateur. C'est une tâche de fond.
+        cleanupOrphanedData().catch(err => {
+            console.error("Erreur lors du nettoyage en arrière-plan après la suppression de la galerie:", err);
+        });
 
     } catch (error) {
         console.error(`Error deleting gallery ${galleryId}:`, error);

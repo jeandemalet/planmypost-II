@@ -2583,7 +2583,88 @@ class CalendarPage {
         return `${year}-${month}-${day}`;
     }
 
+    // Fonction pour nettoyer les jours inexistants du calendrier
+    cleanupNonExistentJours() {
+        if (!this.organizerApp.scheduleContext || !this.organizerApp.scheduleContext.schedule) {
+            return;
+        }
+
+        const scheduleData = this.organizerApp.scheduleContext.schedule;
+        const existingJours = new Set();
+        
+        // Créer un Set des jours qui existent encore dans la galerie actuelle
+        if (this.organizerApp.jourFrames) {
+            this.organizerApp.jourFrames.forEach(jourFrame => {
+                existingJours.add(`${jourFrame.galleryId}_${jourFrame.letter}`);
+            });
+        }
+
+        let removedCount = 0;
+        const datesToClean = [];
+
+        // Parcourir toutes les dates du calendrier
+        for (const dateStr in scheduleData) {
+            const daySchedule = scheduleData[dateStr];
+            const lettersToRemove = [];
+
+            // Vérifier chaque jour programmé pour cette date
+            for (const letter in daySchedule) {
+                const itemData = daySchedule[letter];
+                const jourKey = `${itemData.galleryId}_${letter}`;
+                
+                // Si ce jour n'existe plus dans la galerie actuelle, le marquer pour suppression
+                if (itemData.galleryId === this.organizerApp.currentGalleryId && !existingJours.has(jourKey)) {
+                    lettersToRemove.push(letter);
+                    removedCount++;
+                }
+            }
+
+            // Supprimer les jours inexistants
+            lettersToRemove.forEach(letter => {
+                delete daySchedule[letter];
+            });
+
+            // Si la date n'a plus aucun jour programmé, la marquer pour suppression complète
+            if (Object.keys(daySchedule).length === 0) {
+                datesToClean.push(dateStr);
+            }
+        }
+
+        // Supprimer les dates vides
+        datesToClean.forEach(dateStr => {
+            delete scheduleData[dateStr];
+        });
+
+        // Nettoyer aussi allUserJours
+        if (this.organizerApp.scheduleContext.allUserJours) {
+            const originalLength = this.organizerApp.scheduleContext.allUserJours.length;
+            this.organizerApp.scheduleContext.allUserJours = this.organizerApp.scheduleContext.allUserJours.filter(jour => {
+                if (jour.galleryId === this.organizerApp.currentGalleryId) {
+                    const jourKey = `${jour.galleryId}_${jour.letter}`;
+                    return existingJours.has(jourKey);
+                }
+                return true; // Garder les jours des autres galeries
+            });
+            
+            const cleanedFromAllUserJours = originalLength - this.organizerApp.scheduleContext.allUserJours.length;
+            if (cleanedFromAllUserJours > 0) {
+                removedCount += cleanedFromAllUserJours;
+            }
+        }
+
+        // Log et sauvegarde si des éléments ont été supprimés
+        if (removedCount > 0) {
+            console.log(`[CalendarPage.cleanupNonExistentJours] Supprimé ${removedCount} référence(s) de jour(s) inexistant(s) du calendrier`);
+            
+            // Sauvegarder les changements
+            this.organizerApp.saveAppState();
+        }
+    }
+
     buildCalendarUI() {
+        // Nettoyer les jours inexistants du calendrier avant de construire l'UI
+        this.cleanupNonExistentJours();
+        
         this.calendarGridElement.innerHTML = '';
         if (!app || !app.currentGalleryId) {
             this.calendarGridElement.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 20px;">Chargez une galerie pour voir le calendrier.</p>';

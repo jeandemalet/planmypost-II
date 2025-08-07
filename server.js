@@ -15,6 +15,11 @@ const compression = require('compression'); // <-- NOUVEAU: Importation de la co
 const jwt = require('jsonwebtoken'); // Ajouté pour la logique de redirection
 const authMiddleware = require('./middleware/auth'); // Import du middleware d'authentification
 
+// NOUVEAU : Importer les modèles nécessaires pour le nettoyage
+const Gallery = require('./models/Gallery');
+const Jour = require('./models/Jour');
+const Schedule = require('./models/Schedule');
+
 const app = express();
 const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
@@ -26,9 +31,35 @@ app.use(express.json({ limit: '500mb' }));
 app.use(express.urlencoded({ extended: true, limit: '500mb', parameterLimit: 100000 }));
 app.use(cookieParser());
 
+// NOUVEAU : Fonction de nettoyage pour les données orphelines
+const cleanupOrphanedData = async () => {
+    try {
+        console.log('[MAINTENANCE] Vérification des données orphelines au démarrage...');
+        
+        const existingGalleries = await Gallery.find({}).select('_id').lean();
+        const existingGalleryIds = new Set(existingGalleries.map(g => g._id.toString()));
+
+        const jourCleanupResult = await Jour.deleteMany({ galleryId: { $nin: Array.from(existingGalleryIds) } });
+        if (jourCleanupResult.deletedCount > 0) {
+            console.log(`[MAINTENANCE] ✅ ${jourCleanupResult.deletedCount} Jour(s) orphelin(s) supprimé(s).`);
+        }
+
+        const scheduleCleanupResult = await Schedule.deleteMany({ galleryId: { $nin: Array.from(existingGalleryIds) } });
+        if (scheduleCleanupResult.deletedCount > 0) {
+            console.log(`[MAINTENANCE] ✅ ${scheduleCleanupResult.deletedCount} entrée(s) de calendrier orpheline(s) supprimée(s).`);
+        }
+    } catch (error) {
+        console.error('[MAINTENANCE] Erreur lors du nettoyage des données orphelines:', error);
+    }
+};
+
 // --- CONNEXION À LA BASE DE DONNÉES ---
 mongoose.connect(MONGODB_URI)
-.then(() => console.log('MongoDB Connected'))
+.then(() => {
+  console.log('MongoDB Connected');
+  // Lancer le nettoyage une fois connecté
+  cleanupOrphanedData();
+})
 .catch(err => console.error('MongoDB Connection Error:', err));
 
 mongoose.connection.on('error', err => {
