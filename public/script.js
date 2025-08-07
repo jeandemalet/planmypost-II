@@ -3391,6 +3391,12 @@ class PublicationOrganizer {
     }
 
     activateTab(tabId) {
+        // Détecter si on quitte l'onglet "currentGallery" (tri) pour supprimer les jours vides
+        const currentActiveTab = document.querySelector('.tab-content.active');
+        if (currentActiveTab && currentActiveTab.id === 'currentGallery' && tabId !== 'currentGallery') {
+            this.removeEmptyJours();
+        }
+
         if (tabId === 'currentGallery' && this.selectedGalleryForPreviewId) {
             // Charger la galerie sélectionnée dans "Galeries" si elle est différente de la galerie actuelle
             if (this.currentGalleryId !== this.selectedGalleryForPreviewId) {
@@ -4561,6 +4567,61 @@ class PublicationOrganizer {
                     this.calendarPage.removePublicationForDate(dateObj, jourFrameToClose.letter);
                 });
             }
+            this.refreshSidePanels();
+
+            // Rafraîchir la sélection des jours dans l'AutoCropper
+            if (this.croppingPage && this.croppingPage.autoCropper) {
+                this.croppingPage.autoCropper.refreshJourSelection();
+            }
+        }
+    }
+
+    // Nouvelle fonction pour supprimer automatiquement les jours vides
+    async removeEmptyJours() {
+        const emptyJours = this.jourFrames.filter(jourFrame => 
+            !jourFrame.imagesData || jourFrame.imagesData.length === 0
+        );
+
+        if (emptyJours.length === 0) return;
+
+        console.log(`[removeEmptyJours] Suppression automatique de ${emptyJours.length} jour(s) vide(s):`, 
+                   emptyJours.map(j => j.letter).join(', '));
+
+        // Supprimer chaque jour vide sans demander confirmation
+        for (const jourFrame of emptyJours) {
+            const index = this.jourFrames.indexOf(jourFrame);
+            if (index > -1) {
+                await jourFrame.destroy();
+                this.jourFrames.splice(index, 1);
+                
+                // Si le jour supprimé était le jour actuel, sélectionner un autre jour
+                if (this.currentJourFrame === jourFrame) {
+                    this.setCurrentJourFrame(this.jourFrames[index] || this.jourFrames[index - 1] || 
+                                           (this.jourFrames.length > 0 ? this.jourFrames[0] : null));
+                }
+
+                // Nettoyer le calendrier si nécessaire
+                if (this.calendarPage) {
+                    const datesToRemove = [];
+                    for (const dateStr in this.scheduleContext.schedule) {
+                        if (this.scheduleContext.schedule[dateStr][jourFrame.letter] && 
+                            this.scheduleContext.schedule[dateStr][jourFrame.letter].galleryId === jourFrame.galleryId) {
+                            datesToRemove.push(new Date(dateStr + 'T00:00:00'));
+                        }
+                    }
+                    datesToRemove.forEach(dateObj => {
+                        this.calendarPage.removePublicationForDate(dateObj, jourFrame.letter);
+                    });
+                }
+            }
+        }
+
+        // Mettre à jour l'interface après suppression
+        if (emptyJours.length > 0) {
+            this.recalculateNextJourIndex();
+            this.updateGridUsage();
+            this.updateStatsLabel();
+            this.saveAppState();
             this.refreshSidePanels();
 
             // Rafraîchir la sélection des jours dans l'AutoCropper
