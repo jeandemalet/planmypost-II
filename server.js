@@ -11,6 +11,8 @@ const apiRoutes = require('./routes/api');
 const fse = require('fs-extra');
 const http = require('http');
 const cookieParser = require('cookie-parser');
+const compression = require('compression'); // <-- NOUVEAU: Importation de la compression
+const jwt = require('jsonwebtoken'); // Ajouté pour la logique de redirection
 const authMiddleware = require('./middleware/auth'); // Import du middleware d'authentification
 
 const app = express();
@@ -18,11 +20,17 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 // --- MIDDLEWARES DE BASE ---
-// Doivent être déclarés avant les routes.
+app.use(compression()); // <-- NOUVEAU: Activer la compression Gzip pour toutes les réponses
 app.use(cors());
 app.use(express.json({ limit: '500mb' }));
 app.use(express.urlencoded({ extended: true, limit: '500mb', parameterLimit: 100000 }));
 app.use(cookieParser());
+
+// Middleware pour forcer l'encodage UTF-8
+app.use((req, res, next) => {
+    res.setHeader('Content-Type', 'application/json; charset=utf-8');
+    next();
+});
 
 // --- CONNEXION À LA BASE DE DONNÉES ---
 mongoose.connect(MONGODB_URI)
@@ -50,13 +58,24 @@ app.use('/api', apiRoutes);
 app.use(express.static(path.join(__dirname, 'public')));
 
 // 3. La route de "catch-all" pour l'application principale vient en DERNIER.
-//    Si une requête GET n'a été interceptée ni par l'API, ni par les fichiers statiques,
-//    elle est gérée ici. On la protège pour s'assurer que seul un utilisateur connecté
-//    reçoit le "squelette" de l'application principale (index.html).
-app.get('*', authMiddleware, (req, res) => {
-    // Si l'authMiddleware passe, on envoie la page principale de l'application.
-    // S'il échoue, il renverra une erreur 401 et n'atteindra jamais cette ligne.
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+//    Cette logique est améliorée pour rediriger si l'utilisateur n'est pas connecté.
+app.get('*', (req, res) => {
+    const token = req.cookies.token;
+    
+    if (!token) {
+        // Si pas de token, on redirige vers la page de connexion
+        return res.redirect('/welcome.html');
+    }
+    
+    try {
+        // On vérifie si le token est valide
+        jwt.verify(token, process.env.JWT_SECRET);
+        // Si le token est valide, on envoie l'application principale
+        res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    } catch (error) {
+        // Si le token est invalide ou expiré, on redirige aussi vers la connexion
+        res.redirect('/welcome.html');
+    }
 });
 
 
@@ -70,8 +89,6 @@ server.listen(PORT, () => {
 });
 
 const FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
-server.setTimeout(FIVE_MINUTES_IN_MS, () => {
-    console.error('SERVER TIMEOUT: A request took too long and was timed out by the server.');
-});
+server.setTimeout(FIVE_MINUTES_IN_MS);
 console.log(`HTTP server timeout is set to ${FIVE_MINUTES_IN_MS / 1000 / 60} minutes.`);
 

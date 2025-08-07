@@ -6,7 +6,6 @@
 const { parentPort } = require('worker_threads');
 const sharp = require('sharp');
 const fse = require('fs-extra');
-const path = require('path');
 
 parentPort.on('message', async (task) => {
     const { tempPath, finalPath, thumbPath, thumbSize } = task;
@@ -20,17 +19,18 @@ parentPort.on('message', async (task) => {
                 .toFile(thumbPath),
             fse.move(tempPath, finalPath, { overwrite: false })
         ]);
-
-        parentPort.postMessage({ 
-            status: 'success', 
+        
+        parentPort.postMessage({
+            status: 'success',
             finalPath,
-            thumbPath 
+            thumbPath,
+            originalTempPath: tempPath
         });
         
     } catch (error) {
-        parentPort.postMessage({ 
-            status: 'error', 
-            message: error.message 
+        parentPort.postMessage({
+            status: 'error',
+            message: error.message
         });
         
         // S'assurer de nettoyer le fichier temporaire en cas d'erreur

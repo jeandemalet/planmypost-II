@@ -92,7 +92,8 @@ exports.getGalleryDetails = async (req, res) => {
         if (!mongoose.Types.ObjectId.isValid(galleryId)) {
             return res.status(400).send('Invalid Gallery ID format.');
         }
-        const gallery = await Gallery.findById(galleryId);
+        // OPTIMISATION: .select() pour ne prendre que les champs nécessaires
+        const gallery = await Gallery.findById(galleryId).select('owner name currentThumbSize sortOption activeTab nextJourIndex').lean();
         if (!gallery) {
             return res.status(404).send('Gallery not found.');
         }
@@ -111,7 +112,11 @@ exports.getGalleryDetails = async (req, res) => {
         const limit = parseInt(req.query.limit);
         const usePagination = page && limit;
         
-        let imagesQuery = Image.find({ galleryId: galleryId }).sort({ uploadDate: 1 }).lean();
+        // OPTIMISATION: .select() ajouté pour alléger la requête. On exclut les champs non nécessaires pour l'affichage en grille.
+        let imagesQuery = Image.find({ galleryId: galleryId })
+                               .sort({ uploadDate: 1 })
+                               .select('-__v -mimeType -size') // Exclure des champs inutiles pour la grille
+                               .lean();
         let imagesPromise, totalImagesPromise;
         
         if (usePagination) {
@@ -130,7 +135,10 @@ exports.getGalleryDetails = async (req, res) => {
             imagesPromise,
             totalImagesPromise,
             Jour.find({ galleryId: galleryId })
-                 .populate('images.imageId')
+                 .populate({
+                     path: 'images.imageId',
+                     select: 'path thumbnailPath originalFilename isCroppedVersion parentImageId' // OPTIMISATION: Ne peupler que les champs utiles
+                 })
                  .sort({ index: 1 })
                  .lean(),
             Gallery.find({ owner: gallery.owner })
@@ -149,7 +157,7 @@ exports.getGalleryDetails = async (req, res) => {
         }, {});
 
         const [scheduleEntries, allJoursForUser] = await Promise.all([
-            Schedule.find({ galleryId: { $in: userGalleryIds } }).lean(),
+            Schedule.find({ galleryId: { $in: userGalleryIds } }).select('date jourLetter galleryId').lean(),
             Jour.find({ galleryId: { $in: userGalleryIds } })
                 .select('_id letter galleryId')
                 .lean()

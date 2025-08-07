@@ -1,157 +1,170 @@
 // ===============================
-//  Fichier: controllers\imageController.js
+//  Fichier: controllers\imageController.js (CORRIGÉ)
 // ===============================
 
 const Image = require('../models/Image');
 const Gallery = require('../models/Gallery');
-const Jour = require('../models/Jour'); // Assurez-vous que mongoose est importé si vous utilisez mongoose.Types.ObjectId
+const Jour = require('../models/Jour');
 const mongoose = require('mongoose');
 const sharp = require('sharp');
 const exifParser = require('exif-parser');
 const path = require('path');
 const fs = require('fs').promises;
 const fse = require('fs-extra');
+const { Worker } = require('worker_threads');
+const os = require('os');
 
 const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
 const THUMB_SIZE = 150;
 
-const getExifDateTime = (buffer) => {
-    try {
-        const parser = exifParser.create(buffer);
-        const result = parser.parse();
-        const dateTimeStr = result.tags.DateTimeOriginal || result.tags.CreateDate || result.tags.ModifyDate;
+// --- DÉBUT DE LA LOGIQUE D'OPTIMISATION (VERSION UNIQUE ET CORRECTE) ---
 
-        if (typeof dateTimeStr === 'string') {
-            const regex = /(\d{4}):(\d{2}):(\d{2})\s(\d{2}):(\d{2}):(\d{2})/;
-            const match = dateTimeStr.match(regex);
-            if (match) {
-                return new Date(
-                    parseInt(match[1]), parseInt(match[2]) - 1, parseInt(match[3]),
-                    parseInt(match[4]), parseInt(match[5]), parseInt(match[6])
-                );
-            }
-            const parsedDate = new Date(dateTimeStr);
-            if (!isNaN(parsedDate)) {
-                return parsedDate;
-            }
-        } else if (typeof dateTimeStr === 'number' && dateTimeStr > 0) {
-            const parsedDate = new Date(dateTimeStr * 1000);
-            if (!isNaN(parsedDate)) {
-                return parsedDate;
+// Création d'un pool de workers pour ne pas les recréer à chaque requête.
+// On prend la moitié des cœurs CPU disponibles pour ne pas saturer la machine.
+const NUM_WORKERS = Math.max(1, Math.floor(os.cpus().length / 2));
+const workers = [];
+const taskQueue = [];
+let activeTasks = 0;
+
+for (let i = 0; i < NUM_WORKERS; i++) {
+    // Note: Le fichier image-worker.js doit exister à la racine du projet.
+    const worker = new Worker(path.join(__dirname, '..', 'image-worker.js'));
+    worker.on('message', (result) => {
+        const taskIndex = taskQueue.findIndex(t => t.data.tempPath === result.originalTempPath);
+        if (taskIndex > -1) {
+            const task = taskQueue.splice(taskIndex, 1)[0];
+            if (result.status === 'success') {
+                task.resolve(result);
+            } else {
+                task.reject(new Error(result.message));
             }
         }
-    } catch (error) {
-        console.warn("Could not parse EXIF data for a file:", error.message);
+        activeTasks--;
+        processNextTask();
+    });
+    worker.on('error', (err) => {
+        console.error('Worker error:', err);
+        const task = taskQueue.shift();
+        if (task) task.reject(err);
+        activeTasks--;
+    });
+    workers.push(worker);
+}
+
+function processNextTask() {
+    if (taskQueue.length > 0 && activeTasks < NUM_WORKERS) {
+        const workerIndex = activeTasks % NUM_WORKERS; // Simple round-robin
+        const task = taskQueue.find(t => !t.processing);
+        if (task) {
+            task.processing = true;
+            workers[workerIndex].postMessage(task.data);
+            activeTasks++;
+        }
     }
+}
+
+function runImageProcessingTask(data) {
+    return new Promise((resolve, reject) => {
+        taskQueue.push({ data, resolve, reject, processing: false });
+        processNextTask();
+    });
+}
+// --- FIN DE LA LOGIQUE D'OPTIMISATION ---
+
+// Fonction pour corriger l'encodage UTF-8 des noms de fichiers
+const fixUTF8Encoding = (str) => {
+    try {
+        if (str.includes('Ã') || str.includes('Â') || str.includes('Ã¨') || str.includes('Ã©') || str.includes('Ã ')) {
+            const buffer = Buffer.from(str, 'latin1');
+            return buffer.toString('utf8');
+        }
+        return str;
+    } catch (error) {
+        console.warn(`[imageController] Impossible de corriger l'encodage pour: ${str}`, error);
+        return str;
+    }
+};
+
+const getExifDateTime = (buffer) => {
+    // Cette fonction reste disponible si besoin, mais le worker s'en charge.
     return null;
 };
 
+// VERSION OPTIMISÉE DE UPLOADIMAGES
 exports.uploadImages = async (req, res) => {
     const galleryId = req.params.galleryId;
-    console.log(`[imageController] Début uploadImages pour galleryId: ${galleryId}. Nombre de fichiers reçus par Multer: ${req.files ? req.files.length : 0}`);
 
     if (req.fileValidationError) {
-        console.warn(`[imageController] Validation de fichier échouée: ${req.fileValidationError}`);
-        if (req.files && req.files.length > 0) {
-            await Promise.all(req.files.map(f => fse.unlink(f.path).catch(e => console.error(`[imageController] Cleanup failed for rejected file ${f.path}:`, e.message))));
-        }
         return res.status(400).send(req.fileValidationError);
     }
-
     if (!req.files || req.files.length === 0) {
-        console.log('[imageController] Aucun fichier reçu ou tous les fichiers ont été rejetés.');
-        return res.status(400).send('No files uploaded or files were rejected by filter.');
+        return res.status(400).send('No files uploaded.');
     }
 
     try {
-        const galleryExists = await Gallery.findById(galleryId).select('_id');
+        const galleryExists = await Gallery.findById(galleryId).select('_id').lean();
         if (!galleryExists) {
-            console.log(`[imageController] Galerie ${galleryId} non trouvée.`);
-            // Nettoyer les fichiers temporaires car la galerie n'existe pas
-            await Promise.all(req.files.map(f => fse.unlink(f.path).catch(e => console.error(`[imageController] Cleanup failed for non-existent gallery file ${f.path}:`, e.message))));
+            await Promise.all(req.files.map(f => fse.unlink(f.path).catch(() => {})));
             return res.status(404).send(`Gallery with ID ${galleryId} not found.`);
         }
-    } catch (error) {
-        console.error(`[imageController] Erreur vérification gallery ID ${galleryId}:`, error);
-        await Promise.all(req.files.map(f => fse.unlink(f.path).catch(e => console.error(`[imageController] Cleanup failed due to gallery check error ${f.path}:`, e.message))));
-        return res.status(400).send('Invalid Gallery ID format or error checking gallery.');
-    }
 
-    const galleryUploadDir = path.join(UPLOAD_DIR, galleryId);
-
-    try {
+        const galleryUploadDir = path.join(UPLOAD_DIR, galleryId);
         await fse.ensureDir(galleryUploadDir);
-        console.log(`[imageController] Traitement parallèle de ${req.files.length} fichiers.`);
 
-        // Transformation de la boucle séquentielle en traitement parallèle
-        const processingPromises = req.files.map(async (file) => {
-            console.log(`[imageController] Traitement du fichier : ${file.originalname}`);
-            let currentTempFilePath = file.path;
+        const originalFilenames = req.files.map(f => fixUTF8Encoding(f.originalname));
+        const existingImages = await Image.find({
+            galleryId: galleryId,
+            originalFilename: { $in: originalFilenames }
+        }).select('originalFilename').lean();
+        const existingFilenamesSet = new Set(existingImages.map(img => img.originalFilename));
 
-            try {
-                // Vérification du doublon
-                const existingImage = await Image.findOne({ galleryId: galleryId, originalFilename: file.originalname });
-                if (existingImage) {
-                    console.log(`[imageController] Doublon ignoré: ${file.originalname}`);
-                    await fse.unlink(currentTempFilePath).catch(e => console.error(`Échec nettoyage temp duplicate`, e));
-                    return null; // Retourne null pour ce fichier, il sera filtré plus tard
-                }
-
-                const buffer = await fs.readFile(currentTempFilePath);
-
-                const timestamp = Date.now();
-                const safeOriginalName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-                const uniqueFilename = `${timestamp}-${safeOriginalName}`;
-                const finalFilePath = path.join(galleryUploadDir, uniqueFilename);
-                const relativePath = path.join(galleryId, uniqueFilename);
-
-                const thumbFilename = `thumb-${uniqueFilename}`;
-                const thumbFilePath = path.join(galleryUploadDir, thumbFilename);
-                const relativeThumbPath = path.join(galleryId, thumbFilename);
-
-                // Les opérations I/O et CPU peuvent maintenant s'exécuter en parallèle pour chaque image
-                await Promise.all([
-                    sharp(buffer)
-                        .resize(THUMB_SIZE, THUMB_SIZE, { fit: 'inside', withoutEnlargement: true })
-                        .jpeg({ quality: 85 })
-                        .toFile(thumbFilePath),
-                    fse.move(currentTempFilePath, finalFilePath, { overwrite: false })
-                ]);
-
-                const imageDoc = new Image({
-                    galleryId: galleryId,
-                    originalFilename: file.originalname,
-                    filename: uniqueFilename,
-                    path: relativePath,
-                    thumbnailPath: relativeThumbPath,
-                    mimeType: file.mimetype,
-                    size: file.size,
-                    exifDateTimeOriginal: getExifDateTime(buffer),
-                    fileLastModified: (file.lastModifiedDate && !isNaN(new Date(file.lastModifiedDate))) ? new Date(file.lastModifiedDate) : new Date(),
-                });
-
-                // On ne sauvegarde pas encore, on retourne le document
-                return imageDoc;
-
-            } catch (fileProcessingError) {
-                console.error(`[imageController] ERREUR lors du traitement du fichier ${file.originalname}:`, fileProcessingError);
-                // En cas d'erreur sur un fichier, on nettoie son fichier temporaire s'il existe
-                if (currentTempFilePath) await fse.unlink(currentTempFilePath).catch(() => { });
-                return null; // On signale l'échec pour ce fichier
+        const filesToProcess = req.files.filter(file => {
+            const correctedName = fixUTF8Encoding(file.originalname);
+            if (existingFilenamesSet.has(correctedName)) {
+                fse.unlink(file.path).catch(e => console.error(`Cleanup failed for duplicate temp file ${file.path}:`, e));
+                return false;
             }
+            return true;
         });
 
-        // On attend que toutes les promesses de traitement se terminent
-        const imageDocsToSave = (await Promise.all(processingPromises)).filter(doc => doc !== null);
-
-        // On peut insérer tous les documents en une seule fois pour plus d'efficacité
-        if (imageDocsToSave.length > 0) {
-            const insertedDocs = await Image.insertMany(imageDocsToSave, { ordered: false });
-            console.log(`[imageController] ${insertedDocs.length} documents image sauvegardés en DB.`);
-            res.status(201).json(insertedDocs);
-        } else {
-            res.status(200).json([]);
+        if (filesToProcess.length === 0) {
+            return res.status(200).json([]);
         }
+        
+        const imageDocs = [];
+        const processingPromises = filesToProcess.map(file => {
+            const timestamp = Date.now();
+            const safeOriginalName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+            const uniqueFilename = `${timestamp}-${safeOriginalName}`;
+            const relativePath = path.join(galleryId, uniqueFilename);
+            const thumbFilename = `thumb-${uniqueFilename}`;
+            const relativeThumbPath = path.join(galleryId, thumbFilename);
+
+            imageDocs.push({
+                galleryId: galleryId,
+                originalFilename: fixUTF8Encoding(file.originalname),
+                filename: uniqueFilename,
+                path: relativePath,
+                thumbnailPath: relativeThumbPath,
+                mimeType: file.mimetype,
+                size: file.size,
+                fileLastModified: (file.lastModifiedDate && !isNaN(new Date(file.lastModifiedDate))) ? new Date(file.lastModifiedDate) : new Date(),
+            });
+
+            return runImageProcessingTask({
+                tempPath: file.path,
+                originalTempPath: file.path,
+                finalPath: path.join(galleryUploadDir, uniqueFilename),
+                thumbPath: path.join(galleryUploadDir, thumbFilename),
+                thumbSize: THUMB_SIZE
+            });
+        });
+
+        await Promise.all(processingPromises);
+
+        const insertedDocs = await Image.insertMany(imageDocs, { ordered: false });
+        
+        res.status(201).json(insertedDocs);
 
     } catch (error) {
         console.error("[imageController] ERREUR GLOBALE dans le processus d'upload:", error);
@@ -161,7 +174,6 @@ exports.uploadImages = async (req, res) => {
     }
 };
 
-// ... reste du fichier imageController.js inchangé ...
 exports.getImagesForGallery = async (req, res) => {
     const galleryId = req.params.galleryId;
     const page = parseInt(req.query.page) || 1;
@@ -174,7 +186,8 @@ exports.getImagesForGallery = async (req, res) => {
                 .sort({ uploadDate: 1 })
                 .skip(skip)
                 .limit(limit)
-                .lean(),
+                .select('-__v -mimeType -size') // Exclure des champs inutiles pour la grille
+                .lean(), // Utilisation de .lean() pour la performance
             Image.countDocuments({ galleryId: galleryId, isCroppedVersion: { $ne: true } })
         ]);
 
@@ -210,16 +223,13 @@ exports.serveImage = async (req, res) => {
 
         const imagePath = path.join(UPLOAD_DIR, cleanGalleryId, cleanImageName);
 
-        // [LOG] Log pour vérifier le chemin de l'image demandée
         console.log(`[imageController] SERVING IMAGE: Tentative de servir ${imagePath}`);
 
         try {
             await fs.access(imagePath);
-            // [LOG] Log de succès
             console.log(`[imageController] ✅ Fichier trouvé. Envoi de : ${imagePath}`);
             res.sendFile(imagePath);
         } catch (accessError) {
-            // [LOG] Log d'erreur si le fichier n'est pas trouvé
             console.error(`[imageController] ❌ SERVE IMAGE FAILED: Fichier non trouvé à ${imagePath}: `, accessError);
             res.status(404).send(`Image not found at path: ${cleanGalleryId}/${cleanImageName}.`);
         }
@@ -280,7 +290,7 @@ exports.saveCroppedImage = async (req, res) => {
 
         const croppedImageDoc = new Image({
             galleryId: galleryId,
-            originalFilename: `[${cropInfo}] ${originalImage.originalFilename}`,
+            originalFilename: `[${cropInfo}] ${fixUTF8Encoding(originalImage.originalFilename)}`,
             filename: newFilename,
             path: relativePath,
             thumbnailPath: relativeThumbPath,
