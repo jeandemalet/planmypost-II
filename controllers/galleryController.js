@@ -142,8 +142,15 @@ exports.getGalleryDetails = async (req, res) => {
             }
         }
 
-        // OPTIMISATION: Lancer toutes les requêtes de données en parallèle
-        const [images, jours, userGalleries, scheduleEntries, allJoursForUser] = await Promise.all([
+        // 1. D'abord récupérer les galeries de l'utilisateur pour le contexte global
+        const userGalleries = await Gallery.find({ owner: gallery.owner })
+                                          .select('_id name')
+                                          .lean();
+        const userGalleryIds = userGalleries.map(g => g._id);
+
+        // 2. OPTIMISATION: Lancer toutes les autres requêtes de données en parallèle
+        const [images, jours, scheduleEntries, allJoursForUser] = await Promise.all([
+            // Données spécifiques à la galerie actuelle (pour onglets Tri, Recadrage, etc.)
             Image.find({ galleryId: galleryId })
                  .sort({ uploadDate: 1 })
                  .select('-__v -mimeType -size') // Exclure des champs inutiles pour la grille
@@ -155,12 +162,9 @@ exports.getGalleryDetails = async (req, res) => {
                 })
                 .sort({ index: 1 })
                 .lean(),
-            Gallery.find({ owner: gallery.owner })
-                   .select('_id name')
-                   .lean(),
-            // Logique de calendrier aussi en parallèle
-            Schedule.find({ owner: gallery.owner }).select('date jourLetter galleryId').lean(),
-            Jour.find({ owner: gallery.owner })
+            // CORRECTION CRUCIALE: Données globales pour l'utilisateur (pour onglet Calendrier)
+            Schedule.find({ galleryId: { $in: userGalleryIds } }).select('date jourLetter galleryId').lean(),
+            Jour.find({ galleryId: { $in: userGalleryIds } })
                 .populate({ path: 'images.imageId', select: 'thumbnailPath' })
                 .select('_id letter galleryId images')
                 .lean()
