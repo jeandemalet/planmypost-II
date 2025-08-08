@@ -2361,17 +2361,17 @@ button.small-cancel-btn:hover {
 }
 
 .cropping-thumbnail-strip::-webkit-scrollbar-track {
-    background: #f1f1f1;
+    background-color: #f1f1f1;
     border-radius: 4px;
 }
 
 .cropping-thumbnail-strip::-webkit-scrollbar-thumb {
-    background: #c1c1c1;
+    background-color: #c1c1c1;
     border-radius: 4px;
 }
 
 .cropping-thumbnail-strip::-webkit-scrollbar-thumb:hover {
-    background: #a8a8a8;
+    background-color: #a8a8a8;
 }
 
 .cropping-thumbnail-item {

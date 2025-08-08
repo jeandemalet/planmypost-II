@@ -188,12 +188,21 @@ exports.getGalleryDetails = async (req, res) => {
             return acc;
         }, {});
 
+        // ▼▼▼ DÉBUT DE LA MODIFICATION IMPORTANTE ▼▼▼
         const [scheduleEntries, allJoursForUser] = await Promise.all([
             Schedule.find({ galleryId: { $in: userGalleryIds } }).select('date jourLetter galleryId').lean(),
+            // ▼▼▼ DÉBUT DE LA MODIFICATION ▼▼▼
+            // On retire l'option 'sort' qui faisait planter Mongoose
             Jour.find({ galleryId: { $in: userGalleryIds } })
-                .select('_id letter galleryId')
+                .populate({
+                    path: 'images.imageId',
+                    select: 'thumbnailPath'
+                })
+                .select('_id letter galleryId images')
                 .lean()
+            // ▲▲▲ FIN DE LA MODIFICATION ▲▲▲
         ]);
+        // ▲▲▲ FIN DE LA MODIFICATION IMPORTANTE ▲▲▲
 
         const scheduleData = scheduleEntries.reduce((acc, entry) => {
             if (!acc[entry.date]) acc[entry.date] = {};
@@ -204,13 +213,25 @@ exports.getGalleryDetails = async (req, res) => {
             return acc;
         }, {});
 
-        // Données complètes pour la planification automatique
-        const joursForScheduling = allJoursForUser.map(j => ({
-            _id: j._id,
-            letter: j.letter,
-            galleryId: j.galleryId.toString(),
-            galleryName: galleryNameMap[j.galleryId.toString()] || 'Galerie Inconnue'
-        }));
+        // ▼▼▼ DÉBUT DE LA CORRECTION DÉFINITIVE ▼▼▼
+        const joursForScheduling = allJoursForUser.map(j => {
+            // SÉCURITÉ : On trie le tableau d'images pour être certain d'avoir la première
+            if (j.images && Array.isArray(j.images) && j.images.length > 1) {
+                j.images.sort((a, b) => (a.order || 0) - (b.order || 0));
+            }
+
+            const firstImageEntry = j.images && j.images.length > 0 ? j.images[0] : null;
+            const firstImage = firstImageEntry ? firstImageEntry.imageId : null;
+
+            return {
+                _id: j._id,
+                letter: j.letter,
+                galleryId: j.galleryId.toString(),
+                galleryName: galleryNameMap[j.galleryId.toString()] || 'Galerie Inconnue',
+                firstImageThumbnail: firstImage ? firstImage.thumbnailPath : null
+            };
+        });
+        // ▲▲▲ FIN DE LA CORRECTION DÉFINITIVE ▲▲▲
 
 
         // Format de réponse adaptatif selon la pagination
@@ -241,6 +262,7 @@ exports.getGalleryDetails = async (req, res) => {
 
     } catch (error) {
         console.error(`Error getting gallery details for ${galleryId}:`, error);
+        // On remet la gestion d'erreur standard
         if (error.name === 'CastError' && error.kind === 'ObjectId') {
              return res.status(400).send('Invalid Gallery ID format (CastError).');
         }

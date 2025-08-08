@@ -2853,19 +2853,16 @@ class CalendarPage {
             const thumbDiv = document.createElement('div');
             thumbDiv.className = 'unscheduled-jour-item-thumb';
 
-            // On essaie de trouver le JourFrame correspondant UNIQUEMENT s'il est de la galerie active
-            let thumbFound = false;
-            if (jour.galleryId === this.organizerApp.currentGalleryId) {
-                const jourFrame = this.organizerApp.jourFrames.find(jf => jf.id === jour._id);
-                if (jourFrame && jourFrame.imagesData.length > 0) {
-                    thumbDiv.style.backgroundImage = `url(${jourFrame.imagesData[0].dataURL})`;
-                    thumbFound = true;
-                }
+            // ▼▼▼ MODIFICATION ICI ▼▼▼
+            // Utilise la nouvelle propriété `firstImageThumbnail` fournie par le backend
+            if (jour.firstImageThumbnail) {
+                const thumbFilename = Utils.getFilenameFromURL(jour.firstImageThumbnail);
+                const thumbUrl = `${BASE_API_URL}/api/uploads/${jour.galleryId}/${thumbFilename}`;
+                thumbDiv.style.backgroundImage = `url(${thumbUrl})`;
+            } else {
+                thumbDiv.textContent = '...'; // Cas où le jour est vide
             }
-
-            if (!thumbFound) {
-                thumbDiv.textContent = '...'; // Placeholder si la vignette n'est pas dispo
-            }
+            // ▲▲▲ FIN DE LA MODIFICATION ▲▲▲
 
             const gallerySpan = document.createElement('span');
             gallerySpan.className = 'unscheduled-jour-item-gallery';
@@ -2904,18 +2901,30 @@ class CalendarPage {
         // --- FIN DE LA LOGIQUE CORRIGÉE ---
     }
 
+    // ▼▼▼ REMPLACEZ COMPLÈTEMENT VOTRE ANCIENNE FONCTION loadCalendarThumb PAR CELLE-CI ▼▼▼
     async loadCalendarThumb(thumbElement, jourLetter, galleryIdForJour) {
-        if (galleryIdForJour === this.organizerApp.currentGalleryId) {
-            const jourFrame = this.organizerApp.jourFrames.find(jf => jf.letter === jourLetter);
-            if (jourFrame && jourFrame.imagesData.length > 0) {
-                thumbElement.style.backgroundImage = `url(${jourFrame.imagesData[0].dataURL})`;
-            } else {
-                thumbElement.textContent = "N/A";
-            }
-        } else {
+        const allUserJours = this.organizerApp.scheduleContext.allUserJours;
+        if (!allUserJours) {
             thumbElement.textContent = "?";
+            return;
+        }
+
+        // On cherche le jour correspondant dans la liste de TOUS les jours de l'utilisateur
+        const jourData = allUserJours.find(j => j.letter === jourLetter && j.galleryId === galleryIdForJour);
+
+        if (jourData && jourData.firstImageThumbnail) {
+            // On a trouvé le jour et il a une miniature !
+            const thumbFilename = Utils.getFilenameFromURL(jourData.firstImageThumbnail);
+            const thumbUrl = `${BASE_API_URL}/api/uploads/${jourData.galleryId}/${thumbFilename}`;
+            thumbElement.style.backgroundImage = `url(${thumbUrl})`;
+            thumbElement.textContent = ""; // On s'assure de vider le texte
+        } else {
+            // Le jour est vide ou n'a pas été trouvé (sécurité)
+            thumbElement.style.backgroundImage = 'none';
+            thumbElement.textContent = "N/A";
         }
     }
+    // ▲▲▲ FIN DU REMPLACEMENT ▲▲▲
 
     _onDragStart(event, dragPayload, itemElement) {
         this.dragData = dragPayload;
@@ -3471,24 +3480,26 @@ class PublicationOrganizer {
         }
     }
 
-    activateTab(tabId) {
+    async activateTab(tabId) {
+        // --- NOUVELLE LOGIQUE UNIVERSELLE ---
+        // Si on quitte l'onglet "Galeries" pour aller vers un autre onglet,
+        // et qu'une nouvelle galerie a été sélectionnée dans l'aperçu,
+        // on la charge comme galerie de travail principale AVANT de continuer.
+        if (tabId !== 'galleries' && this.selectedGalleryForPreviewId && this.currentGalleryId !== this.selectedGalleryForPreviewId) {
+            // C'est l'action qui manquait pour les autres onglets.
+            // On attend que le chargement soit terminé avant d'afficher le nouvel onglet.
+            await this.handleLoadGallery(this.selectedGalleryForPreviewId);
+        }
+        // --- FIN DE LA NOUVELLE LOGIQUE ---
+
         // Détecter si on quitte l'onglet "currentGallery" (tri) pour supprimer les jours vides
         const currentActiveTab = document.querySelector('.tab-content.active');
         if (currentActiveTab && currentActiveTab.id === 'currentGallery' && tabId !== 'currentGallery') {
             this.removeEmptyJours();
         }
 
-        if (tabId === 'currentGallery' && this.selectedGalleryForPreviewId) {
-            // Charger la galerie sélectionnée dans "Galeries" si elle est différente de la galerie actuelle
-            if (this.currentGalleryId !== this.selectedGalleryForPreviewId) {
-                this.handleLoadGallery(this.selectedGalleryForPreviewId);
-                return;
-            }
-        }
-        if (tabId === 'currentGallery' && !this.currentGalleryId && !this.selectedGalleryForPreviewId) {
-            alert("Aucune galerie n'est sélectionnée. Veuillez en sélectionner une dans l'onglet 'Galeries'.");
-            return;
-        }
+        // L'ancienne logique spécifique à 'currentGallery' est maintenant redondante et a été supprimée.
+        // La nouvelle logique ci-dessus la remplace de manière plus globale.
         this.tabs.forEach(t => t.classList.remove('active'));
         this.tabContents.forEach(tc => tc.classList.remove('active'));
         const tabButton = document.querySelector(`.tab-button[data-tab="${tabId}"]`);
@@ -3503,45 +3514,23 @@ class PublicationOrganizer {
                     this.clearGalleryPreview();
                 }
             } else if (tabId === 'currentGallery') {
-                // Sélectionner automatiquement le jour A par défaut si aucun jour n'est sélectionné
                 if (this.currentGalleryId && !this.currentJourFrame && this.jourFrames.length > 0) {
-                    // Chercher le jour A
-                    const jourA = this.jourFrames.find(jf => jf.letter === 'A');
-                    if (jourA) {
-                        this.setCurrentJourFrame(jourA);
-                    } else {
-                        // Si pas de jour A, prendre le premier jour disponible
-                        const firstJour = this.jourFrames.sort((a, b) => a.letter.localeCompare(b.letter))[0];
-                        if (firstJour) {
-                            this.setCurrentJourFrame(firstJour);
-                        }
-                    }
+                    const jourA = this.jourFrames.find(jf => jf.letter === 'A') || this.jourFrames[0];
+                    if (jourA) this.setCurrentJourFrame(jourA);
                 }
             } else if (tabId === 'cropping') {
-                // --- DÉBUT DE LA CORRECTION ---
                 if (this.currentGalleryId) {
-                    // On diffère l'exécution pour s'assurer que le DOM est visible et a des dimensions
                     requestAnimationFrame(() => {
                         this.croppingPage.show();
-                        // On force une mise à jour du layout au cas où
                         this.croppingPage.croppingManager.refreshLayout();
                     });
                 }
-                // --- FIN DE LA CORRECTION ---
             } else if (tabId === 'description') {
-                if (!this.descriptionManager) {
-                    this.descriptionManager = new DescriptionManager(this);
-                }
-                if (this.currentGalleryId) {
-                    this.descriptionManager.show();
-                }
+                if (!this.descriptionManager) this.descriptionManager = new DescriptionManager(this);
+                if (this.currentGalleryId) this.descriptionManager.show();
             } else if (tabId === 'calendar') {
-                if (!this.calendarPage) {
-                    this.calendarPage = new CalendarPage(tabContent, this);
-                }
-                if (this.currentGalleryId) {
-                    this.calendarPage.buildCalendarUI();
-                }
+                if (!this.calendarPage) this.calendarPage = new CalendarPage(tabContent, this);
+                if (this.currentGalleryId) this.calendarPage.buildCalendarUI();
             }
         } else {
             this.tabs[0]?.classList.add('active');

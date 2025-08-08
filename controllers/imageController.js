@@ -104,7 +104,7 @@ exports.uploadImages = async (req, res) => {
     try {
         const galleryExists = await Gallery.findById(galleryId).select('_id').lean();
         if (!galleryExists) {
-            await Promise.all(req.files.map(f => fse.unlink(f.path).catch(() => {})));
+            await Promise.all(req.files.map(f => fse.unlink(f.path).catch(() => { })));
             return res.status(404).send(`Gallery with ID ${galleryId} not found.`);
         }
 
@@ -130,7 +130,7 @@ exports.uploadImages = async (req, res) => {
         if (filesToProcess.length === 0) {
             return res.status(200).json([]);
         }
-        
+
         const imageDocs = [];
         const processingPromises = filesToProcess.map(file => {
             const timestamp = Date.now();
@@ -163,7 +163,7 @@ exports.uploadImages = async (req, res) => {
         await Promise.all(processingPromises);
 
         const insertedDocs = await Image.insertMany(imageDocs, { ordered: false });
-        
+
         res.status(201).json(insertedDocs);
 
     } catch (error) {
