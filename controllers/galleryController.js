@@ -124,85 +124,56 @@ exports.getGalleryDetails = async (req, res) => {
         if (!mongoose.Types.ObjectId.isValid(galleryId)) {
             return res.status(400).send('Invalid Gallery ID format.');
         }
-        // OPTIMISATION: .select() pour ne prendre que les champs nécessaires
-        const gallery = await Gallery.findById(galleryId).select('owner name currentThumbSize sortOption activeTab nextJourIndex').lean();
+
+        // OPTIMISATION: .select() pour ne prendre que les champs nécessaires et .lean() pour la performance
+        const gallery = await Gallery.findById(galleryId)
+                                     .select('owner name currentThumbSize sortOption activeTab nextJourIndex')
+                                     .lean();
+
         if (!gallery) {
             return res.status(404).send('Gallery not found.');
         }
-        
-        // Sécurité : Vérifier que l'utilisateur est le propriétaire
+
+        // Sécurité : Vérifier que l'utilisateur est le propriétaire ou admin
         if (gallery.owner.toString() !== req.userData.userId) {
-            // Gérer le cas des admins qui peuvent voir tout
-            const user = await User.findById(req.userData.userId);
+            const user = await User.findById(req.userData.userId).select('role').lean();
             if (!user || user.role !== 'admin') {
                 return res.status(403).send('Access denied to this gallery.');
             }
         }
 
-        // Pagination conditionnelle : seulement si des paramètres de pagination sont fournis
-        const page = parseInt(req.query.page);
-        const limit = parseInt(req.query.limit);
-        const usePagination = page && limit;
-        
-        // OPTIMISATION: .select() ajouté pour alléger la requête. On exclut les champs non nécessaires pour l'affichage en grille.
-        let imagesQuery = Image.find({ galleryId: galleryId })
-                               .sort({ uploadDate: 1 })
-                               .select('-__v -mimeType -size') // Exclure des champs inutiles pour la grille
-                               .lean();
-        let imagesPromise, totalImagesPromise;
-        
-        if (usePagination) {
-            // Mode paginé (pour l'onglet Galeries)
-            const skip = (page - 1) * limit;
-            imagesPromise = imagesQuery.skip(skip).limit(limit);
-            totalImagesPromise = Image.countDocuments({ galleryId: galleryId });
-        } else {
-            // Mode complet (pour l'onglet Tri) - toutes les images
-            imagesPromise = imagesQuery;
-            totalImagesPromise = Promise.resolve(null); // Pas besoin de compter
-        }
-
-        // Mise à jour de lastAccessed et requêtes parallélisées
-        const [images, totalImages, jours, userGalleries] = await Promise.all([
-            imagesPromise,
-            totalImagesPromise,
-            Jour.find({ galleryId: galleryId })
-                 .populate({
-                     path: 'images.imageId',
-                     select: 'path thumbnailPath originalFilename isCroppedVersion parentImageId' // OPTIMISATION: Ne peupler que les champs utiles
-                 })
-                 .sort({ index: 1 })
+        // OPTIMISATION: Lancer toutes les requêtes de données en parallèle
+        const [images, jours, userGalleries, scheduleEntries, allJoursForUser] = await Promise.all([
+            Image.find({ galleryId: galleryId })
+                 .sort({ uploadDate: 1 })
+                 .select('-__v -mimeType -size') // Exclure des champs inutiles pour la grille
                  .lean(),
+            Jour.find({ galleryId: galleryId })
+                .populate({
+                    path: 'images.imageId',
+                    select: 'path thumbnailPath originalFilename isCroppedVersion parentImageId' // Ne peupler que les champs utiles
+                })
+                .sort({ index: 1 })
+                .lean(),
             Gallery.find({ owner: gallery.owner })
                    .select('_id name')
-                   .lean()
+                   .lean(),
+            // Logique de calendrier aussi en parallèle
+            Schedule.find({ owner: gallery.owner }).select('date jourLetter galleryId').lean(),
+            Jour.find({ owner: gallery.owner })
+                .populate({ path: 'images.imageId', select: 'thumbnailPath' })
+                .select('_id letter galleryId images')
+                .lean()
         ]);
 
-        // Mise à jour de lastAccessed en parallèle (non bloquant)
+        // Mise à jour de lastAccessed en arrière-plan (non bloquant)
         Gallery.findByIdAndUpdate(galleryId, { lastAccessed: new Date() }).exec();
 
-        // NOUVELLE LOGIQUE : Récupérer le calendrier pour tout l'utilisateur
-        const userGalleryIds = userGalleries.map(g => g._id);
+        // Traitement des données (rapide, car en mémoire)
         const galleryNameMap = userGalleries.reduce((acc, g) => {
             acc[g._id.toString()] = g.name;
             return acc;
         }, {});
-
-        // ▼▼▼ DÉBUT DE LA MODIFICATION IMPORTANTE ▼▼▼
-        const [scheduleEntries, allJoursForUser] = await Promise.all([
-            Schedule.find({ galleryId: { $in: userGalleryIds } }).select('date jourLetter galleryId').lean(),
-            // ▼▼▼ DÉBUT DE LA MODIFICATION ▼▼▼
-            // On retire l'option 'sort' qui faisait planter Mongoose
-            Jour.find({ galleryId: { $in: userGalleryIds } })
-                .populate({
-                    path: 'images.imageId',
-                    select: 'thumbnailPath'
-                })
-                .select('_id letter galleryId images')
-                .lean()
-            // ▲▲▲ FIN DE LA MODIFICATION ▲▲▲
-        ]);
-        // ▲▲▲ FIN DE LA MODIFICATION IMPORTANTE ▲▲▲
 
         const scheduleData = scheduleEntries.reduce((acc, entry) => {
             if (!acc[entry.date]) acc[entry.date] = {};
@@ -213,16 +184,11 @@ exports.getGalleryDetails = async (req, res) => {
             return acc;
         }, {});
 
-        // ▼▼▼ DÉBUT DE LA CORRECTION DÉFINITIVE ▼▼▼
         const joursForScheduling = allJoursForUser.map(j => {
-            // SÉCURITÉ : On trie le tableau d'images pour être certain d'avoir la première
             if (j.images && Array.isArray(j.images) && j.images.length > 1) {
                 j.images.sort((a, b) => (a.order || 0) - (b.order || 0));
             }
-
-            const firstImageEntry = j.images && j.images.length > 0 ? j.images[0] : null;
-            const firstImage = firstImageEntry ? firstImageEntry.imageId : null;
-
+            const firstImage = j.images && j.images.length > 0 ? j.images[0]?.imageId : null;
             return {
                 _id: j._id,
                 letter: j.letter,
@@ -231,28 +197,12 @@ exports.getGalleryDetails = async (req, res) => {
                 firstImageThumbnail: firstImage ? firstImage.thumbnailPath : null
             };
         });
-        // ▲▲▲ FIN DE LA CORRECTION DÉFINITIVE ▲▲▲
-
-
-        // Format de réponse adaptatif selon la pagination
-        let imagesResponse;
-        if (usePagination) {
-            // Format paginé pour l'onglet Galeries
-            imagesResponse = {
-                docs: images,
-                total: totalImages,
-                page: page,
-                limit: limit,
-                totalPages: Math.ceil(totalImages / limit)
-            };
-        } else {
-            // Format simple pour l'onglet Tri (toutes les images)
-            imagesResponse = images;
-        }
-
+                
+        // La pagination a été retirée de cette fonction car le frontend la gère maintenant séparément
+        // via la route /api/galleries/:galleryId/images. getGalleryDetails charge toutes les images pour l'onglet "Tri".
         res.json({
             galleryState: gallery,
-            images: imagesResponse,
+            images: images, // Renvoie le tableau complet
             jours: jours,
             schedule: scheduleData,
             scheduleContext: {
@@ -262,69 +212,39 @@ exports.getGalleryDetails = async (req, res) => {
 
     } catch (error) {
         console.error(`Error getting gallery details for ${galleryId}:`, error);
-        // On remet la gestion d'erreur standard
-        if (error.name === 'CastError' && error.kind === 'ObjectId') {
-             return res.status(400).send('Invalid Gallery ID format (CastError).');
-        }
         res.status(500).send('Server error getting gallery details.');
     }
 };
 
 // Mettre à jour l'état UI ET LE NOM de la galerie
 exports.updateGalleryState = async (req, res) => {
-    // ... (Logique inchangée, la vérification de propriété se fait dans getGalleryDetails)
-    // On pourrait ajouter une vérification ici aussi pour la sécurité.
     const { galleryId } = req.params;
-    const { name, currentThumbSize, sortOption, activeTab, nextJourIndex } = req.body;
+    const updateData = { ...req.body, lastAccessed: new Date() };
 
-    const updateData = {};
-    
-    if (name && typeof name === 'string' && name.trim() !== '') {
-        updateData.name = name.trim();
-    }
-    if (currentThumbSize && typeof currentThumbSize.width === 'number' && typeof currentThumbSize.height === 'number') {
-         updateData.currentThumbSize = currentThumbSize;
-    }
-    if (typeof sortOption === 'string') updateData.sortOption = sortOption;
-    if (typeof activeTab === 'string') updateData.activeTab = activeTab;
-    if (typeof nextJourIndex === 'number' && nextJourIndex >= 0) {
-         updateData.nextJourIndex = nextJourIndex;
-    }
+    // Nettoyer les champs non modifiables
+    delete updateData.owner;
+    delete updateData._id;
 
-    if (Object.keys(updateData).length === 0) {
-        return res.status(400).send('No valid update data provided for gallery state.');
+    if (Object.keys(updateData).length === 1 && 'lastAccessed' in updateData) {
+        return res.status(400).send('No valid update data provided.');
     }
-
-    updateData.lastAccessed = new Date(); 
 
     try {
-        if (!mongoose.Types.ObjectId.isValid(galleryId)) {
-            return res.status(400).send('Invalid Gallery ID format for update.');
-        }
-        
-        const gallery = await Gallery.findById(galleryId);
+        const gallery = await Gallery.findById(galleryId).select('owner');
         if (!gallery) {
             return res.status(404).send('Gallery not found for update.');
         }
         if (gallery.owner.toString() !== req.userData.userId) {
             return res.status(403).send('Access denied.');
         }
-
         const updatedGallery = await Gallery.findByIdAndUpdate(
             galleryId,
             { $set: updateData },
-            { new: true, runValidators: true } 
-        );
-
-        if (!updatedGallery) {
-            return res.status(404).send('Gallery not found for update.');
-        }
-        res.json(updatedGallery); 
+            { new: true, runValidators: true }
+        ).lean();
+        res.json(updatedGallery);
     } catch (error) {
         console.error(`Error updating gallery state for ${galleryId}:`, error);
-         if (error.name === 'CastError' && error.kind === 'ObjectId') {
-             return res.status(400).send('Invalid Gallery ID format (CastError for update).');
-        }
         res.status(500).send('Server error updating gallery state.');
     }
 };

@@ -9,7 +9,9 @@ const galleryController = require('../controllers/galleryController');
 const imageController = require('../controllers/imageController');
 const jourController = require('../controllers/jourController');
 const scheduleController = require('../controllers/scheduleController');
+const adminController = require('../controllers/adminController');
 const authMiddleware = require('../middleware/auth');
+const adminAuthMiddleware = require('../middleware/adminAuth');
 
 // --- Route d'Authentification ---
 router.post('/auth/google-signin', authController.googleSignIn);
@@ -101,5 +103,10 @@ router.get('/galleries/:galleryId/jours/:jourId/export', authMiddleware, jourCon
 // --- Routes Calendrier ---
 router.get('/galleries/:galleryId/schedule', authMiddleware, scheduleController.getScheduleForGallery);
 router.put('/galleries/:galleryId/schedule', authMiddleware, scheduleController.updateSchedule);
+
+// --- Routes Admin (protégées) ---
+router.get('/admin/users', authMiddleware, adminAuthMiddleware, adminController.listUsers);
+router.get('/admin/users/:userId/galleries', authMiddleware, adminAuthMiddleware, adminController.getGalleriesForUser);
+router.post('/auth/impersonate', authMiddleware, adminAuthMiddleware, adminController.impersonateUser);
 
 module.exports = router;

@@ -18,6 +18,12 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true,
     },
+    // NOUVEAU: Champ pour gérer les rôles (indispensable pour les fonctions admin)
+    role: {
+        type: String,
+        enum: ['user', 'admin'],
+        default: 'user'
+    },
     picture: {
         type: String,
     },

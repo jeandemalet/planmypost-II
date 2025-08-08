@@ -17,56 +17,48 @@ const os = require('os');
 const UPLOAD_DIR = path.join(__dirname, '..', 'uploads');
 const THUMB_SIZE = 150;
 
-// --- DÉBUT DE LA LOGIQUE D'OPTIMISATION (VERSION UNIQUE ET CORRECTE) ---
+// --- DÉBUT DE LA LOGIQUE D'OPTIMISATION (POOL DE WORKERS) ---
 
 // Création d'un pool de workers pour ne pas les recréer à chaque requête.
 // On prend la moitié des cœurs CPU disponibles pour ne pas saturer la machine.
 const NUM_WORKERS = Math.max(1, Math.floor(os.cpus().length / 2));
 const workers = [];
 const taskQueue = [];
-let activeTasks = 0;
+let workerIndex = 0;
+
+console.log(`🤖 Initializing image processing pool with ${NUM_WORKERS} worker(s).`);
 
 for (let i = 0; i < NUM_WORKERS; i++) {
-    // Note: Le fichier image-worker.js doit exister à la racine du projet.
-    const worker = new Worker(path.join(__dirname, '..', 'image-worker.js'));
+    const worker = new Worker(path.resolve(__dirname, '..', 'image-worker.js'));
     worker.on('message', (result) => {
-        const taskIndex = taskQueue.findIndex(t => t.data.tempPath === result.originalTempPath);
-        if (taskIndex > -1) {
-            const task = taskQueue.splice(taskIndex, 1)[0];
+        // Trouver la tâche correspondante dans la file et résoudre/rejeter la promesse
+        const task = taskQueue.shift();
+        if (task) {
             if (result.status === 'success') {
                 task.resolve(result);
             } else {
                 task.reject(new Error(result.message));
             }
         }
-        activeTasks--;
-        processNextTask();
     });
     worker.on('error', (err) => {
-        console.error('Worker error:', err);
+        console.error('Unhandled Worker error:', err);
         const task = taskQueue.shift();
         if (task) task.reject(err);
-        activeTasks--;
+    });
+    worker.on('exit', (code) => {
+        if (code !== 0) console.error(`Worker stopped with exit code ${code}`);
     });
     workers.push(worker);
 }
 
-function processNextTask() {
-    if (taskQueue.length > 0 && activeTasks < NUM_WORKERS) {
-        const workerIndex = activeTasks % NUM_WORKERS; // Simple round-robin
-        const task = taskQueue.find(t => !t.processing);
-        if (task) {
-            task.processing = true;
-            workers[workerIndex].postMessage(task.data);
-            activeTasks++;
-        }
-    }
-}
-
 function runImageProcessingTask(data) {
     return new Promise((resolve, reject) => {
-        taskQueue.push({ data, resolve, reject, processing: false });
-        processNextTask();
+        taskQueue.push({ resolve, reject });
+        // Distribution des tâches en mode round-robin
+        const currentWorker = workers[workerIndex];
+        currentWorker.postMessage(data);
+        workerIndex = (workerIndex + 1) % NUM_WORKERS;
     });
 }
 // --- FIN DE LA LOGIQUE D'OPTIMISATION ---
@@ -90,9 +82,9 @@ const getExifDateTime = (buffer) => {
     return null;
 };
 
-// VERSION OPTIMISÉE DE UPLOADIMAGES
+// VERSION ULTRA-OPTIMISÉE DE UPLOADIMAGES
 exports.uploadImages = async (req, res) => {
-    const galleryId = req.params.galleryId;
+    const { galleryId } = req.params;
 
     if (req.fileValidationError) {
         return res.status(400).send(req.fileValidationError);
@@ -104,13 +96,15 @@ exports.uploadImages = async (req, res) => {
     try {
         const galleryExists = await Gallery.findById(galleryId).select('_id').lean();
         if (!galleryExists) {
-            await Promise.all(req.files.map(f => fse.unlink(f.path).catch(() => { })));
+            // Nettoyer les fichiers temporaires si la galerie n'existe pas
+            await Promise.all(req.files.map(f => fse.unlink(f.path).catch(() => {})));
             return res.status(404).send(`Gallery with ID ${galleryId} not found.`);
         }
 
         const galleryUploadDir = path.join(UPLOAD_DIR, galleryId);
         await fse.ensureDir(galleryUploadDir);
 
+        // OPTIMISATION : Vérifier les doublons en une seule requête DB
         const originalFilenames = req.files.map(f => fixUTF8Encoding(f.originalname));
         const existingImages = await Image.find({
             galleryId: galleryId,
@@ -118,56 +112,65 @@ exports.uploadImages = async (req, res) => {
         }).select('originalFilename').lean();
         const existingFilenamesSet = new Set(existingImages.map(img => img.originalFilename));
 
-        const filesToProcess = req.files.filter(file => {
+        const filesToProcess = [];
+        const imageDocsToCreate = [];
+
+        req.files.forEach(file => {
             const correctedName = fixUTF8Encoding(file.originalname);
             if (existingFilenamesSet.has(correctedName)) {
+                // Fichier en double, on le supprime
                 fse.unlink(file.path).catch(e => console.error(`Cleanup failed for duplicate temp file ${file.path}:`, e));
-                return false;
+            } else {
+                filesToProcess.push(file);
+
+                // Préparer le document Mongoose
+                const timestamp = Date.now();
+                const safeOriginalName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
+                const uniqueFilename = `${timestamp}-${safeOriginalName}`;
+                const relativePath = path.join(galleryId, uniqueFilename);
+                const thumbFilename = `thumb-${uniqueFilename}`;
+                const relativeThumbPath = path.join(galleryId, thumbFilename);
+
+                imageDocsToCreate.push({
+                    galleryId: galleryId,
+                    originalFilename: correctedName,
+                    filename: uniqueFilename,
+                    path: relativePath,
+                    thumbnailPath: relativeThumbPath,
+                    mimeType: file.mimetype,
+                    size: file.size
+                });
             }
-            return true;
         });
 
         if (filesToProcess.length === 0) {
             return res.status(200).json([]);
         }
 
-        const imageDocs = [];
-        const processingPromises = filesToProcess.map(file => {
-            const timestamp = Date.now();
-            const safeOriginalName = file.originalname.replace(/[^a-zA-Z0-9._-]/g, '_');
-            const uniqueFilename = `${timestamp}-${safeOriginalName}`;
-            const relativePath = path.join(galleryId, uniqueFilename);
-            const thumbFilename = `thumb-${uniqueFilename}`;
-            const relativeThumbPath = path.join(galleryId, thumbFilename);
-
-            imageDocs.push({
-                galleryId: galleryId,
-                originalFilename: fixUTF8Encoding(file.originalname),
-                filename: uniqueFilename,
-                path: relativePath,
-                thumbnailPath: relativeThumbPath,
-                mimeType: file.mimetype,
-                size: file.size,
-                fileLastModified: (file.lastModifiedDate && !isNaN(new Date(file.lastModifiedDate))) ? new Date(file.lastModifiedDate) : new Date(),
-            });
-
+        // Lancer toutes les tâches de traitement d'image en parallèle via les workers
+        const processingPromises = filesToProcess.map((file, index) => {
+            const doc = imageDocsToCreate[index];
             return runImageProcessingTask({
                 tempPath: file.path,
-                originalTempPath: file.path,
-                finalPath: path.join(galleryUploadDir, uniqueFilename),
-                thumbPath: path.join(galleryUploadDir, thumbFilename),
+                originalTempPath: file.path, // Garder une référence
+                finalPath: path.join(UPLOAD_DIR, doc.path),
+                thumbPath: path.join(UPLOAD_DIR, doc.thumbnailPath),
                 thumbSize: THUMB_SIZE
             });
         });
 
+        // Attendre que TOUS les workers aient terminé
         await Promise.all(processingPromises);
 
-        const insertedDocs = await Image.insertMany(imageDocs, { ordered: false });
+        // OPTIMISATION : Insérer tous les documents en une seule opération
+        const insertedDocs = await Image.insertMany(imageDocsToCreate, { ordered: false });
 
         res.status(201).json(insertedDocs);
 
     } catch (error) {
-        console.error("[imageController] ERREUR GLOBALE dans le processus d'upload:", error);
+        console.error("Global error in upload process:", error);
+        // Nettoyer les fichiers temporaires restants en cas d'erreur globale
+        await Promise.all(req.files.map(f => fse.unlink(f.path).catch(() => {})));
         if (!res.headersSent) {
             res.status(500).send('Server error during image upload process.');
         }
@@ -209,10 +212,7 @@ exports.serveImage = async (req, res) => {
         const imageNameParam = req.params.imageName;
         const galleryIdParam = req.params.galleryId;
 
-        if (!imageNameParam || !galleryIdParam) {
-            return res.status(400).send('Missing image name or gallery ID.');
-        }
-
+        // SÉCURITÉ : Empêcher les attaques de type Path Traversal
         const cleanImageName = path.basename(imageNameParam);
         const cleanGalleryId = path.basename(galleryIdParam);
 
@@ -223,19 +223,23 @@ exports.serveImage = async (req, res) => {
 
         const imagePath = path.join(UPLOAD_DIR, cleanGalleryId, cleanImageName);
 
-        console.log(`[imageController] SERVING IMAGE: Tentative de servir ${imagePath}`);
-
-        try {
-            await fs.access(imagePath);
-            console.log(`[imageController] ✅ Fichier trouvé. Envoi de : ${imagePath}`);
-            res.sendFile(imagePath);
-        } catch (accessError) {
-            console.error(`[imageController] ❌ SERVE IMAGE FAILED: Fichier non trouvé à ${imagePath}: `, accessError);
-            res.status(404).send(`Image not found at path: ${cleanGalleryId}/${cleanImageName}.`);
-        }
+        // Utiliser fs.access est déprécié, on essaie directement d'envoyer
+        res.sendFile(imagePath, (err) => {
+            if (err) {
+                if (err.code === "ENOENT") {
+                    console.error(`SERVE IMAGE FAILED: File not found at ${imagePath}`);
+                    res.status(404).send('Image not found.');
+                } else {
+                    console.error(`Server error serving image ${imagePath}:`, err);
+                    res.status(500).send('Server error serving image.');
+                }
+            }
+        });
     } catch (error) {
-        console.error("[imageController] Erreur serveur en servant l'image:", error);
-        res.status(500).send('Server error serving image.');
+        console.error("Unexpected error in serveImage:", error);
+        if (!res.headersSent) {
+            res.status(500).send('Server error serving image.');
+        }
     }
 };
 

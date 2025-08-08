@@ -23,9 +23,12 @@ const MONGODB_URI = process.env.MONGODB_URI;
 
 // --- MIDDLEWARES DE BASE ---
 app.use(compression()); // <-- NOUVEAU: Activer la compression Gzip pour toutes les réponses
-app.use(cors());
-app.use(express.json({ limit: '500mb' }));
-app.use(express.urlencoded({ extended: true, limit: '500mb', parameterLimit: 100000 }));
+app.use(cors({
+    origin: true, // Adaptez pour la production si nécessaire
+    credentials: true
+}));
+app.use(express.json({ limit: '50mb' })); // Limite raisonnable pour les métadonnées
+app.use(express.urlencoded({ extended: true, limit: '50mb' }));
 app.use(cookieParser());
 
 
@@ -55,21 +58,28 @@ app.use('/api', apiRoutes);
 app.use(express.static(path.join(__dirname, 'public')));
 
 // 3. La route de "catch-all" pour l'application principale vient en DERNIER.
-//    Cette logique est améliorée pour rediriger si l'utilisateur n'est pas connecté.
+//    Logique améliorée pour rediriger si l'utilisateur n'est pas connecté.
 app.get('*', (req, res) => {
+    // Exclure les chemins qui ne doivent pas être gérés par cette logique (ex: API, fichiers statiques)
+    if (req.path.startsWith('/api/') || req.path.includes('.')) {
+        // Laissez express.static ou le routeur API gérer cela. Si on arrive ici, c'est une 404.
+        return res.status(404).send('Resource not found');
+    }
+
     const token = req.cookies.token;
-    
+
     if (!token) {
-        if (req.path === '/welcome.html') {
-            return res.sendFile(path.join(__dirname, 'public', 'welcome.html'));
-        }
+        // Pas de token, on redirige vers la page de connexion
         return res.redirect('/welcome.html');
     }
-    
+
     try {
+        // On vérifie que le token est valide
         jwt.verify(token, process.env.JWT_SECRET);
+        // Token valide, on sert l'application principale
         res.sendFile(path.join(__dirname, 'public', 'index.html'));
     } catch (error) {
+        // Token invalide ou expiré, on nettoie le cookie et on redirige
         res.clearCookie('token');
         res.redirect('/welcome.html');
     }
@@ -80,12 +90,16 @@ app.get('*', (req, res) => {
 const server = http.createServer(app);
 
 server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
+    // Nettoyer le dossier temporaire des uploads au démarrage
     const TEMP_UPLOAD_DIR = path.join(__dirname, 'temp_uploads');
-    fse.emptyDir(TEMP_UPLOAD_DIR).catch(err => console.error('Failed to clear temp upload dir:', err));
+    fse.emptyDir(TEMP_UPLOAD_DIR)
+       .then(() => console.log('🧹 Temp upload directory cleared.'))
+       .catch(err => console.error('Error clearing temp upload dir:', err));
 });
 
+// Augmenter le timeout pour les uploads volumineux
 const FIVE_MINUTES_IN_MS = 5 * 60 * 1000;
 server.setTimeout(FIVE_MINUTES_IN_MS);
-console.log(`HTTP server timeout is set to ${FIVE_MINUTES_IN_MS / 1000 / 60} minutes.`);
+console.log(`🕒 HTTP server timeout set to ${FIVE_MINUTES_IN_MS / 1000 / 60} minutes.`);
 
