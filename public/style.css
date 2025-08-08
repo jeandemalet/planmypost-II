@@ -2450,3 +2450,39 @@ button.small-cancel-btn:hover {
     color: #6c757d;
     white-space: nowrap;
 }
+
+/* ==========================================================
+   --- AJOUT: STYLES POUR LA LISTE DES JOURS REGROUPÉS ---
+   ========================================================== */
+
+.unscheduled-gallery-header {
+    margin-top: 15px;
+    padding: 8px 10px;
+    background-color: #e9ecef;
+    color: #495057;
+    font-weight: 600;
+    font-size: 0.9em;
+    border-radius: 4px;
+    border-bottom: 1px solid #dee2e6;
+    position: sticky;
+    top: -5px; /* Pour un effet "sticky" propre dans le conteneur */
+    z-index: 10;
+}
+
+#unscheduledJoursList .unscheduled-gallery-header:first-child {
+    margin-top: 0;
+}
+
+.unscheduled-jour-item-label {
+    font-size: 0.9em;
+    color: #343a40;
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* On retire le nom de la galerie de chaque item, car il est maintenant dans le header */
+.unscheduled-jour-item-gallery {
+    display: none;
+}

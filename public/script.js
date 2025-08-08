@@ -2832,73 +2832,86 @@ class CalendarPage {
             return;
         }
 
-        // Trier les jours non planifiés par ordre alphabétique pour avoir A en premier
-        unscheduled.sort((a, b) => a.letter.localeCompare(b.letter));
+        // --- DÉBUT DE LA NOUVELLE LOGIQUE DE REGROUPEMENT ET TRI ---
 
-        // --- DÉBUT DE LA LOGIQUE CORRIGÉE ---
-        unscheduled.forEach((jour, index) => {
-            const itemElement = document.createElement('div');
-            itemElement.className = 'unscheduled-jour-item';
-            itemElement.draggable = true;
-
-            const contentDiv = document.createElement('div');
-            contentDiv.className = 'unscheduled-jour-item-content';
-
-            const letterSpan = document.createElement('span');
-            letterSpan.className = 'unscheduled-jour-item-letter';
-            letterSpan.textContent = jour.letter;
-            const colorIndex = jour.letter.charCodeAt(0) - 'A'.charCodeAt(0);
-            letterSpan.style.backgroundColor = JOUR_COLORS[colorIndex % JOUR_COLORS.length];
-
-            const thumbDiv = document.createElement('div');
-            thumbDiv.className = 'unscheduled-jour-item-thumb';
-
-            // ▼▼▼ MODIFICATION ICI ▼▼▼
-            // Utilise la nouvelle propriété `firstImageThumbnail` fournie par le backend
-            if (jour.firstImageThumbnail) {
-                const thumbFilename = Utils.getFilenameFromURL(jour.firstImageThumbnail);
-                const thumbUrl = `${BASE_API_URL}/api/uploads/${jour.galleryId}/${thumbFilename}`;
-                thumbDiv.style.backgroundImage = `url(${thumbUrl})`;
-            } else {
-                thumbDiv.textContent = '...'; // Cas où le jour est vide
+        // 1. Regrouper les jours par galerie
+        const groupedByGallery = unscheduled.reduce((acc, jour) => {
+            if (!acc[jour.galleryId]) {
+                acc[jour.galleryId] = {
+                    name: jour.galleryName,
+                    jours: []
+                };
             }
-            // ▲▲▲ FIN DE LA MODIFICATION ▲▲▲
+            acc[jour.galleryId].jours.push(jour);
+            return acc;
+        }, {});
 
-            const gallerySpan = document.createElement('span');
-            gallerySpan.className = 'unscheduled-jour-item-gallery';
-            gallerySpan.textContent = jour.galleryName;
+        // 2. Trier les galeries par nom, puis les jours de chaque galerie par lettre
+        const sortedGalleryIds = Object.keys(groupedByGallery).sort((a, b) => 
+            groupedByGallery[a].name.localeCompare(groupedByGallery[b].name)
+        );
 
-            contentDiv.appendChild(letterSpan);
-            contentDiv.appendChild(thumbDiv);
-            contentDiv.appendChild(gallerySpan);
-            itemElement.appendChild(contentDiv);
+        sortedGalleryIds.forEach(galleryId => {
+            const galleryGroup = groupedByGallery[galleryId];
+            galleryGroup.jours.sort((a, b) => a.letter.localeCompare(b.letter));
 
-            itemElement.addEventListener('dragstart', e => this._onDragStart(e, { type: 'unscheduled', ...jour }, itemElement));
+            // 3. Créer et ajouter le header de la galerie
+            const galleryHeader = document.createElement('div');
+            galleryHeader.className = 'unscheduled-gallery-header';
+            galleryHeader.textContent = galleryGroup.name;
+            this.unscheduledJoursListElement.appendChild(galleryHeader);
 
-            // Ajouter un gestionnaire de clic pour sélectionner le jour dans l'onglet tri
-            itemElement.addEventListener('click', () => {
-                if (jour.galleryId === this.organizerApp.currentGalleryId) {
-                    const jourFrame = this.organizerApp.jourFrames.find(jf => jf.id === jour._id);
-                    if (jourFrame) {
-                        // Activer l'onglet tri et sélectionner ce jour
-                        this.organizerApp.activateTab('currentGallery');
-                        this.organizerApp.setCurrentJourFrame(jourFrame);
-                    }
+            // 4. Créer et ajouter les jours pour cette galerie
+            galleryGroup.jours.forEach(jour => {
+                const itemElement = document.createElement('div');
+                itemElement.className = 'unscheduled-jour-item';
+                itemElement.draggable = true;
+
+                const contentDiv = document.createElement('div');
+                contentDiv.className = 'unscheduled-jour-item-content';
+
+                const letterSpan = document.createElement('span');
+                letterSpan.className = 'unscheduled-jour-item-letter';
+                letterSpan.textContent = jour.letter;
+                const colorIndex = jour.letter.charCodeAt(0) - 'A'.charCodeAt(0);
+                letterSpan.style.backgroundColor = JOUR_COLORS[colorIndex % JOUR_COLORS.length];
+
+                const thumbDiv = document.createElement('div');
+                thumbDiv.className = 'unscheduled-jour-item-thumb';
+
+                if (jour.firstImageThumbnail) {
+                    const thumbFilename = Utils.getFilenameFromURL(jour.firstImageThumbnail);
+                    const thumbUrl = `${BASE_API_URL}/api/uploads/${jour.galleryId}/${thumbFilename}`;
+                    thumbDiv.style.backgroundImage = `url(${thumbUrl})`;
+                } else {
+                    thumbDiv.textContent = '...';
                 }
+
+                const jourLabelSpan = document.createElement('span');
+                jourLabelSpan.className = 'unscheduled-jour-item-label';
+                jourLabelSpan.textContent = `Jour ${jour.letter}`;
+
+                contentDiv.appendChild(letterSpan);
+                contentDiv.appendChild(thumbDiv);
+                contentDiv.appendChild(jourLabelSpan);
+                itemElement.appendChild(contentDiv);
+
+                itemElement.addEventListener('dragstart', e => this._onDragStart(e, { type: 'unscheduled', ...jour }, itemElement));
+
+                itemElement.addEventListener('click', () => {
+                    this.organizerApp.handleLoadGallery(jour.galleryId).then(() => {
+                        const jourFrame = this.organizerApp.jourFrames.find(jf => jf.id === jour._id);
+                        if (jourFrame) {
+                            this.organizerApp.activateTab('currentGallery');
+                            this.organizerApp.setCurrentJourFrame(jourFrame);
+                        }
+                    });
+                });
+
+                this.unscheduledJoursListElement.appendChild(itemElement);
             });
-
-            this.unscheduledJoursListElement.appendChild(itemElement);
-
-            // Sélectionner automatiquement le jour A par défaut si c'est le premier jour (A) et qu'on est dans l'onglet tri
-            if (index === 0 && jour.letter === 'A' && jour.galleryId === this.organizerApp.currentGalleryId && 
-                document.getElementById('currentGallery').classList.contains('active')) {
-                const jourFrame = this.organizerApp.jourFrames.find(jf => jf.id === jour._id);
-                if (jourFrame && !this.organizerApp.currentJourFrame) {
-                    this.organizerApp.setCurrentJourFrame(jourFrame);
-                }
-            }
         });
-        // --- FIN DE LA LOGIQUE CORRIGÉE ---
+        // --- FIN DE LA NOUVELLE LOGIQUE ---
     }
 
     // ▼▼▼ REMPLACEZ COMPLÈTEMENT VOTRE ANCIENNE FONCTION loadCalendarThumb PAR CELLE-CI ▼▼▼
