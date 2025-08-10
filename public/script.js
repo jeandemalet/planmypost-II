@@ -2403,50 +2403,10 @@ class DescriptionManager {
         this.editorTitleElement = document.getElementById('descriptionEditorTitle');
         this.editorContentElement = document.getElementById('descriptionEditorContent');
         this.editorPlaceholderElement = document.getElementById('descriptionEditorPlaceholder');
-        // NOUVEAU : Référence au nouvel éditeur
         this.editorElement = document.getElementById('descriptionEditor');
         this.imagesPreviewBanner = document.getElementById('descriptionImagesPreview');
-        // NOUVELLE LIGNE: Référence au conteneur des raccourcis
         this.shortcutsContainer = document.getElementById('descriptionShortcuts');
-        // NOUVELLE LIGNE : Référence au bouton de génération
         this.generateHashtagsBtn = document.getElementById('generateHashtagsBtn');
-
-        // Dictionnaire des mots-clés avec leur priorité et le hashtag correspondant
-        this.KEYWORD_HASHTAG_MAP = new Map([
-            // Thèmes & Styles (haute priorité)
-            ['mariage', { priority: 100, hashtag: 'photographemariage' }],
-            ['mariages', { priority: 100, hashtag: 'photographemariage' }],
-            ['portrait', { priority: 95, hashtag: 'portraitphotography' }],
-            ['portraits', { priority: 95, hashtag: 'portraitphotography' }],
-            ['boudoir', { priority: 90, hashtag: 'boudoir' }],
-            ['lifestyle', { priority: 85, hashtag: 'lifestylephotography' }],
-            ['mode', { priority: 85, hashtag: 'fashionphotography' }],
-            ['urbain', { priority: 80, hashtag: 'urbanphotography' }],
-            ['corporate', { priority: 80, hashtag: 'corporatephotography' }],
-            
-            // Lieux (priorité moyenne)
-            ['paris', { priority: 75, hashtag: 'parisphotographer' }],
-            ['lyon', { priority: 75, hashtag: 'lyonphotographer' }],
-            ['marseille', { priority: 75, hashtag: 'marseillephotographer' }],
-            ['chateau', { priority: 70, hashtag: 'chateau' }],
-            ['foret', { priority: 70, hashtag: 'foret' }],
-            ['plage', { priority: 70, hashtag: 'plage' }],
-            ['montagne', { priority: 70, hashtag: 'montagne' }],
-            
-            // Techniques & Ambiance (priorité moyenne)
-            ['noir et blanc', { priority: 65, hashtag: 'noiretblanc' }],
-            ['argentique', { priority: 60, hashtag: 'filmphotography' }],
-            ['lumiere naturelle', { priority: 60, hashtag: 'naturallight' }],
-            ['contre-jour', { priority: 60, hashtag: 'contrejour' }],
-            ['romantique', { priority: 55, hashtag: 'romantique' }],
-            ['intimiste', { priority: 55, hashtag: 'intimiste' }],
-            
-            // Couleurs (basse priorité)
-            ['rouge', { priority: 50, hashtag: 'red' }],
-            ['bleu', { priority: 50, hashtag: 'blue' }],
-            ['vert', { priority: 50, hashtag: 'green' }],
-            ['jaune', { priority: 50, hashtag: 'yellow' }],
-        ]);
 
         this.currentSelectedJourFrame = null;
         this.commonDescriptionText = '';
@@ -2458,7 +2418,6 @@ class DescriptionManager {
     }
 
     _initListeners() {
-        // Gère la saisie dans l'éditeur
         this.editorElement.addEventListener('input', () => {
             if (this.isEditingCommon) {
                 this.commonDescriptionText = this.editorElement.innerText;
@@ -2467,18 +2426,14 @@ class DescriptionManager {
                 this.currentSelectedJourFrame.descriptionText = this._extractTextFromEditor();
                 this.debouncedSaveJour();
             }
-            // Mettre à jour l'état des boutons à chaque saisie
             this._updateShortcutButtonsState();
         });
 
-        // NOUVEAU : Empêche la modification du bloc commun
         this.editorElement.addEventListener('keydown', (e) => {
             const selection = window.getSelection();
             if (selection.rangeCount > 0) {
                 const node = selection.getRangeAt(0).startContainer;
-                // Si le curseur est dans le bloc commun ou son texte, on bloque la plupart des touches
                 if (node.closest && node.closest('.common-text-block')) {
-                    // Autorise uniquement les flèches de navigation
                     if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
                         e.preventDefault();
                     }
@@ -2500,7 +2455,6 @@ class DescriptionManager {
             }
         });
 
-        // NOUVEAU: Gestion des clics sur les boutons de raccourcis
         this.shortcutsContainer.addEventListener('click', (e) => {
             const button = e.target.closest('button');
             if (button && button.dataset.snippet && !button.disabled) {
@@ -2508,7 +2462,6 @@ class DescriptionManager {
             }
         });
 
-        // NOUVEAU : Listener pour le bouton de génération de hashtags
         this.generateHashtagsBtn.addEventListener('click', () => {
             const text = this.editorElement.innerText;
             const hashtags = this._generateHashtags(text);
@@ -2518,7 +2471,6 @@ class DescriptionManager {
         });
     }
 
-    // NOUVELLE MÉTHODE: Générateur de hashtags intelligent
     _generateHashtags(text, options = {}) {
         const { numHashtags = 15, minLength = 3 } = options;
 
@@ -2580,22 +2532,14 @@ class DescriptionManager {
         return sortedKeywords.map(word => `#${word}`).join(' ');
     }
 
-    // MÉTHODE AMÉLIORÉE: Pour insérer le texte à la fin avec saut de ligne intelligent
     _insertSnippet(snippet) {
         this.editorElement.focus();
         let currentText = this.editorElement.innerText;
-
-        // Ajoute un retour à la ligne si le texte n'est pas vide
         let textToInsert = (currentText.trim().length > 0 ? '\n' : '') + snippet;
-
-        // Utilise la méthode moderne pour insérer le texte à la fin
         document.execCommand('insertText', false, textToInsert);
-
-        // Déclencher l'événement 'input' manuellement pour la sauvegarde
         this.editorElement.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
     }
 
-    // MÉTHODE AFFINÉE: Met à jour l'état des boutons par groupe
     _updateShortcutButtonsState() {
         const currentText = this.editorElement.innerText.toLowerCase();
         const allItems = this.shortcutsContainer.querySelectorAll('.shortcut-item');
@@ -2605,42 +2549,35 @@ class DescriptionManager {
             let keywordFound = false;
 
             buttons.forEach(button => {
-                // Extrait le mot-clé (ex: "Photographe", "Couturier")
-                const keyword = button.dataset.snippet.split(' ')[1].toLowerCase();
+                const snippet = button.dataset.snippet.toLowerCase();
+                const keyword = snippet.split(' ')[1];
                 if (currentText.includes(keyword)) {
                     keywordFound = true;
                 }
             });
 
-            // Désactive tous les boutons du groupe si un mot-clé correspondant est trouvé
             buttons.forEach(button => {
                 button.disabled = keywordFound;
             });
         });
     }
 
-    // NOUVEAU : Fonction pour extraire le texte en ignorant notre bloc spécial
     _extractTextFromEditor() {
         const tempDiv = this.editorElement.cloneNode(true);
-
-        // Si on a des zones structurées
-        const beforeZone = tempDiv.querySelector('.editable-zone[data-zone="before"]');
-        const afterZone = tempDiv.querySelector('.editable-zone[data-zone="after"]');
         const commonBlock = tempDiv.querySelector('.common-text-block');
 
-        if (beforeZone && afterZone && commonBlock) {
-            // Construire le texte avec les zones avant/après et le marqueur
+        const beforeZone = tempDiv.querySelector('.editable-zone[data-zone="before"]');
+        const afterZone = tempDiv.querySelector('.editable-zone[data-zone="after"]');
+
+        if (beforeZone && afterZone) {
             const beforeText = beforeZone.innerText.trim();
             const afterText = afterZone.innerText.trim();
-
             let result = '';
             if (beforeText) result += beforeText + '\n';
             result += '{{COMMON_TEXT}}';
             if (afterText) result += '\n' + afterText;
-
             return result;
         } else {
-            // Logique classique pour la compatibilité
             if (commonBlock) {
                 commonBlock.replaceWith(document.createTextNode('{{COMMON_TEXT}}'));
             }
@@ -2660,13 +2597,10 @@ class DescriptionManager {
             return;
         }
         this.populateLists();
-
-        // Par défaut, on sélectionne l'onglet commun
         this.selectCommon();
     }
 
     populateLists() {
-        // Liste principale (Commun)
         this.mainListElement.innerHTML = '';
         const liCommon = document.createElement('li');
         liCommon.className = 'jour-list-item main-item';
@@ -2676,13 +2610,11 @@ class DescriptionManager {
         }
         this.mainListElement.appendChild(liCommon);
 
-        // Liste des jours spécifiques
         const activeId = this.isEditingCommon ? null : (this.currentSelectedJourFrame ? this.currentSelectedJourFrame.id : null);
         this.organizerApp._populateSharedJourList(this.jourListElement, activeId, 'description');
     }
 
     async selectCommon() {
-        // Sauvegarder immédiatement si on était en train d'éditer un jour spécifique
         if (!this.isEditingCommon && this.currentSelectedJourFrame) {
             await this.saveCurrentJourDescription();
         }
@@ -2694,12 +2626,9 @@ class DescriptionManager {
     }
 
     async selectJour(jourFrame) {
-        // Sauvegarder immédiatement si on était en train d'éditer la description commune
         if (this.isEditingCommon) {
             await this.saveCommonDescription();
-        }
-        // Ou si on était en train d'éditer un autre jour
-        else if (this.currentSelectedJourFrame && this.currentSelectedJourFrame.id !== jourFrame.id) {
+        } else if (this.currentSelectedJourFrame && this.currentSelectedJourFrame.id !== jourFrame.id) {
             await this.saveCurrentJourDescription();
         }
 
@@ -2711,19 +2640,15 @@ class DescriptionManager {
 
     loadCommonDescription() {
         this.editorTitleElement.textContent = `Description Commune pour "${this.organizerApp.getCurrentGalleryName()}"`;
-
-        // ▼▼▼ CORRECTION ICI ▼▼▼
-        this.editorElement.contentEditable = true; // L'éditeur principal est modifiable
+        this.editorElement.contentEditable = true;
         this.editorElement.classList.remove('structured');
-        this.editorElement.innerHTML = ''; // Toujours vider avant d'ajouter
-        this.editorElement.innerText = this.commonDescriptionText; // Utiliser innerText pour la sécurité
-        // ▲▲▲ FIN DE LA CORRECTION ▲▲▲
+        this.editorElement.innerHTML = '';
+        this.editorElement.innerText = this.commonDescriptionText;
 
         this.editorContentElement.style.display = 'block';
         this.editorPlaceholderElement.style.display = 'none';
         this.imagesPreviewBanner.style.display = 'none';
         this.imagesPreviewBanner.innerHTML = '';
-        // AFFICHER les raccourcis
         this.shortcutsContainer.style.display = 'flex';
         this._updateShortcutButtonsState();
     }
@@ -2735,32 +2660,28 @@ class DescriptionManager {
         }
         this.editorTitleElement.textContent = `Description pour Jour ${jourFrame.letter}`;
 
-        const jourText = jourFrame.descriptionText;
+        const jourText = jourFrame.descriptionText || '';
+        const isEffectivelyEmpty = jourText.trim() === '' || jourText.trim() === '{{COMMON_TEXT}}';
 
         const escapedCommonText = this.commonDescriptionText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const commonBlockHTML = `<div class="common-text-block" contenteditable="false">${escapedCommonText}</div>`;
 
-        this.editorElement.innerHTML = ''; // Vider l'éditeur
+        this.editorElement.innerHTML = '';
 
-        // ▼▼▼ CORRECTION ICI ▼▼▼
-        if (jourText) {
-            this.editorElement.contentEditable = true; // Parent éditable
-            this.editorElement.classList.remove('structured');
-            const finalHTML = jourText.replace(/{{COMMON_TEXT}}/g, commonBlockHTML);
-            this.editorElement.innerHTML = finalHTML.replace(/\n/g, '<br>');
-        } else {
-            // Pour un jour vide, on structure explicitement avec des zones éditables
-            this.editorElement.contentEditable = false; // Le parent n'est pas éditable
+        if (isEffectivelyEmpty) {
+            this.editorElement.contentEditable = false;
             this.editorElement.classList.add('structured');
-            // ▼▼▼ CORRECTION : Ajout des sauts de lignes visuels par défaut ▼▼▼
             this.editorElement.innerHTML = `
                 <div class="editable-zone" contenteditable="true" data-zone="before"><br></div>
                 ${commonBlockHTML}
-                <div class="editable-zone" contenteditable="true" data-zone="after"><br></div>
+                <div class="editable-zone" contenteditable="true" data-zone="after"></div>
             `;
-            // ▲▲▲ FIN DE LA CORRECTION ▲▲▲
+        } else {
+            this.editorElement.contentEditable = true;
+            this.editorElement.classList.remove('structured');
+            const finalHTML = jourText.replace(/{{COMMON_TEXT}}/g, commonBlockHTML);
+            this.editorElement.innerHTML = finalHTML.replace(/\n/g, '<br>');
         }
-        // ▲▲▲ FIN DE LA CORRECTION ▲▲▲
 
         this.editorContentElement.style.display = 'block';
         this.editorPlaceholderElement.style.display = 'none';
@@ -2779,7 +2700,6 @@ class DescriptionManager {
         } else {
             this.imagesPreviewBanner.style.display = 'none';
         }
-        // AFFICHER les raccourcis
         this.shortcutsContainer.style.display = 'flex';
         this._updateShortcutButtonsState();
     }
@@ -2797,7 +2717,6 @@ class DescriptionManager {
             this.imagesPreviewBanner.innerHTML = '';
             this.imagesPreviewBanner.style.display = 'none';
         }
-        // CACHER les raccourcis
         this.shortcutsContainer.style.display = 'none';
     }
 
@@ -2815,7 +2734,6 @@ class DescriptionManager {
         if (!app.currentGalleryId) return;
         if (!isDebounced) this.debouncedSaveCommon.cancel();
 
-        // La variable `this.commonDescriptionText` a déjà été mise à jour par l'event listener 'input'
         try {
             await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/state`, {
                 method: 'PUT',
@@ -2827,13 +2745,10 @@ class DescriptionManager {
         }
     }
 
-    // NOUVEAU : Méthode appelée quand on quitte l'onglet Description
     async saveOnTabExit() {
         if (this.isEditingCommon) {
-            // On était en train d'éditer la description commune
             await this.saveCommonDescription();
         } else if (this.currentSelectedJourFrame) {
-            // On était en train d'éditer un jour spécifique
             await this.saveCurrentJourDescription();
         }
     }

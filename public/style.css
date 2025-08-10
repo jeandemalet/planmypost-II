@@ -2725,3 +2725,82 @@ button.small-cancel-btn:hover {
 .description-shortcuts .action-button:hover:not(:disabled) {
     background-color: #0056b3;
 }
+/* ====
+======================================================
+   --- MISE À JOUR (V3): MISE EN PAGE DE L'ÉDITEUR DE DESCRIPTION ---
+   ========================================================== */
+
+.description-editor-area {
+    flex-grow: 1;
+    display: flex;
+    gap: 15px;
+    min-width: 0; /* Correction pour flexbox */
+}
+
+#descriptionEditorPanel {
+    flex-grow: 1;
+    min-width: 0; /* Correction pour flexbox */
+}
+
+.description-shortcuts {
+    display: none; /* Caché par défaut, affiché par JS */
+    flex-direction: column;
+    gap: 8px;
+    width: 260px; /* Largeur de la colonne de droite */
+    min-width: 240px;
+    padding-left: 15px;
+    border-left: 1px solid #dee2e6;
+    height: 100%;
+    overflow-y: auto;
+}
+
+.shortcut-item {
+    display: flex;
+    gap: 8px;
+}
+
+.shortcut-item button {
+    background-color: #f0f2f5;
+    border: 1px solid #ced4da;
+    color: #343a40;
+    font-size: 0.9em;
+    padding: 8px 14px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background-color 0.2s, border-color 0.2s, opacity 0.2s;
+    text-align: left;
+    flex-grow: 1;
+    justify-content: flex-start;
+}
+
+.shortcut-item.is-pair button {
+    flex-basis: 50%;
+}
+
+.description-shortcuts button:hover:not(:disabled) {
+    background-color: #e2e6ea;
+    border-color: #adb5bd;
+}
+
+.description-shortcuts button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #e9ecef;
+}
+
+.shortcut-item-separator {
+    width: 100%;
+    height: 1px;
+    background-color: #e9ecef;
+    margin: 8px 0;
+}
+
+.description-shortcuts .action-button {
+    background-color: #007bff;
+    color: white;
+    font-weight: 500;
+}
+
+.description-shortcuts .action-button:hover:not(:disabled) {
+    background-color: #0056b3;
+}

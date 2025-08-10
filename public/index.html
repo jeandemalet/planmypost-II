@@ -273,78 +273,67 @@
         </div>
 
         <div id="description" class="tab-content">
+            <!-- ▼▼▼ REMPLACEZ TOUT LE BLOC <div class="description-layout"> PAR CELUI-CI ▼▼▼ -->
             <div class="description-layout">
                 <div id="descriptionJourListPanel">
-                    <!-- NOUVEAU : Liste pour l'onglet principal "Commun" -->
-                    <ul id="descriptionMainList">
-                        <!-- L'onglet "Commun" sera généré ici par JS -->
-                    </ul>
-                    <!-- NOUVEAU : Séparateur visuel -->
+                    <ul id="descriptionMainList"></ul>
                     <h4 class="jour-list-separator">Jours Spécifiques</h4>
-                    <!-- La liste des jours (A, B, C...) reste ici -->
-                    <ul id="descriptionJourList">
-                    </ul>
+                    <ul id="descriptionJourList"></ul>
                 </div>
-                <div id="descriptionEditorPanel">
-                    <h3 id="descriptionEditorTitle">Sélectionnez un jour pour éditer sa description</h3>
-                    <div id="descriptionEditorContent" style="display: none;">
-                        <div id="descriptionImagesPreview" class="images-preview-banner"></div>
-                        <div class="description-fields">
-                            <label for="descriptionEditor">Texte de la publication:</label>
-                            <!-- ▼▼▼ REMPLACÉ LE <textarea> PAR CE <div> ▼▼▼ -->
-                            <div id="descriptionEditor" contenteditable="true" class="custom-editor"
-                                 role="textbox" aria-multiline="true" data-placeholder="Écrivez votre description ici..."></div>
-                            <!-- ▲▲▲ FIN DU REMPLACEMENT ▲▲▲ -->
+                
+                <!-- Nouveau conteneur pour l'éditeur et la colonne de raccourcis -->
+                <div class="description-editor-area">
+                    <div id="descriptionEditorPanel">
+                        <h3 id="descriptionEditorTitle">Sélectionnez un jour pour éditer sa description</h3>
+                        <div id="descriptionEditorContent" style="display: none;">
+                            <div id="descriptionImagesPreview" class="images-preview-banner"></div>
+                            <div class="description-fields">
+                                <label for="descriptionEditor">Texte de la publication:</label>
+                                <div id="descriptionEditor" contenteditable="true" class="custom-editor"
+                                     role="textbox" aria-multiline="true" data-placeholder="Écrivez votre description ici..."></div>
+                            </div>
+                        </div>
+                        <p id="descriptionEditorPlaceholder">Aucun jour sélectionné.</p>
+                    </div>
+                    
+                    <!-- Le bloc de raccourcis est maintenant ici, à côté de l'éditeur -->
+                    <div id="descriptionShortcuts" class="description-shortcuts">
+                        <div class="shortcut-item">
+                            <button data-snippet="📸 Photographe : ">📸 Photographe</button>
+                        </div>
+                        <div class="shortcut-item is-pair">
+                            <button data-snippet="🧵 Couturier : ">🧵 Couturier</button>
+                            <button data-snippet="🧵 Couturière : ">🧵 Couturière</button>
+                        </div>
+                        <div class="shortcut-item is-pair">
+                            <button data-snippet="✨ Assistant : ">✨ Assistant</button>
+                            <button data-snippet="✨ Assistante : ">✨ Assistante</button>
                         </div>
                         
-                        <!-- ▼▼▼ VERSION SIMPLIFIÉE DES BOUTONS DE RACCOURCIS ▼▼▼ -->
-                        <div id="descriptionShortcuts" class="description-shortcuts">
-                            <!-- Option simple -->
-                            <div class="shortcut-item">
-                                <button data-snippet="📸 Photographe : ">📸 Photographe</button>
-                            </div>
-                            <!-- Option double (M/F) -->
-                            <div class="shortcut-item is-pair">
-                                <button data-snippet="🧵 Couturier : ">🧵 Couturier</button>
-                                <button data-snippet="🧵 Couturière : ">🧵 Couturière</button>
-                            </div>
-                            <!-- Option double (M/F) -->
-                            <div class="shortcut-item is-pair">
-                                <button data-snippet="✨ Assistant : ">✨ Assistant</button>
-                                <button data-snippet="✨ Assistante : ">✨ Assistante</button>
-                            </div>
-                            <!-- Option double (M/F) -->
-                            <div class="shortcut-item is-pair">
-                                <button data-snippet="💄 Maquilleur : ">💄 Maquilleur</button>
-                                <button data-snippet="💄 Maquilleuse : ">💄 Maquilleuse</button>
-                            </div>
-                            <!-- Option double (M/F) -->
-                            <div class="shortcut-item is-pair">
-                                <button data-snippet="✂️ Coiffeur : ">✂️ Coiffeur</button>
-                                <button data-snippet="✂️ Coiffeuse : ">✂️ Coiffeuse</button>
-                            </div>
-                            <!-- Option simple -->
-                            <div class="shortcut-item">
-                                <button data-snippet="💃 Sujet(s) : ">💃 Sujet(s)</button>
-                            </div>
-                            <!-- Option simple -->
-                            <div class="shortcut-item">
-                                <button data-snippet="📍 Lieu : ">📍 Lieu</button>
-                            </div>
-                            
-                            <!-- SÉPARATEUR VISUEL -->
-                            <div class="shortcut-item-separator"></div>
-                            
-                            <!-- BOUTON DE GÉNÉRATION -->
-                            <div class="shortcut-item">
-                                <button id="generateHashtagsBtn" class="action-button">🤖 Générer les Hashtags</button>
-                            </div>
+                        <div class="shortcut-item is-pair">
+                            <button data-snippet="💄 Maquilleur : ">💄 Maquilleur</button>
+                            <button data-snippet="💄 Maquilleuse : ">💄 Maquilleuse</button>
                         </div>
-                        <!-- ▲▲▲ FIN DE LA VERSION SIMPLIFIÉE ▲▲▲ -->
+                        
+                        <div class="shortcut-item is-pair">
+                            <button data-snippet="✂️ Coiffeur : ">✂️ Coiffeur</button>
+                            <button data-snippet="✂️ Coiffeuse : ">✂️ Coiffeuse</button>
+                        </div>
+                        <div class="shortcut-item">
+                            <button data-snippet="💃 Sujet(s) : ">💃 Sujet(s)</button>
+                        </div>
+                        
+                        <div class="shortcut-item">
+                            <button data-snippet="📍 Lieu : ">📍 Lieu</button>
+                        </div>
+                        <div class="shortcut-item-separator"></div>
+                        <div class="shortcut-item">
+                           <button id="generateHashtagsBtn" class="action-button">🤖 Générer les Hashtags</button>
+                        </div>
                     </div>
-                    <p id="descriptionEditorPlaceholder">Aucun jour sélectionné.</p>
                 </div>
             </div>
+            <!-- ▲▲▲ FIN DU REMPLACEMENT ▲▲▲ -->
         </div>
 
         <div id="calendar" class="tab-content">
