@@ -127,7 +127,7 @@ exports.getGalleryDetails = async (req, res) => {
 
         // OPTIMISATION: .select() pour ne prendre que les champs nécessaires et .lean() pour la performance
         const gallery = await Gallery.findById(galleryId)
-                                     .select('owner name currentThumbSize sortOption activeTab nextJourIndex')
+                                     .select('owner name currentThumbSize sortOption activeTab nextJourIndex commonDescriptionText')
                                      .lean();
 
         if (!gallery) {

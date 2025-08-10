@@ -16,6 +16,11 @@ const GallerySchema = new mongoose.Schema({
         trim: true,
         default: () => `Galerie du ${new Date().toLocaleDateString('fr-FR')}`
     },
+    // NOUVEAU : Champ pour la description commune
+    commonDescriptionText: {
+        type: String,
+        default: ''
+    },
     createdAt: {
         type: Date,
         default: Date.now

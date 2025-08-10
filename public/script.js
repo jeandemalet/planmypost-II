@@ -99,11 +99,19 @@ class Utils {
 
     static debounce(func, delay) {
         let timeout;
-        return function (...args) {
+        const debouncedFunction = function (...args) {
             const context = this;
             clearTimeout(timeout);
             timeout = setTimeout(() => func.apply(context, args), delay);
         };
+
+        // Ajouter la méthode cancel pour annuler les appels en attente
+        debouncedFunction.cancel = function () {
+            clearTimeout(timeout);
+            timeout = null;
+        };
+
+        return debouncedFunction;
     }
 
     static downloadDataURL(dataURL, filename) {
@@ -682,7 +690,7 @@ class JourFrameBackend {
         // Gère à la fois les documents bruts de l'API (avec _id) et les instances
         // de la classe GridItemBackend (avec id).
         const id = imageDoc._id || imageDoc.id;
-        
+
         return {
             imageId: id,
             originalReferencePath: imageDoc.parentImageId || id,
@@ -988,7 +996,7 @@ class AutoCropper {
                         if (imgData.isCropped) {
                             // Il s'agit d'une image recadrée, nous devons la restaurer à l'originale.
                             const originalGridItem = this.organizerApp.gridItemsDict[imgData.originalReferencePath];
-                            
+
                             if (originalGridItem) {
                                 // On reconstruit manuellement l'objet de données pour le Jour
                                 // en utilisant les propriétés de l'instance GridItemBackend de l'original.
@@ -1504,14 +1512,14 @@ class CroppingManager {
     _handleResize() {
         // [LOG] Log pour tracer le redimensionnement du canvas
         console.log('[CroppingManager] _handleResize() appelé.');
-        
+
         // Vérification de la taille du conteneur pour éviter le layout thrashing
         const container = this.canvasElement.parentElement;
         if (!container || container.clientHeight < 100) {
             console.warn(`[CroppingManager] _handleResize() stoppé car le conteneur est trop petit ou non visible (${container ? container.clientHeight : 'null'}px).`);
             return;
         }
-        
+
         if (!this.canvasElement.offsetParent || !this.currentImageObject) {
             console.warn('[CroppingManager] _handleResize() stoppé : canvas non visible ou pas d\'image chargée.');
             return;
@@ -1733,25 +1741,25 @@ class CroppingManager {
 
         try {
             this.imagesToCrop = images;
-        this.currentJourFrameInstance = callingJourFrame;
-        this.currentImageIndex = startIndex;
-        this.modifiedDataMap = {};
-        this.saveMode = 'crop';
-        this.croppingPage.showEditor();
-        this.setCanvasDimensions();
-        this.isDragging = false;
-        this.dragMode = null;
-        this.canvasElement.style.cursor = 'crosshair';
-        this.splitModeState = 0;
-        this.showSplitLineCount = 0;
-        this.splitLineBtn.title = "Diviser l'image pour un carrousel";
-        this.splitLineBtn.classList.remove('active-crop-btn');
-        this.aspectRatioSelect.disabled = false;
-        this.whiteBarsBtn.disabled = false;
-        this.whiteBarsBtn.classList.remove('active-crop-btn');
-        this.aspectRatioSelect.value = '3:4';
-        this.currentAspectRatioName = '3:4';
-        await this.loadCurrentImage();
+            this.currentJourFrameInstance = callingJourFrame;
+            this.currentImageIndex = startIndex;
+            this.modifiedDataMap = {};
+            this.saveMode = 'crop';
+            this.croppingPage.showEditor();
+            this.setCanvasDimensions();
+            this.isDragging = false;
+            this.dragMode = null;
+            this.canvasElement.style.cursor = 'crosshair';
+            this.splitModeState = 0;
+            this.showSplitLineCount = 0;
+            this.splitLineBtn.title = "Diviser l'image pour un carrousel";
+            this.splitLineBtn.classList.remove('active-crop-btn');
+            this.aspectRatioSelect.disabled = false;
+            this.whiteBarsBtn.disabled = false;
+            this.whiteBarsBtn.classList.remove('active-crop-btn');
+            this.aspectRatioSelect.value = '3:4';
+            this.currentAspectRatioName = '3:4';
+            await this.loadCurrentImage();
         } finally {
             this.isLoading = false; // Déverrouiller, même en cas d'erreur
         }
@@ -2390,22 +2398,98 @@ class CroppingManager {
 class DescriptionManager {
     constructor(organizerApp) {
         this.organizerApp = organizerApp;
-        this.descriptionTabContent = document.getElementById('description');
+        this.mainListElement = document.getElementById('descriptionMainList');
         this.jourListElement = document.getElementById('descriptionJourList');
         this.editorTitleElement = document.getElementById('descriptionEditorTitle');
         this.editorContentElement = document.getElementById('descriptionEditorContent');
         this.editorPlaceholderElement = document.getElementById('descriptionEditorPlaceholder');
-        this.descriptionTextElement = document.getElementById('descriptionText');
+        // NOUVEAU : Référence au nouvel éditeur
+        this.editorElement = document.getElementById('descriptionEditor');
         this.imagesPreviewBanner = document.getElementById('descriptionImagesPreview');
+        // NOUVELLE LIGNE: Référence au conteneur des raccourcis
+        this.shortcutsContainer = document.getElementById('descriptionShortcuts');
+        // NOUVELLE LIGNE : Référence au bouton de génération
+        this.generateHashtagsBtn = document.getElementById('generateHashtagsBtn');
+
+        // Dictionnaire des mots-clés avec leur priorité et le hashtag correspondant
+        this.KEYWORD_HASHTAG_MAP = new Map([
+            // Thèmes & Styles (haute priorité)
+            ['mariage', { priority: 100, hashtag: 'photographemariage' }],
+            ['mariages', { priority: 100, hashtag: 'photographemariage' }],
+            ['portrait', { priority: 95, hashtag: 'portraitphotography' }],
+            ['portraits', { priority: 95, hashtag: 'portraitphotography' }],
+            ['boudoir', { priority: 90, hashtag: 'boudoir' }],
+            ['lifestyle', { priority: 85, hashtag: 'lifestylephotography' }],
+            ['mode', { priority: 85, hashtag: 'fashionphotography' }],
+            ['urbain', { priority: 80, hashtag: 'urbanphotography' }],
+            ['corporate', { priority: 80, hashtag: 'corporatephotography' }],
+            
+            // Lieux (priorité moyenne)
+            ['paris', { priority: 75, hashtag: 'parisphotographer' }],
+            ['lyon', { priority: 75, hashtag: 'lyonphotographer' }],
+            ['marseille', { priority: 75, hashtag: 'marseillephotographer' }],
+            ['chateau', { priority: 70, hashtag: 'chateau' }],
+            ['foret', { priority: 70, hashtag: 'foret' }],
+            ['plage', { priority: 70, hashtag: 'plage' }],
+            ['montagne', { priority: 70, hashtag: 'montagne' }],
+            
+            // Techniques & Ambiance (priorité moyenne)
+            ['noir et blanc', { priority: 65, hashtag: 'noiretblanc' }],
+            ['argentique', { priority: 60, hashtag: 'filmphotography' }],
+            ['lumiere naturelle', { priority: 60, hashtag: 'naturallight' }],
+            ['contre-jour', { priority: 60, hashtag: 'contrejour' }],
+            ['romantique', { priority: 55, hashtag: 'romantique' }],
+            ['intimiste', { priority: 55, hashtag: 'intimiste' }],
+            
+            // Couleurs (basse priorité)
+            ['rouge', { priority: 50, hashtag: 'red' }],
+            ['bleu', { priority: 50, hashtag: 'blue' }],
+            ['vert', { priority: 50, hashtag: 'green' }],
+            ['jaune', { priority: 50, hashtag: 'yellow' }],
+        ]);
+
         this.currentSelectedJourFrame = null;
-        this.debouncedSave = Utils.debounce(() => this.saveCurrentDescription(), 1500);
+        this.commonDescriptionText = '';
+        this.isEditingCommon = true;
+
+        this.debouncedSaveJour = Utils.debounce(() => this.saveCurrentJourDescription(true), 1500);
+        this.debouncedSaveCommon = Utils.debounce(() => this.saveCommonDescription(true), 1500);
         this._initListeners();
     }
 
     _initListeners() {
-        this.descriptionTextElement.addEventListener('input', () => {
-            if (!this.currentSelectedJourFrame) return;
-            this.debouncedSave();
+        // Gère la saisie dans l'éditeur
+        this.editorElement.addEventListener('input', () => {
+            if (this.isEditingCommon) {
+                this.commonDescriptionText = this.editorElement.innerText;
+                this.debouncedSaveCommon();
+            } else if (this.currentSelectedJourFrame) {
+                this.currentSelectedJourFrame.descriptionText = this._extractTextFromEditor();
+                this.debouncedSaveJour();
+            }
+            // Mettre à jour l'état des boutons à chaque saisie
+            this._updateShortcutButtonsState();
+        });
+
+        // NOUVEAU : Empêche la modification du bloc commun
+        this.editorElement.addEventListener('keydown', (e) => {
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0) {
+                const node = selection.getRangeAt(0).startContainer;
+                // Si le curseur est dans le bloc commun ou son texte, on bloque la plupart des touches
+                if (node.closest && node.closest('.common-text-block')) {
+                    // Autorise uniquement les flèches de navigation
+                    if (!['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+                        e.preventDefault();
+                    }
+                }
+            }
+        });
+
+        this.mainListElement.addEventListener('click', (e) => {
+            if (e.target.closest('li')) {
+                this.selectCommon();
+            }
         });
 
         this.jourListElement.addEventListener('click', (e) => {
@@ -2415,40 +2499,233 @@ class DescriptionManager {
                 if (jourFrame) this.selectJour(jourFrame);
             }
         });
+
+        // NOUVEAU: Gestion des clics sur les boutons de raccourcis
+        this.shortcutsContainer.addEventListener('click', (e) => {
+            const button = e.target.closest('button');
+            if (button && button.dataset.snippet && !button.disabled) {
+                this._insertSnippet(button.dataset.snippet);
+            }
+        });
+
+        // NOUVEAU : Listener pour le bouton de génération de hashtags
+        this.generateHashtagsBtn.addEventListener('click', () => {
+            const text = this.editorElement.innerText;
+            const hashtags = this._generateHashtags(text);
+            if (hashtags) {
+                this._insertSnippet('\n\n' + hashtags);
+            }
+        });
+    }
+
+    // NOUVELLE MÉTHODE: Générateur de hashtags intelligent
+    _generateHashtags(text, options = {}) {
+        const { numHashtags = 15, minLength = 3 } = options;
+
+        // Liste de mots à ignorer (français + termes génériques de photo)
+        const stopWords = new Set([
+            'a', 'afin', 'ai', 'aie', 'aient', 'aies', 'ait', 'alors', 'apres', 'as', 'au',
+            'aucun', 'aura', 'aurai', 'auraient', 'aurais', 'aurait', 'auras', 'aurez',
+            'auriez', 'aurions', 'aurons', 'auront', 'aussi', 'autre', 'autres', 'aux',
+            'avaient', 'avais', 'avait', 'avant', 'avec', 'avez', 'aviez', 'avions',
+            'avons', 'ayant', 'ayante', 'ayantes', 'ayants', 'ayez', 'ayons', 'bon', 'car',
+            'ce', 'ceci', 'cela', 'celle', 'celles', 'celui', 'cependant', 'certain',
+            'certaine', 'certaines', 'certains', 'ces', 'cet', 'cette', 'ceux', 'chaque',
+            'ci', 'comme', 'comment', 'd', 'dans', 'de', 'dedans', 'dehors', 'depuis',
+            'des', 'deux', 'devrait', 'doit', 'donc', 'dont', 'du', 'elle', 'elles',
+            'en', 'encore', 'es', 'est', 'et', 'etaient', 'etais', 'etait', 'etant',
+            'etante', 'etantes', 'etants', 'ete', 'etee', 'etees', 'etes', 'etes', 'eti',
+            'etiez', 'etions', 'etions', 'eu', 'eue', 'eues', 'eumes', 'eurent', 'eus',
+            'eusse', 'eussent', 'eusses', 'eussiez', 'eussions', 'eut', 'eutes', 'eux',
+            'faire', 'fais', 'fait', 'faites', 'fois', 'font', 'furent', 'fus', 'fusse',
+            'fussent', 'fusses', 'fussiez', 'fussions', 'fut', 'futes', 'ici', 'il', 'ils',
+            'j', 'je', 'juste', 'l', 'la', 'le', 'les', 'leur', 'leurs', 'lui', 'm', 'ma',
+            'mais', 'me', 'meme', 'memes', 'mes', 'mien', 'mienne', 'miennes', 'miens',
+            'moi', 'moins', 'mon', 'n', 'ne', 'nos', 'notre', 'notres', 'nous', 'on', 'ont',
+            'ou', 'par', 'parce', 'pas', 'peut', 'peu', 'plupart', 'pour', 'pourquoi',
+            'qu', 'quand', 'que', 'quel', 'quelle', 'quelles', 'quels', 'qui', 's', 'sa',
+            'sans', 'se', 'sera', 'serai', 'seraient', 'serais', 'serait', 'seras',
+            'serez', 'seriez', 'serions', 'serons', 'seront', 'ses', 'soi', 'soient',
+            'sois', 'soit', 'sommes', 'son', 'sont', 'soyez', 'soyons', 'suis', 'sur',
+            't', 'ta', 'te', 'tes', 'toi', 'ton', 'tous', 'tout', 'tres', 'tu', 'un',
+            'une', 'va', 'vais', 'vas', 'vers', 'voient', 'vois', 'voit', 'vont', 'vos',
+            'votre', 'votres', 'vous', 'vu', 'y',
+            // Mots liés à la photo à exclure
+            'photo', 'photos', 'photographe', 'photographie', 'image', 'images', 'picture', 'art',
+            'assistante', 'assistant', 'sujet', 'sujets', 'couturiere', 'couturieres'
+        ]);
+
+        // 1. Nettoyage et normalisation
+        const cleanedText = text
+            .toLowerCase()
+            .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Enlève les accents
+            .replace(/[^\w\s]/g, ' ') // Enlève la ponctuation
+            .replace(/\s+/g, ' '); // Remplace les espaces multiples par un seul
+
+        // 2. Tokenisation, filtrage et comptage
+        const wordCounts = cleanedText.split(' ').reduce((acc, word) => {
+            if (word.length >= minLength && !stopWords.has(word) && isNaN(word)) {
+                acc[word] = (acc[word] || 0) + 1;
+            }
+            return acc;
+        }, {});
+
+        // 3. Classement et sélection
+        const sortedKeywords = Object.keys(wordCounts)
+            .sort((a, b) => wordCounts[b] - wordCounts[a])
+            .slice(0, numHashtags);
+
+        // 4. Formatage
+        if (sortedKeywords.length === 0) return '';
+        return sortedKeywords.map(word => `#${word}`).join(' ');
+    }
+
+    // MÉTHODE AMÉLIORÉE: Pour insérer le texte à la fin avec saut de ligne intelligent
+    _insertSnippet(snippet) {
+        this.editorElement.focus();
+        let currentText = this.editorElement.innerText;
+
+        // Ajoute un retour à la ligne si le texte n'est pas vide
+        let textToInsert = (currentText.trim().length > 0 ? '\n' : '') + snippet;
+
+        // Utilise la méthode moderne pour insérer le texte à la fin
+        document.execCommand('insertText', false, textToInsert);
+
+        // Déclencher l'événement 'input' manuellement pour la sauvegarde
+        this.editorElement.dispatchEvent(new Event('input', { bubbles: true, cancelable: true }));
+    }
+
+    // MÉTHODE AFFINÉE: Met à jour l'état des boutons par groupe
+    _updateShortcutButtonsState() {
+        const currentText = this.editorElement.innerText.toLowerCase();
+        const allItems = this.shortcutsContainer.querySelectorAll('.shortcut-item');
+
+        allItems.forEach(item => {
+            const buttons = item.querySelectorAll('button[data-snippet]');
+            let keywordFound = false;
+
+            buttons.forEach(button => {
+                // Extrait le mot-clé (ex: "Photographe", "Couturier")
+                const keyword = button.dataset.snippet.split(' ')[1].toLowerCase();
+                if (currentText.includes(keyword)) {
+                    keywordFound = true;
+                }
+            });
+
+            // Désactive tous les boutons du groupe si un mot-clé correspondant est trouvé
+            buttons.forEach(button => {
+                button.disabled = keywordFound;
+            });
+        });
+    }
+
+    // NOUVEAU : Fonction pour extraire le texte en ignorant notre bloc spécial
+    _extractTextFromEditor() {
+        const tempDiv = this.editorElement.cloneNode(true);
+
+        // Si on a des zones structurées
+        const beforeZone = tempDiv.querySelector('.editable-zone[data-zone="before"]');
+        const afterZone = tempDiv.querySelector('.editable-zone[data-zone="after"]');
+        const commonBlock = tempDiv.querySelector('.common-text-block');
+
+        if (beforeZone && afterZone && commonBlock) {
+            // Construire le texte avec les zones avant/après et le marqueur
+            const beforeText = beforeZone.innerText.trim();
+            const afterText = afterZone.innerText.trim();
+
+            let result = '';
+            if (beforeText) result += beforeText + '\n';
+            result += '{{COMMON_TEXT}}';
+            if (afterText) result += '\n' + afterText;
+
+            return result;
+        } else {
+            // Logique classique pour la compatibilité
+            if (commonBlock) {
+                commonBlock.replaceWith(document.createTextNode('{{COMMON_TEXT}}'));
+            }
+            return tempDiv.innerText;
+        }
+    }
+
+    setCommonDescription(text) {
+        this.commonDescriptionText = text || '';
     }
 
     show() {
         if (!app.currentGalleryId) {
             this.jourListElement.innerHTML = '<li>Chargez une galerie pour voir ses jours.</li>';
+            this.mainListElement.innerHTML = '';
             this.clearEditor();
             return;
         }
-        this.populateJourList();
-        if (!this.currentSelectedJourFrame && this.organizerApp.jourFrames.length > 0) {
-            this.selectJour(this.organizerApp.jourFrames[0]);
-        } else if (this.currentSelectedJourFrame) {
-            const stillExists = this.organizerApp.jourFrames.find(jf => jf.id === this.currentSelectedJourFrame.id);
-            if (stillExists) {
-                this.loadDescriptionForJour(this.currentSelectedJourFrame);
-            } else {
-                this.clearEditor();
-                if (this.organizerApp.jourFrames.length > 0) {
-                    this.selectJour(this.organizerApp.jourFrames[0]);
-                }
-            }
-        } else {
-            this.clearEditor();
+        this.populateLists();
+
+        // Par défaut, on sélectionne l'onglet commun
+        this.selectCommon();
+    }
+
+    populateLists() {
+        // Liste principale (Commun)
+        this.mainListElement.innerHTML = '';
+        const liCommon = document.createElement('li');
+        liCommon.className = 'jour-list-item main-item';
+        liCommon.innerHTML = `<span class="jour-list-item-text">Description Commune</span>`;
+        if (this.isEditingCommon) {
+            liCommon.classList.add('active-description-jour');
         }
+        this.mainListElement.appendChild(liCommon);
+
+        // Liste des jours spécifiques
+        const activeId = this.isEditingCommon ? null : (this.currentSelectedJourFrame ? this.currentSelectedJourFrame.id : null);
+        this.organizerApp._populateSharedJourList(this.jourListElement, activeId, 'description');
     }
 
-    populateJourList() {
-        this.organizerApp._populateSharedJourList(this.jourListElement, this.currentSelectedJourFrame ? this.currentSelectedJourFrame.id : null, 'description');
+    async selectCommon() {
+        // Sauvegarder immédiatement si on était en train d'éditer un jour spécifique
+        if (!this.isEditingCommon && this.currentSelectedJourFrame) {
+            await this.saveCurrentJourDescription();
+        }
+
+        this.isEditingCommon = true;
+        this.currentSelectedJourFrame = null;
+        this.populateLists();
+        this.loadCommonDescription();
     }
 
-    selectJour(jourFrame) {
+    async selectJour(jourFrame) {
+        // Sauvegarder immédiatement si on était en train d'éditer la description commune
+        if (this.isEditingCommon) {
+            await this.saveCommonDescription();
+        }
+        // Ou si on était en train d'éditer un autre jour
+        else if (this.currentSelectedJourFrame && this.currentSelectedJourFrame.id !== jourFrame.id) {
+            await this.saveCurrentJourDescription();
+        }
+
+        this.isEditingCommon = false;
         this.currentSelectedJourFrame = jourFrame;
-        this.populateJourList();
+        this.populateLists();
         this.loadDescriptionForJour(jourFrame);
+    }
+
+    loadCommonDescription() {
+        this.editorTitleElement.textContent = `Description Commune pour "${this.organizerApp.getCurrentGalleryName()}"`;
+
+        // ▼▼▼ CORRECTION ICI ▼▼▼
+        this.editorElement.contentEditable = true; // L'éditeur principal est modifiable
+        this.editorElement.classList.remove('structured');
+        this.editorElement.innerHTML = ''; // Toujours vider avant d'ajouter
+        this.editorElement.innerText = this.commonDescriptionText; // Utiliser innerText pour la sécurité
+        // ▲▲▲ FIN DE LA CORRECTION ▲▲▲
+
+        this.editorContentElement.style.display = 'block';
+        this.editorPlaceholderElement.style.display = 'none';
+        this.imagesPreviewBanner.style.display = 'none';
+        this.imagesPreviewBanner.innerHTML = '';
+        // AFFICHER les raccourcis
+        this.shortcutsContainer.style.display = 'flex';
+        this._updateShortcutButtonsState();
     }
 
     loadDescriptionForJour(jourFrame) {
@@ -2457,7 +2734,34 @@ class DescriptionManager {
             return;
         }
         this.editorTitleElement.textContent = `Description pour Jour ${jourFrame.letter}`;
-        this.descriptionTextElement.value = jourFrame.descriptionText || '';
+
+        const jourText = jourFrame.descriptionText;
+
+        const escapedCommonText = this.commonDescriptionText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const commonBlockHTML = `<div class="common-text-block" contenteditable="false">${escapedCommonText}</div>`;
+
+        this.editorElement.innerHTML = ''; // Vider l'éditeur
+
+        // ▼▼▼ CORRECTION ICI ▼▼▼
+        if (jourText) {
+            this.editorElement.contentEditable = true; // Parent éditable
+            this.editorElement.classList.remove('structured');
+            const finalHTML = jourText.replace(/{{COMMON_TEXT}}/g, commonBlockHTML);
+            this.editorElement.innerHTML = finalHTML.replace(/\n/g, '<br>');
+        } else {
+            // Pour un jour vide, on structure explicitement avec des zones éditables
+            this.editorElement.contentEditable = false; // Le parent n'est pas éditable
+            this.editorElement.classList.add('structured');
+            // ▼▼▼ CORRECTION : Ajout des sauts de lignes visuels par défaut ▼▼▼
+            this.editorElement.innerHTML = `
+                <div class="editable-zone" contenteditable="true" data-zone="before"><br></div>
+                ${commonBlockHTML}
+                <div class="editable-zone" contenteditable="true" data-zone="after"><br></div>
+            `;
+            // ▲▲▲ FIN DE LA CORRECTION ▲▲▲
+        }
+        // ▲▲▲ FIN DE LA CORRECTION ▲▲▲
+
         this.editorContentElement.style.display = 'block';
         this.editorPlaceholderElement.style.display = 'none';
 
@@ -2475,33 +2779,62 @@ class DescriptionManager {
         } else {
             this.imagesPreviewBanner.style.display = 'none';
         }
+        // AFFICHER les raccourcis
+        this.shortcutsContainer.style.display = 'flex';
+        this._updateShortcutButtonsState();
     }
 
     clearEditor() {
         this.editorTitleElement.textContent = "Sélectionnez un jour";
-        this.descriptionTextElement.value = '';
+        this.editorElement.innerHTML = '';
+        this.editorElement.classList.remove('structured');
         this.currentSelectedJourFrame = null;
+        this.isEditingCommon = true;
         this.editorContentElement.style.display = 'none';
         this.editorPlaceholderElement.textContent = "Aucun jour sélectionné, ou la galerie n'a pas de jours.";
         this.editorPlaceholderElement.style.display = 'block';
-        this.jourListElement.querySelectorAll('.active-description-jour').forEach(li => li.classList.remove('active-description-jour'));
         if (this.imagesPreviewBanner) {
             this.imagesPreviewBanner.innerHTML = '';
             this.imagesPreviewBanner.style.display = 'none';
         }
+        // CACHER les raccourcis
+        this.shortcutsContainer.style.display = 'none';
     }
 
-    async saveCurrentDescription() {
-        if (!this.currentSelectedJourFrame || !app.currentGalleryId) {
-            return;
-        }
+    async saveCurrentJourDescription(isDebounced = false) {
+        if (!this.currentSelectedJourFrame || !app.currentGalleryId) return;
+        if (!isDebounced) this.debouncedSaveJour.cancel();
 
         const jourToUpdate = this.currentSelectedJourFrame;
-        jourToUpdate.descriptionText = this.descriptionTextElement.value;
+        jourToUpdate.descriptionText = this._extractTextFromEditor();
+        await jourToUpdate.save();
+        this.organizerApp.refreshSidePanels();
+    }
 
-        const success = await jourToUpdate.save();
-        if (success) {
-            this.organizerApp.refreshSidePanels();
+    async saveCommonDescription(isDebounced = false) {
+        if (!app.currentGalleryId) return;
+        if (!isDebounced) this.debouncedSaveCommon.cancel();
+
+        // La variable `this.commonDescriptionText` a déjà été mise à jour par l'event listener 'input'
+        try {
+            await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/state`, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ commonDescriptionText: this.commonDescriptionText })
+            });
+        } catch (error) {
+            console.error("Error saving common description:", error);
+        }
+    }
+
+    // NOUVEAU : Méthode appelée quand on quitte l'onglet Description
+    async saveOnTabExit() {
+        if (this.isEditingCommon) {
+            // On était en train d'éditer la description commune
+            await this.saveCommonDescription();
+        } else if (this.currentSelectedJourFrame) {
+            // On était en train d'éditer un jour spécifique
+            await this.saveCurrentJourDescription();
         }
     }
 }
@@ -2591,7 +2924,7 @@ class CalendarPage {
 
         const scheduleData = this.organizerApp.scheduleContext.schedule;
         const existingJours = new Set();
-        
+
         // Créer un Set des jours qui existent encore dans la galerie actuelle
         if (this.organizerApp.jourFrames) {
             this.organizerApp.jourFrames.forEach(jourFrame => {
@@ -2611,7 +2944,7 @@ class CalendarPage {
             for (const letter in daySchedule) {
                 const itemData = daySchedule[letter];
                 const jourKey = `${itemData.galleryId}_${letter}`;
-                
+
                 // Si ce jour n'existe plus dans la galerie actuelle, le marquer pour suppression
                 if (itemData.galleryId === this.organizerApp.currentGalleryId && !existingJours.has(jourKey)) {
                     lettersToRemove.push(letter);
@@ -2645,7 +2978,7 @@ class CalendarPage {
                 }
                 return true; // Garder les jours des autres galeries
             });
-            
+
             const cleanedFromAllUserJours = originalLength - this.organizerApp.scheduleContext.allUserJours.length;
             if (cleanedFromAllUserJours > 0) {
                 removedCount += cleanedFromAllUserJours;
@@ -2655,7 +2988,7 @@ class CalendarPage {
         // Log et sauvegarde si des éléments ont été supprimés
         if (removedCount > 0) {
             console.log(`[CalendarPage.cleanupNonExistentJours] Supprimé ${removedCount} référence(s) de jour(s) inexistant(s) du calendrier`);
-            
+
             // Sauvegarder les changements
             this.organizerApp.saveAppState();
         }
@@ -2664,7 +2997,7 @@ class CalendarPage {
     buildCalendarUI() {
         // Nettoyer les jours inexistants du calendrier avant de construire l'UI
         this.cleanupNonExistentJours();
-        
+
         this.calendarGridElement.innerHTML = '';
         if (!app || !app.currentGalleryId) {
             this.calendarGridElement.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 20px;">Chargez une galerie pour voir le calendrier.</p>';
@@ -2847,7 +3180,7 @@ class CalendarPage {
         }, {});
 
         // 2. Trier les galeries par nom, puis les jours de chaque galerie par lettre
-        const sortedGalleryIds = Object.keys(groupedByGallery).sort((a, b) => 
+        const sortedGalleryIds = Object.keys(groupedByGallery).sort((a, b) =>
             groupedByGallery[a].name.localeCompare(groupedByGallery[b].name)
         );
 
@@ -3369,7 +3702,7 @@ class PublicationOrganizer {
             this.croppingPage.populateJourList();
         }
         if (this.descriptionManager && document.getElementById('description').classList.contains('active')) {
-            this.descriptionManager.populateJourList();
+            this.descriptionManager.populateLists();
         }
     }
 
@@ -3483,7 +3816,7 @@ class PublicationOrganizer {
         if (this.descriptionManager) {
             if (noGalleryActive) {
                 this.descriptionManager.clearEditor();
-                this.descriptionManager.populateJourList();
+                this.descriptionManager.populateLists();
             } else if (descriptionTabContent.classList.contains('active')) {
                 this.descriptionManager.show();
             }
@@ -3505,8 +3838,15 @@ class PublicationOrganizer {
         }
         // --- FIN DE LA NOUVELLE LOGIQUE ---
 
-        // Détecter si on quitte l'onglet "currentGallery" (tri) pour supprimer les jours vides
+        // Détecter l'onglet actuellement actif
         const currentActiveTab = document.querySelector('.tab-content.active');
+
+        // Si on quitte l'onglet "description", sauvegarder immédiatement
+        if (currentActiveTab && currentActiveTab.id === 'description' && tabId !== 'description' && this.descriptionManager) {
+            await this.descriptionManager.saveOnTabExit();
+        }
+
+        // Détecter si on quitte l'onglet "currentGallery" (tri) pour supprimer les jours vides
         if (currentActiveTab && currentActiveTab.id === 'currentGallery' && tabId !== 'currentGallery') {
             this.removeEmptyJours();
         }
@@ -3626,7 +3966,7 @@ class PublicationOrganizer {
         this.galleryPreviewNameElement.textContent = galleryName;
         this.galleryPreviewGridElement.innerHTML = '<p>Chargement des images...</p>';
         this.galleriesUploadProgressContainer.style.display = 'none';
-        
+
         // Marquer comme nouvelle galerie (style discret)
         const galleryPreviewArea = document.getElementById('galleryPreviewArea');
         if (isNewGallery) {
@@ -3635,7 +3975,7 @@ class PublicationOrganizer {
                 galleryPreviewArea.classList.remove('gallery-just-created');
             }, 5000);
         }
-        
+
         this.galleriesListElement.querySelectorAll('.gallery-list-item').forEach(item => {
             item.classList.remove('selected-for-preview');
             if (item.dataset.galleryId === galleryId) {
@@ -3719,7 +4059,7 @@ class PublicationOrganizer {
                     text-align: center;
                     width: 100%;
                 `;
-                
+
                 const addPhotosBtn = document.createElement('button');
                 addPhotosBtn.innerHTML = '<img src="assets/add-button.png" alt="Icône ajouter" class="btn-icon"> Ajouter des Photos';
                 addPhotosBtn.className = 'add-photos-preview-btn add-btn-green';
@@ -3733,10 +4073,10 @@ class PublicationOrganizer {
                         this.imageSelectorInput.click();
                     }
                 };
-                
+
                 emptyContainer.appendChild(addPhotosBtn);
                 this.galleryPreviewGridElement.appendChild(emptyContainer);
-                
+
                 // Marquer la grille comme vide pour les styles CSS
                 this.galleryPreviewGridElement.classList.remove('has-photos');
             }
@@ -3870,7 +4210,7 @@ class PublicationOrganizer {
         if (!newGalleryItem) return;
 
         const finalName = galleryName || `Galerie du ${new Date().toLocaleDateString('fr-FR')}`;
-        
+
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries`, {
                 method: 'POST',
@@ -3880,16 +4220,16 @@ class PublicationOrganizer {
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status} - ${await response.text()}`);
             const newGallery = await response.json();
             this.galleryCache[newGallery._id] = newGallery.name;
-            
+
             // Supprimer l'élément temporaire
             newGalleryItem.remove();
-            
+
             // Recharger la liste (qui sera triée alphabétiquement)
             await this.loadGalleriesList();
-            
+
             // Sélectionner la nouvelle galerie avec animation
             this.showGalleryPreview(newGallery._id, newGallery.name, true);
-            
+
             if (!this.currentGalleryId) {
                 this.handleLoadGallery(newGallery._id);
             } else {
@@ -4009,7 +4349,7 @@ class PublicationOrganizer {
                     // Nouveau format paginé : on prend seulement les docs, pas de pagination ici
                     imagesToLoad = data.images.docs;
                 }
-                
+
                 if (imagesToLoad.length > 0) {
                     this.addImagesToGrid(imagesToLoad);
                     this.sortGridItemsAndReflow();
@@ -4022,7 +4362,7 @@ class PublicationOrganizer {
                     this.jourFrames.push(newJourFrame);
                 });
                 this.recalculateNextJourIndex();
-                
+
                 // Sélectionner automatiquement le jour A par défaut s'il existe
                 if (!this.currentJourFrame) {
                     const jourA = this.jourFrames.find(jf => jf.letter === 'A');
@@ -4037,6 +4377,12 @@ class PublicationOrganizer {
                     }
                 }
             }
+            // ▼▼▼ AJOUT : Chargement de la description commune ▼▼▼
+            if (this.descriptionManager) {
+                this.descriptionManager.setCommonDescription(data.galleryState.commonDescriptionText || '');
+            }
+            // ▲▲▲ FIN DE L'AJOUT ▲▲▲
+
             this.scheduleContext = {
                 schedule: data.schedule || {},
                 allUserJours: data.scheduleContext.allUserJours || []
@@ -4421,7 +4767,7 @@ class PublicationOrganizer {
 
     sortGridItemsAndReflow() {
         let sortValue = this.sortOptionsSelect.value;
-        
+
         // Si aucune option n'est sélectionnée (placeholder), utiliser le tri par défaut
         if (!sortValue || sortValue === '') {
             sortValue = 'name_asc';
@@ -4584,7 +4930,7 @@ class PublicationOrganizer {
             this.jourFramesContainer.appendChild(newJourFrame.element);
             this.jourFrames.push(newJourFrame);
             this.jourFrames.sort((a, b) => a.index - b.index);
-            
+
             // Sélectionner automatiquement le nouveau jour, surtout si c'est le jour A
             this.setCurrentJourFrame(newJourFrame);
             this.recalculateNextJourIndex();
@@ -4661,14 +5007,14 @@ class PublicationOrganizer {
 
     // Nouvelle fonction pour supprimer automatiquement les jours vides
     async removeEmptyJours() {
-        const emptyJours = this.jourFrames.filter(jourFrame => 
+        const emptyJours = this.jourFrames.filter(jourFrame =>
             !jourFrame.imagesData || jourFrame.imagesData.length === 0
         );
 
         if (emptyJours.length === 0) return;
 
-        console.log(`[removeEmptyJours] Suppression automatique de ${emptyJours.length} jour(s) vide(s):`, 
-                   emptyJours.map(j => j.letter).join(', '));
+        console.log(`[removeEmptyJours] Suppression automatique de ${emptyJours.length} jour(s) vide(s):`,
+            emptyJours.map(j => j.letter).join(', '));
 
         // Supprimer chaque jour vide sans demander confirmation
         for (const jourFrame of emptyJours) {
@@ -4676,18 +5022,18 @@ class PublicationOrganizer {
             if (index > -1) {
                 await jourFrame.destroy();
                 this.jourFrames.splice(index, 1);
-                
+
                 // Si le jour supprimé était le jour actuel, sélectionner un autre jour
                 if (this.currentJourFrame === jourFrame) {
-                    this.setCurrentJourFrame(this.jourFrames[index] || this.jourFrames[index - 1] || 
-                                           (this.jourFrames.length > 0 ? this.jourFrames[0] : null));
+                    this.setCurrentJourFrame(this.jourFrames[index] || this.jourFrames[index - 1] ||
+                        (this.jourFrames.length > 0 ? this.jourFrames[0] : null));
                 }
 
                 // Nettoyer le calendrier si nécessaire
                 if (this.calendarPage) {
                     const datesToRemove = [];
                     for (const dateStr in this.scheduleContext.schedule) {
-                        if (this.scheduleContext.schedule[dateStr][jourFrame.letter] && 
+                        if (this.scheduleContext.schedule[dateStr][jourFrame.letter] &&
                             this.scheduleContext.schedule[dateStr][jourFrame.letter].galleryId === jourFrame.galleryId) {
                             datesToRemove.push(new Date(dateStr + 'T00:00:00'));
                         }
