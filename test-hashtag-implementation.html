@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test - Assistant Hashtags</title>
+    <style>
+        body { font-family: Arial, sans-serif; padding: 20px; }
+        .test-container { max-width: 600px; margin: 0 auto; }
+        .test-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background-color: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+    </style>
+</head>
+<body>
+    <div class="test-container">
+        <h1>🧪 Test de l'Assistant Hashtags</h1>
+        
+        <div class="test-section">
+            <h3>1. Vérification des éléments HTML</h3>
+            <div id="html-check"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>2. Vérification des styles CSS</h3>
+            <div id="css-check"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>3. Vérification de la classe HashtagManager</h3>
+            <div id="js-check"></div>
+        </div>
+        
+        <div class="test-section">
+            <h3>4. Test de la librairie NLP.js</h3>
+            <div id="nlp-check"></div>
+        </div>
+    </div>
+
+    <script>
+        // Test 1: Vérification des éléments HTML
+        function checkHTML() {
+            const elements = [
+                'hashtagModal',
+                'hashtagContainer', 
+                'insertHashtagsBtn',
+                'cancelHashtagsBtn'
+            ];
+            
+            let results = [];
+            elements.forEach(id => {
+                const element = document.getElementById(id);
+                if (element) {
+                    results.push(`✅ ${id} trouvé`);
+                } else {
+                    results.push(`❌ ${id} manquant`);
+                }
+            });
+            
+            document.getElementById('html-check').innerHTML = 
+                `<div class="${results.every(r => r.includes('✅')) ? 'success' : 'error'}">${results.join('<br>')}</div>`;
+        }
+        
+        // Test 2: Vérification des styles CSS
+        function checkCSS() {
+            const modal = document.getElementById('hashtagModal');
+            if (!modal) {
+                document.getElementById('css-check').innerHTML = 
+                    '<div class="error">❌ Impossible de tester les styles - modal manquante</div>';
+                return;
+            }
+            
+            const styles = window.getComputedStyle(modal);
+            const hasCorrectStyles = styles.position === 'fixed' && styles.zIndex === '2000';
+            
+            document.getElementById('css-check').innerHTML = 
+                `<div class="${hasCorrectStyles ? 'success' : 'warning'}">
+                    ${hasCorrectStyles ? '✅' : '⚠️'} Styles CSS ${hasCorrectStyles ? 'corrects' : 'partiels'}
+                </div>`;
+        }
+        
+        // Test 3: Vérification de la classe HashtagManager
+        function checkJS() {
+            try {
+                const hasHashtagManager = typeof HashtagManager !== 'undefined';
+                const hasDescriptionManager = typeof DescriptionManager !== 'undefined';
+                
+                document.getElementById('js-check').innerHTML = 
+                    `<div class="${hasHashtagManager && hasDescriptionManager ? 'success' : 'error'}">
+                        ${hasHashtagManager ? '✅' : '❌'} HashtagManager ${hasHashtagManager ? 'disponible' : 'manquant'}<br>
+                        ${hasDescriptionManager ? '✅' : '❌'} DescriptionManager ${hasDescriptionManager ? 'disponible' : 'manquant'}
+                    </div>`;
+            } catch (error) {
+                document.getElementById('js-check').innerHTML = 
+                    `<div class="error">❌ Erreur lors de la vérification JS: ${error.message}</div>`;
+            }
+        }
+        
+        // Test 4: Vérification de NLP.js
+        function checkNLP() {
+            const hasNLP = typeof nlpjs !== 'undefined';
+            document.getElementById('nlp-check').innerHTML = 
+                `<div class="${hasNLP ? 'success' : 'warning'}">
+                    ${hasNLP ? '✅' : '⚠️'} NLP.js ${hasNLP ? 'chargé' : 'non chargé (normal pour ce test)'}
+                </div>`;
+        }
+        
+        // Exécuter tous les tests
+        document.addEventListener('DOMContentLoaded', () => {
+            checkHTML();
+            checkCSS();
+            checkJS();
+            checkNLP();
+        });
+    </script>
+</body>
+</html>

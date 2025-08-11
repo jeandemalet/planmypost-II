@@ -2408,6 +2408,10 @@ class DescriptionManager {
         this.shortcutsContainer = document.getElementById('descriptionShortcuts');
         this.generateHashtagsBtn = document.getElementById('generateHashtagsBtn');
 
+        // ▼▼▼ MODIFICATION ▼▼▼
+        this.hashtagManager = new HashtagManager(this); // Remplace l'ancienne logique
+        // ▲▲▲ FIN DE LA MODIFICATION ▲▲▲
+
         this.currentSelectedJourFrame = null;
         this.commonDescriptionText = '';
         this.isEditingCommon = true;
@@ -2462,75 +2466,28 @@ class DescriptionManager {
             }
         });
 
-        this.generateHashtagsBtn.addEventListener('click', () => {
-            const text = this.editorElement.innerText;
-            const hashtags = this._generateHashtags(text);
-            if (hashtags) {
-                this._insertSnippet('\n\n' + hashtags);
+        this.generateHashtagsBtn.addEventListener('click', async () => {
+            // ▼▼▼ MODIFICATION ▼▼▼
+            const button = this.generateHashtagsBtn;
+            const originalText = button.innerHTML;
+            button.innerHTML = '🤖 Analyse...';
+            button.disabled = true;
+
+            try {
+                const text = this.editorElement.innerText;
+                await this.hashtagManager.generateAndShow(text); // Appel de la nouvelle classe
+            } catch (error) {
+                console.error("Erreur lors de la génération des hashtags:", error);
+                alert("Une erreur est survenue lors de l'analyse du texte.");
+            } finally {
+                button.innerHTML = originalText;
+                button.disabled = false;
             }
+            // ▲▲▲ FIN DE LA MODIFICATION ▲▲▲
         });
     }
 
-    _generateHashtags(text, options = {}) {
-        const { numHashtags = 15, minLength = 3 } = options;
 
-        // Liste de mots à ignorer (français + termes génériques de photo)
-        const stopWords = new Set([
-            'a', 'afin', 'ai', 'aie', 'aient', 'aies', 'ait', 'alors', 'apres', 'as', 'au',
-            'aucun', 'aura', 'aurai', 'auraient', 'aurais', 'aurait', 'auras', 'aurez',
-            'auriez', 'aurions', 'aurons', 'auront', 'aussi', 'autre', 'autres', 'aux',
-            'avaient', 'avais', 'avait', 'avant', 'avec', 'avez', 'aviez', 'avions',
-            'avons', 'ayant', 'ayante', 'ayantes', 'ayants', 'ayez', 'ayons', 'bon', 'car',
-            'ce', 'ceci', 'cela', 'celle', 'celles', 'celui', 'cependant', 'certain',
-            'certaine', 'certaines', 'certains', 'ces', 'cet', 'cette', 'ceux', 'chaque',
-            'ci', 'comme', 'comment', 'd', 'dans', 'de', 'dedans', 'dehors', 'depuis',
-            'des', 'deux', 'devrait', 'doit', 'donc', 'dont', 'du', 'elle', 'elles',
-            'en', 'encore', 'es', 'est', 'et', 'etaient', 'etais', 'etait', 'etant',
-            'etante', 'etantes', 'etants', 'ete', 'etee', 'etees', 'etes', 'etes', 'eti',
-            'etiez', 'etions', 'etions', 'eu', 'eue', 'eues', 'eumes', 'eurent', 'eus',
-            'eusse', 'eussent', 'eusses', 'eussiez', 'eussions', 'eut', 'eutes', 'eux',
-            'faire', 'fais', 'fait', 'faites', 'fois', 'font', 'furent', 'fus', 'fusse',
-            'fussent', 'fusses', 'fussiez', 'fussions', 'fut', 'futes', 'ici', 'il', 'ils',
-            'j', 'je', 'juste', 'l', 'la', 'le', 'les', 'leur', 'leurs', 'lui', 'm', 'ma',
-            'mais', 'me', 'meme', 'memes', 'mes', 'mien', 'mienne', 'miennes', 'miens',
-            'moi', 'moins', 'mon', 'n', 'ne', 'nos', 'notre', 'notres', 'nous', 'on', 'ont',
-            'ou', 'par', 'parce', 'pas', 'peut', 'peu', 'plupart', 'pour', 'pourquoi',
-            'qu', 'quand', 'que', 'quel', 'quelle', 'quelles', 'quels', 'qui', 's', 'sa',
-            'sans', 'se', 'sera', 'serai', 'seraient', 'serais', 'serait', 'seras',
-            'serez', 'seriez', 'serions', 'serons', 'seront', 'ses', 'soi', 'soient',
-            'sois', 'soit', 'sommes', 'son', 'sont', 'soyez', 'soyons', 'suis', 'sur',
-            't', 'ta', 'te', 'tes', 'toi', 'ton', 'tous', 'tout', 'tres', 'tu', 'un',
-            'une', 'va', 'vais', 'vas', 'vers', 'voient', 'vois', 'voit', 'vont', 'vos',
-            'votre', 'votres', 'vous', 'vu', 'y',
-            // Mots liés à la photo à exclure
-            'photo', 'photos', 'photographe', 'photographie', 'image', 'images', 'picture', 'art',
-            'assistante', 'assistant', 'sujet', 'sujets', 'couturiere', 'couturieres'
-        ]);
-
-        // 1. Nettoyage et normalisation
-        const cleanedText = text
-            .toLowerCase()
-            .normalize("NFD").replace(/[\u0300-\u036f]/g, "") // Enlève les accents
-            .replace(/[^\w\s]/g, ' ') // Enlève la ponctuation
-            .replace(/\s+/g, ' '); // Remplace les espaces multiples par un seul
-
-        // 2. Tokenisation, filtrage et comptage
-        const wordCounts = cleanedText.split(' ').reduce((acc, word) => {
-            if (word.length >= minLength && !stopWords.has(word) && isNaN(word)) {
-                acc[word] = (acc[word] || 0) + 1;
-            }
-            return acc;
-        }, {});
-
-        // 3. Classement et sélection
-        const sortedKeywords = Object.keys(wordCounts)
-            .sort((a, b) => wordCounts[b] - wordCounts[a])
-            .slice(0, numHashtags);
-
-        // 4. Formatage
-        if (sortedKeywords.length === 0) return '';
-        return sortedKeywords.map(word => `#${word}`).join(' ');
-    }
 
     _insertSnippet(snippet) {
         this.editorElement.focus();
@@ -5158,5 +5115,122 @@ async function logout() {
         }
     } catch (error) {
         console.error('Erreur lors de la déconnexion:', error);
+    }
+}
+//
+ À ajouter à la fin de public/script.js
+
+class HashtagManager {
+    constructor(descriptionManager) {
+        this.descriptionManager = descriptionManager;
+        this.modal = document.getElementById('hashtagModal');
+        this.container = document.getElementById('hashtagContainer');
+        this.insertBtn = document.getElementById('insertHashtagsBtn');
+        this.cancelBtn = document.getElementById('cancelHashtagsBtn');
+        this.thesaurus = null; // Le dictionnaire sera chargé ici
+
+        this._initListeners();
+        this._loadThesaurus(); // Charger le dictionnaire au démarrage
+    }
+
+    async _loadThesaurus() {
+        try {
+            const response = await fetch('/lib/hashtag-thesaurus.json');
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            this.thesaurus = await response.json();
+            console.log('📚 Dictionnaire de hashtags chargé.');
+        } catch (error) {
+            console.error('Impossible de charger le dictionnaire de hashtags:', error);
+            this.thesaurus = {}; // Fallback en cas d'erreur
+        }
+    }
+
+    _initListeners() {
+        this.insertBtn.addEventListener('click', () => this._insertSelectedHashtags());
+        this.cancelBtn.addEventListener('click', () => this.hide());
+        this.modal.addEventListener('click', (e) => {
+            if (e.target === this.modal) this.hide();
+        });
+        this.container.addEventListener('click', (e) => {
+            if (e.target.classList.contains('hashtag-pill')) {
+                e.target.classList.toggle('selected');
+            }
+        });
+    }
+
+    async generateAndShow(text) {
+        if (!this.thesaurus) await this._loadThesaurus();
+
+        // 1. Extraire les mots-clés du texte avec la lib NLP
+        const keywordsFromNLP = window.nlp ? window.nlp.generateHashtags(text) : [];
+
+        const suggestedHashtags = new Map();
+        const normalizedText = text.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+        // 2. Enrichir avec le thésaurus en cherchant les mots-clés du thésaurus dans le texte
+        for (const [key, value] of Object.entries(this.thesaurus)) {
+            if (normalizedText.includes(key)) {
+                value.h.forEach(tag => suggestedHashtags.set(tag, value.p));
+            }
+        }
+
+        // 3. Ajouter les mots-clés extraits par NLP (avec une priorité plus basse)
+        keywordsFromNLP.forEach(keyword => {
+            const lowerKeyword = keyword.toLowerCase();
+            if (!suggestedHashtags.has(lowerKeyword)) {
+                suggestedHashtags.set(lowerKeyword, 10);
+            }
+        });
+                
+        // 4. Ajouter des hashtags de base
+        suggestedHashtags.set('photographe', 5);
+        suggestedHashtags.set('photography', 5);
+
+        // 5. Trier par priorité et rendre l'affichage
+        const sorted = [...suggestedHashtags.entries()].sort((a, b) => b[1] - a[1]);
+        const existingHashtags = (text.match(/#[\w\u00C0-\u017F]+/g) || []).map(h => h.substring(1).toLowerCase());
+                
+        const finalSuggestions = sorted
+            .map(entry => entry[0])
+            .filter(tag => !existingHashtags.includes(tag));
+
+        this.renderHashtags(finalSuggestions);
+        this.show();
+    }
+
+    renderHashtags(hashtags) {
+        this.container.innerHTML = '';
+        if (hashtags.length === 0) {
+            this.container.innerHTML = '<p>Aucune nouvelle suggestion de hashtag trouvée.</p>';
+            return;
+        }
+        hashtags.forEach(tag => {
+            const pill = document.createElement('span');
+            pill.className = 'hashtag-pill selected';
+            pill.textContent = `#${tag}`;
+            pill.dataset.tag = tag;
+            this.container.appendChild(pill);
+        });
+    }
+
+    _insertSelectedHashtags() {
+        const selectedPills = this.container.querySelectorAll('.hashtag-pill.selected');
+        if (selectedPills.length > 0) {
+            const hashtagString = Array.from(selectedPills).map(pill => pill.textContent).join(' ');
+            this.descriptionManager._insertSnippet('\n\n' + hashtagString);
+        }
+        this.hide();
+    }
+
+    show() {
+        this.modal.style.display = 'flex';
+        setTimeout(() => this.modal.classList.add('visible'), 10);
+    }
+
+    hide() {
+        this.modal.classList.remove('visible');
+        setTimeout(() => this.modal.style.display = 'none', 200);
     }
 }

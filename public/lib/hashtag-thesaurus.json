@@ -1,0 +1,34 @@
+{
+  "mariage": {
+    "p": 100,
+    "h": ["mariage", "weddingphotography", "photographemariage", "mariage2025", "robedemariee", "love"]
+  },
+  "portrait": {
+    "p": 95,
+    "h": ["portrait", "portraitphotography", "photographeportrait", "moodyports", "discoverportrait"]
+  },
+  "voyage": {
+    "p": 90,
+    "h": ["travelphotography", "wanderlust", "exploretheworld", "travelgram", "photodevoyage"]
+  },
+  "mode": {
+    "p": 85,
+    "h": ["fashion", "fashionphotography", "photographemode", "editorial"]
+  },
+  "noir et blanc": {
+    "p": 80,
+    "h": ["noiretblanc", "blackandwhite", "bnwphotography", "monochrome"]
+  },
+  "paris": {
+    "p": 75,
+    "h": ["paris", "photographeparis", "parisjetaime", "parisfrance"]
+  },
+  "couturiere": {
+    "p": 50,
+    "h": ["createur", "robedemariee", "fashiondesigner", "madeinfrance"]
+  },
+  "maquilleuse": {
+    "p": 50,
+    "h": ["makeupartist", "mua", "beautymakeup", "maquillagepro"]
+  }
+}
