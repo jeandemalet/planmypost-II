@@ -1,18 +1,36 @@
 import json
+from collections import defaultdict
 
 def generer_thesaurus_final(scraped_file="predis_ai_raw.json", 
-                          semantic_file="hiertags_relations_raw.json", 
+                          semantic_file="hiertags_relations_raw.jsonl",  # Format JSONL
                           output_file="hashtag-thesaurus.json"):
     """Fusionne les données scrapées et sémantiques pour créer le dictionnaire final."""
     
     try:
         with open(scraped_file, 'r', encoding='utf-8') as f:
             scraped_data = json.load(f)
-        with open(semantic_file, 'r', encoding='utf-8') as f:
-            semantic_data = json.load(f)
     except FileNotFoundError as e:
-        print(f"❌ ERREUR: Fichier manquant : {e.filename}. Veuillez d'abord exécuter les scripts de collecte.")
+        print(f"❌ ERREUR: Fichier manquant : {e.filename}. Veuillez d'abord exécuter le script de scraping.")
         return
+    
+    # Chargement des données sémantiques depuis le fichier JSONL
+    print(f"📊 Chargement des données sémantiques depuis '{semantic_file}'...")
+    semantic_data = defaultdict(dict)
+    
+    try:
+        with open(semantic_file, 'r', encoding='utf-8') as f:
+            for line_num, line in enumerate(f, 1):
+                if line.strip():  # Ignorer les lignes vides
+                    try:
+                        rel = json.loads(line)
+                        semantic_data[rel['tag']][rel['related']] = rel['weight']
+                    except json.JSONDecodeError:
+                        print(f"⚠️ Ligne {line_num} ignorée (JSON invalide)")
+                        continue
+        print(f"✅ {len(semantic_data):,} tags avec relations sémantiques chargés.")
+    except FileNotFoundError:
+        print(f"⚠️ Fichier '{semantic_file}' non trouvé. Génération sans données sémantiques.")
+        semantic_data = {}
     
     # Mots-clés principaux pour notre thésaurus. 
     # La clé est le mot à détecter dans le texte, la valeur est le terme à chercher dans les données.

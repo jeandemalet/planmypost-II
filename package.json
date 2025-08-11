@@ -8,6 +8,7 @@
     "dev": "nodemon server.js",
     "prod": "pm2 start ecosystem.config.js --env production",
     "copy-nlp": "node scripts/copy-nlp.js",
+    "build:thesaurus": "python scripts/generer_thesaurus_complet.py",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [

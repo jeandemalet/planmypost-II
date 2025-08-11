@@ -61,19 +61,19 @@ def main():
     
     # Étape 2: Traitement HIERTAGS (si disponible)
     if has_hiertags:
-        print("4. Traitement des données HIERTAGS...")
+        print("4. Traitement des données HIERTAGS (résilient)...")
         try:
-            from process_hiertags_complet import process_hiertags_complet
-            process_hiertags_complet()
+            from process_hiertags_resilient import process_hiertags_resilient
+            process_hiertags_resilient()
         except Exception as e:
             print(f"❌ Erreur lors du traitement HIERTAGS : {e}")
             # Créer un fichier vide pour que la fusion fonctionne
-            with open("hiertags_relations_raw.json", 'w') as f:
-                json.dump({}, f)
+            with open("hiertags_relations_raw.jsonl", 'w') as f:
+                pass  # Fichier JSONL vide
     else:
         print("4. Création d'un fichier HIERTAGS vide...")
-        with open("hiertags_relations_raw.json", 'w') as f:
-            json.dump({}, f)
+        with open("hiertags_relations_raw.jsonl", 'w') as f:
+            pass  # Fichier JSONL vide
     
     # Étape 3: Fusion et génération finale
     print("5. Génération du thésaurus final...")

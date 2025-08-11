@@ -1,2 +1,36 @@
 node_modules/
 uploads/
+
+# Fichiers de dépendances et logs
+npm-debug.log
+logs/
+
+# Fichiers système
+.DS_Store
+Thumbs.db
+
+# Fichiers d'environnement (NE JAMAIS PARTAGER)
+.env
+
+# Fichiers de build et de progression des scripts Python
+*.pyc
+__pycache__/
+predis_ai_*.json
+hiertags_*.jsonl
+hiertags_progress.txt
+
+# Fichiers de données brutes/intermédiaires (garder seulement le final)
+predis_ai_raw.json
+predis_ai_complet.json
+hiertags_relations_raw.jsonl
+
+# Fichiers de test et de documentation non essentiels
+test-*.html
+test-*.js
+final-working-solution.js
+
+# Fichiers personnels qui n'appartiennent pas au projet
+Color\ Wheel\ Game\ V2.py
+
+# Fichiers temporaires
+temp_uploads/
