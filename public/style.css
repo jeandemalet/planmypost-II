@@ -2485,7 +2485,9 @@ button.small-cancel-btn:hover {
 /* On retire le nom de la galerie de chaque item, car il est maintenant dans le header */
 .unscheduled-jour-item-gallery {
     display: none;
-}/* 
+}
+
+/* 
 ========================================================== */
 /* --- AJOUT: STYLES POUR L'ONGLET DESCRIPTION COMMUNE --- */
 /* ========================================================== */
@@ -2526,7 +2528,9 @@ button.small-cancel-btn:hover {
     background-color: #007bff;
     color: white;
     border-color: #0056b3;
-}/
+}
+
+/*
 * ========================================================== */
 /* --- AJOUT: STYLES POUR L'ÉDITEUR DE DESCRIPTION RICHE --- */
 /* ========================================================== */
@@ -2614,7 +2618,9 @@ button.small-cancel-btn:hover {
     content: "📝 Texte commun: ";
     font-weight: bold;
     font-size: 0.9em;
-}/*
+}
+
+/*
  ========================================================== */
 /* --- ZONES D'ÉDITION DÉLIMITÉES DANS L'ÉDITEUR RICHE --- */
 /* ========================================================== */
@@ -2653,7 +2659,9 @@ button.small-cancel-btn:hover {
 .custom-editor.structured {
     padding: 4px;
     background-color: #f9f9f9;
-}/* 
+}
+
+/* 
 ========================================================== */
 /* --- AJOUT: STYLES POUR LES RACCOURCIS DE DESCRIPTION --- */
 /* ========================================================== */
@@ -2704,7 +2712,9 @@ button.small-cancel-btn:hover {
     opacity: 0.5;
     cursor: not-allowed;
     background-color: #e9ecef;
-}/
+}
+
+/*
 * ========================================================== */
 /* --- AJOUT: STYLES POUR LE GÉNÉRATEUR DE HASHTAGS --- */
 /* ========================================================== */
@@ -2803,8 +2813,7 @@ button.small-cancel-btn:hover {
 
 .description-shortcuts .action-button:hover:not(:disabled) {
     background-color: #0056b3;
-}/* À a
-jouter à la fin de public/style.css */
+}
 
 .modal-overlay {
     position: fixed;

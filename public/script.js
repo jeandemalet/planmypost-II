@@ -5117,9 +5117,8 @@ async function logout() {
         console.error('Erreur lors de la déconnexion:', error);
     }
 }
-//
- À ajouter à la fin de public/script.js
 
+// HashtagManager class
 class HashtagManager {
     constructor(descriptionManager) {
         this.descriptionManager = descriptionManager;
