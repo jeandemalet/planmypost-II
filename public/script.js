@@ -1505,7 +1505,27 @@ class CroppingManager {
         // [LOG] Log pour voir quand le layout est rafraîchi
         console.log('[CroppingManager] refreshLayout() appelé.');
         if (this.currentImageObject) {
+            this._waitForContainerAndResize();
+        }
+    }
+
+    _waitForContainerAndResize(attempts = 0) {
+        const container = this.canvasElement.parentElement;
+        
+        // Si le conteneur a une taille suffisante, procéder
+        if (container && container.clientHeight >= 100) {
             this._handleResize();
+            return;
+        }
+        
+        // Sinon, réessayer jusqu'à 10 fois avec un délai croissant
+        if (attempts < 10) {
+            const delay = Math.min(50 + attempts * 20, 200); // 50ms à 200ms max
+            setTimeout(() => {
+                this._waitForContainerAndResize(attempts + 1);
+            }, delay);
+        } else {
+            console.warn('[CroppingManager] Impossible d\'initialiser le recadrage : conteneur toujours trop petit après 10 tentatives.');
         }
     }
 
@@ -1515,8 +1535,9 @@ class CroppingManager {
 
         // Vérification de la taille du conteneur pour éviter le layout thrashing
         const container = this.canvasElement.parentElement;
-        if (!container || container.clientHeight < 100) {
-            console.warn(`[CroppingManager] _handleResize() stoppé car le conteneur est trop petit ou non visible (${container ? container.clientHeight : 'null'}px).`);
+        // On vérifie la largeur ET la hauteur pour être certain que l'élément est bien rendu
+        if (!container || container.clientHeight < 100 || container.clientWidth < 100) {
+            console.warn(`[CroppingManager] _handleResize() stoppé car le conteneur est trop petit ou non visible. Hauteur: ${container ? container.clientHeight : 'null'}px, Largeur: ${container ? container.clientWidth : 'null'}px.`);
             return;
         }
 
@@ -2869,6 +2890,9 @@ class CalendarPage {
     buildCalendarUI() {
         // Nettoyer les jours inexistants du calendrier avant de construire l'UI
         this.cleanupNonExistentJours();
+        
+        // Corriger automatiquement les noms de galerie manquants
+        this.fixMissingGalleryNames();
 
         this.calendarGridElement.innerHTML = '';
         if (!app || !app.currentGalleryId) {
@@ -3250,6 +3274,39 @@ class CalendarPage {
         }
     }
 
+    // Fonction utilitaire pour corriger les blocs existants sans nom de galerie
+    fixMissingGalleryNames() {
+        const scheduleData = this.organizerApp.scheduleContext.schedule;
+        const allUserJours = this.organizerApp.scheduleContext.allUserJours;
+        let fixedCount = 0;
+
+        Object.keys(scheduleData).forEach(dateStr => {
+            Object.keys(scheduleData[dateStr]).forEach(letter => {
+                const item = scheduleData[dateStr][letter];
+                
+                // Si le nom de galerie est manquant ou vide
+                if (!item.galleryName) {
+                    const jourInfo = allUserJours.find(
+                        j => j.galleryId === item.galleryId && j.letter === letter
+                    );
+                    
+                    if (jourInfo && jourInfo.galleryName) {
+                        item.galleryName = jourInfo.galleryName;
+                        fixedCount++;
+                        console.log(`[CalendarPage] Nom de galerie corrigé pour ${dateStr} ${letter}: ${jourInfo.galleryName}`);
+                    }
+                }
+            });
+        });
+
+        if (fixedCount > 0) {
+            this.saveSchedule();
+            console.log(`[CalendarPage] ${fixedCount} bloc(s) de calendrier corrigé(s)`);
+        }
+
+        return fixedCount;
+    }
+
     addOrUpdatePublicationForDate(dateObj, jourLetter, galleryId, galleryName) {
         const dateStr = this.formatDateKey(dateObj);
         const scheduleData = this.organizerApp.scheduleContext.schedule;
@@ -3259,7 +3316,25 @@ class CalendarPage {
         if (scheduleData[dateStr][jourLetter] && scheduleData[dateStr][jourLetter].galleryId === galleryId) {
             return;
         }
-        scheduleData[dateStr][jourLetter] = { label: `Jour ${jourLetter}`, galleryId: galleryId, galleryName: galleryName };
+
+        // --- CORRECTION : S'assurer que le nom de la galerie est toujours présent ---
+        let finalGalleryName = galleryName;
+        
+        // Si le nom n'a pas été fourni, on le recherche dans allUserJours
+        if (!finalGalleryName) {
+            const jourInfo = this.organizerApp.scheduleContext.allUserJours.find(
+                j => j.galleryId === galleryId && j.letter === jourLetter
+            );
+            if (jourInfo) {
+                finalGalleryName = jourInfo.galleryName;
+            }
+        }
+        
+        scheduleData[dateStr][jourLetter] = { 
+            label: `Jour ${jourLetter}`, 
+            galleryId: galleryId, 
+            galleryName: finalGalleryName || 'Galerie?' // Fallback au cas où
+        };
         this.saveSchedule();
     }
 
@@ -3745,9 +3820,13 @@ class PublicationOrganizer {
                 }
             } else if (tabId === 'cropping') {
                 if (this.currentGalleryId) {
+                    // Double protection : requestAnimationFrame + vérification que les styles sont appliqués
                     requestAnimationFrame(() => {
                         this.croppingPage.show();
-                        this.croppingPage.croppingManager.refreshLayout();
+                        // Attendre un peu plus si nécessaire pour que les styles CSS soient complètement appliqués
+                        setTimeout(() => {
+                            this.croppingPage.croppingManager.refreshLayout();
+                        }, 10);
                     });
                 }
             } else if (tabId === 'description') {
@@ -3920,34 +3999,17 @@ class PublicationOrganizer {
                     this.galleryPreviewGridElement.appendChild(paginationInfo);
                 }
             } else {
-                // Créer un conteneur centré pour le message et le bouton
-                const emptyContainer = document.createElement('div');
-                emptyContainer.className = 'empty-gallery-container';
-                emptyContainer.style.cssText = `
-                    position: absolute;
-                    top: 50%;
-                    left: 50%;
-                    transform: translate(-50%, -50%);
+                // Afficher un simple message informatif au lieu d'un bouton redondant
+                const emptyMessage = document.createElement('p');
+                emptyMessage.textContent = 'Cette galerie est vide. Ajoutez des photos en utilisant le bouton ci-dessus.';
+                emptyMessage.style.cssText = `
                     text-align: center;
-                    width: 100%;
-                `;
-
-                const addPhotosBtn = document.createElement('button');
-                addPhotosBtn.innerHTML = '<img src="assets/add-button.png" alt="Icône ajouter" class="btn-icon"> Ajouter des Photos';
-                addPhotosBtn.className = 'add-photos-preview-btn add-btn-green';
-                addPhotosBtn.style.cssText = `
+                    color: #6c757d;
+                    margin-top: 40px;
                     font-size: 1.1em;
-                    padding: 12px 20px;
+                    padding: 20px;
                 `;
-                addPhotosBtn.onclick = () => {
-                    if (this.selectedGalleryForPreviewId) {
-                        this.activeCallingButton = addPhotosBtn;
-                        this.imageSelectorInput.click();
-                    }
-                };
-
-                emptyContainer.appendChild(addPhotosBtn);
-                this.galleryPreviewGridElement.appendChild(emptyContainer);
+                this.galleryPreviewGridElement.appendChild(emptyMessage);
 
                 // Marquer la grille comme vide pour les styles CSS
                 this.galleryPreviewGridElement.classList.remove('has-photos');
@@ -4208,8 +4270,11 @@ class PublicationOrganizer {
             this.galleryCache[this.currentGalleryId] = galleryState.name || 'Galerie sans nom';
             document.getElementById('currentGalleryNameDisplay').textContent = `Galerie : ${this.getCurrentGalleryName()}`;
             this.currentThumbSize = galleryState.currentThumbSize || { width: 150, height: 150 };
-            const savedSortOption = galleryState.sortOption || 'name_asc';
-            this.sortOptionsSelect.value = savedSortOption;
+            
+            // Forcer le tri par défaut "Nom (A-Z)" à chaque chargement de galerie,
+            // ignorant l'option qui était sauvegardée.
+            const defaultSortOption = 'name_asc';
+            this.sortOptionsSelect.value = defaultSortOption;
             this.nextJourIndex = galleryState.nextJourIndex || 0;
             // Pour l'onglet Tri : charger TOUTES les images sans pagination
             if (data.images) {
