@@ -1,31 +1,31 @@
 // ===============================
-//  Fichier: models\Jour.js
+//  Fichier: models\Publication.js
 // ===============================
 
 const mongoose = require('mongoose');
 
-// Sous-document pour stocker la référence à une image et son ordre dans le Jour
-const JourImageSchema = new mongoose.Schema({
+// Sous-document pour stocker la référence à une image et son ordre dans la Publication
+const PublicationImageSchema = new mongoose.Schema({
     imageId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Image', // Référence au modèle Image
         required: true
     },
-    order: { // Ordre de cette image dans la séquence du Jour (0, 1, 2...)
+    order: { // Ordre de cette image dans la séquence de la Publication (0, 1, 2...)
         type: Number,
         required: true,
         min: 0
     }
 }, { _id: false }); // Pas besoin d'un ID MongoDB distinct pour ce sous-document
 
-const JourSchema = new mongoose.Schema({
+const PublicationSchema = new mongoose.Schema({
     galleryId: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Gallery',
         required: true,
         index: true // Indexer pour recherche rapide par galerie
     },
-    letter: { // Lettre identifiant le jour (A, B, C...)
+    letter: { // Lettre identifiant la publication (A, B, C...)
         type: String,
         required: true,
         match: /^[A-Z]$/ // Doit être une seule lettre majuscule
@@ -36,7 +36,7 @@ const JourSchema = new mongoose.Schema({
         min: 0,
         max: 25 // Correspond à A-Z
     },
-    images: [JourImageSchema], // Tableau ordonné des images de ce jour
+    images: [PublicationImageSchema], // Tableau ordonné des images de cette publication
     
     // NOUVEAU : Paramètres pour le recadrage automatique
     autoCropSettings: {
@@ -61,9 +61,11 @@ const JourSchema = new mongoose.Schema({
     // Pas besoin de le stocker explicitement ici.
 });
 
-// Index composite pour assurer l'unicité de la lettre du Jour au sein d'une galerie
-JourSchema.index({ galleryId: 1, letter: 1 }, { unique: true });
-// Index pour trier les jours par leur index (ordre A, B, C...)
-JourSchema.index({ galleryId: 1, index: 1 });
+// Index composite pour assurer l'unicité de la lettre de la Publication au sein d'une galerie
+PublicationSchema.index({ galleryId: 1, letter: 1 }, { unique: true });
+// Index pour trier les publications par leur index (ordre A, B, C...)
+PublicationSchema.index({ galleryId: 1, index: 1 });
 
-module.exports = mongoose.model('Jour', JourSchema);
+// MODIFICATION CRUCIALE : On renomme le modèle en 'Publication', mais on lui dit de continuer à utiliser
+// l'ancienne collection 'jours' dans la base de données. CELA ÉVITE DE DEVOIR FAIRE UNE MIGRATION DE DONNÉES.
+module.exports = mongoose.model('Publication', PublicationSchema, 'jours');

@@ -440,6 +440,18 @@ button.small-cancel-btn:hover {
     border-radius: 6px;
     border: 1px solid #dee2e6;
 }
+
+#galleryPreviewHeader #galleryStatsArea {
+    flex: 1;
+    text-align: center;
+    margin: 0 15px;
+}
+
+#galleryPreviewHeader #galleryStatsLabelText {
+    color: #6c757d;
+    font-size: 0.9em;
+    font-weight: 500;
+}
 #galleryPreviewHeader h3 {
     margin: 0;
     font-size: 1.4em;
@@ -578,6 +590,21 @@ button.small-cancel-btn:hover {
     color: #555;
     white-space: nowrap;
 }
+
+#galleryStatsArea {
+    margin: 10px 0;
+    text-align: center;
+}
+
+#galleryStatsLabelText {
+    font-size: 0.9em;
+    color: #555;
+    background-color: #f5f5f5;
+    padding: 5px 10px;
+    border-radius: 4px;
+    display: inline-block;
+    white-space: nowrap;
+}
 #uploadProgressContainer {
     font-size: 0.9em;
     color: #007bff;
@@ -695,7 +722,7 @@ button.small-cancel-btn:hover {
 }
 
 
-#jourFramesArea {
+#publicationFramesArea {
     width: 380px;
     min-width: 320px;
     border: 1px solid #ccc;
@@ -705,31 +732,26 @@ button.small-cancel-btn:hover {
     background-color: #f9f9f9;
     border-radius: 8px;
 }
-#jourFramesArea h3 {
-    margin-top: 0;
-    text-align: center;
-    border-bottom: 1px solid #eee;
-    padding-bottom: 5px;
-}
 
-#jourFramesContainer {
+
+#publicationFramesContainer {
     flex-grow: 1;
     overflow-y: auto;
     padding: 5px 0;
 }
 
-.jour-frame {
+.publication-frame {
     border: 1px solid #ddd;
     margin-bottom: 10px;
     padding: 8px;
     background-color: #fff;
     border-radius: 6px;
 }
-.jour-frame.current {
+.publication-frame.current {
     border-color: dodgerblue;
     box-shadow: 0 0 5px dodgerblue;
 }
-.jour-frame-label {
+.publication-frame-label {
     font-weight: bold;
     margin-bottom: 5px;
     padding: 8px 10px;
@@ -744,26 +766,26 @@ button.small-cancel-btn:hover {
     box-sizing: border-box;
     transition: background-color 0.2s, border-color 0.2s;
 }
-.jour-frame-label:hover {
+.publication-frame-label:hover {
     background-color: #e0e0e0;
 }
-.jour-frame.current .jour-frame-label {
+.publication-frame.current .publication-frame-label {
     background-color: dodgerblue;
     color: white;
     border-color: darkblue;
 }
-.jour-frame.jour-frame-processed .jour-frame-label {
+.publication-frame.publication-frame-processed .publication-frame-label {
     background-color: #d4edda;
     border-color: #c3e6cb;
     color: #155724;
 }
-.jour-frame.jour-frame-processed.current .jour-frame-label {
+.publication-frame.publication-frame-processed.current .publication-frame-label {
     background-color: #2a9fd6;
     border-color: #238ac0;
     color: white;
 }
 
-.jour-frame-canvas-wrapper {
+.publication-frame-canvas-wrapper {
     display: flex;
     flex-wrap: wrap;
     gap: 5px;
@@ -773,7 +795,7 @@ button.small-cancel-btn:hover {
     border-radius: 6px;
     align-content: flex-start;
 }
-.jour-image-item {
+.publication-image-item {
     width: 60px;
     height: 60px;
     background-size: contain;
@@ -785,7 +807,7 @@ button.small-cancel-btn:hover {
     cursor: grab;
     border-radius: 4px;
 }
-.jour-image-item .delete-btn {
+.publication-image-item .delete-btn {
     position: absolute;
     top: -5px;
     right: -5px;
@@ -800,17 +822,17 @@ button.small-cancel-btn:hover {
     font-size: 14px;
     font-weight: bold;
 }
-.jour-image-item .delete-btn:hover {
+.publication-image-item .delete-btn:hover {
     background-color: red;
 }
 
-.jour-frame-buttons {
+.publication-frame-buttons {
     margin-top: 8px;
     display: flex;
     gap: 5px;
     flex-wrap: wrap;
 }
-.jour-frame-buttons button {
+.publication-frame-buttons button {
     padding: 4px 8px;
     font-size: 0.8em;
     flex-grow: 1;
@@ -818,14 +840,14 @@ button.small-cancel-btn:hover {
     border-radius: 4px;
 }
 
-.jour-frames-actions {
+.publication-frames-actions {
     margin-top: 10px;
     padding-top: 10px;
     border-top: 1px solid #eee;
     display: flex;
     gap: 10px;
 }
-.jour-frames-actions button {
+.publication-frames-actions button {
     flex-grow: 1;
     border-radius: 6px;
 }
@@ -960,7 +982,7 @@ button.small-cancel-btn:hover {
     border: 1px solid #e0e0e0;
 }
 
-.unscheduled-jour-item {
+.unscheduled-publication-item {
     background-color: #fff;
     padding: 6px 8px;
     margin-bottom: 5px;
@@ -974,24 +996,24 @@ button.small-cancel-btn:hover {
     transition: box-shadow 0.2s, background-color 0.2s;
 }
 
-.unscheduled-jour-item:hover {
+.unscheduled-publication-item:hover {
     background-color: #f5f5f5;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 
-.unscheduled-jour-item.dragging-from-list {
+.unscheduled-publication-item.dragging-from-list {
     opacity: 0.5;
     background: #e6f7ff;
 }
 
-.unscheduled-jour-item-content {
+.unscheduled-publication-item-content {
     display: flex;
     align-items: center;
     gap: 8px;
     width: 100%;
 }
 
-.unscheduled-jour-item-letter {
+.unscheduled-publication-item-letter {
     font-weight: bold;
     color: white;
     width: 22px;
@@ -1013,7 +1035,7 @@ button.small-cancel-btn:hover {
     flex-grow: 1;
 }
 
-.unscheduled-jour-item-thumb {
+.unscheduled-publication-item-thumb {
     width: 22px;
     height: 22px;
     background-size: cover;
@@ -1249,15 +1271,15 @@ button.small-cancel-btn:hover {
 }
 
 /* --- STYLES PANNEAUX LATÉRAUX PARTAGÉS & ICÔNES --- */
-#croppingJourList,
-#descriptionJourList,
-#calendarJourList {
+#croppingPublicationList,
+#descriptionPublicationList,
+#calendarPublicationList {
     list-style-type: none;
     padding: 0;
     margin: 0;
 }
 
-.jour-list-item {
+.publication-list-item {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -1269,16 +1291,16 @@ button.small-cancel-btn:hover {
     transition: background-color 0.2s;
 }
 
-.jour-list-item:hover {
+.publication-list-item:hover {
     background-color: #f0f0f0;
 }
 
-.jour-list-item-text {
+.publication-list-item-text {
     flex-grow: 1;
     margin-right: 10px;
 }
 
-.jour-list-item-icons {
+.publication-list-item-icons {
     display: flex;
     gap: 8px;
     font-size: 14px;
@@ -1298,9 +1320,9 @@ button.small-cancel-btn:hover {
     filter: grayscale(0%);
 }
 
-#croppingJourList .jour-list-item.active-cropping-jour,
-#descriptionJourList .jour-list-item.active-description-jour,
-#calendarJourList .jour-list-item.active-calendar-jour {
+#croppingPublicationList .publication-list-item.active-cropping-publication,
+#descriptionPublicationList .publication-list-item.active-description-publication,
+#calendarPublicationList .publication-list-item.active-calendar-publication {
     background-color: #007bff;
     color: white;
     font-weight: bold;
@@ -1314,7 +1336,7 @@ button.small-cancel-btn:hover {
     height: calc(100vh - 150px);
 }
 
-#croppingJourListPanel, #descriptionJourListPanel, #calendarJourListPanel {
+#croppingPublicationListPanel, #descriptionPublicationListPanel, #calendarPublicationListPanel {
     width: 280px;
     min-width: 250px;
     border-right: 1px solid #ddd;
@@ -1322,7 +1344,7 @@ button.small-cancel-btn:hover {
     overflow-y: auto;
 }
 
-#croppingJourListPanel h4, #descriptionJourListPanel h4, #calendarJourListPanel h4 {
+#croppingPublicationListPanel h4, #descriptionPublicationListPanel h4, #calendarPublicationListPanel h4 {
     margin-top: 0;
     margin-bottom: 10px;
     font-size: 1.1em;
@@ -1609,7 +1631,7 @@ button.small-cancel-btn:hover {
     max-width: 250px; /* Limite la largeur pour éviter les débordements */
 }
 
-.jour-frame-canvas-wrapper.drag-over {
+.publication-frame-canvas-wrapper.drag-over {
     outline: 2px dashed dodgerblue;
     background-color: #e0efff;
 }
@@ -2018,7 +2040,7 @@ button.small-cancel-btn:hover {
     box-sizing: border-box;
 }
 
-.jour-group-container {
+.publication-group-container {
     background-color: #f8f9fa;
     border: 1px solid #dee2e6;
     border-radius: 8px;
@@ -2027,7 +2049,7 @@ button.small-cancel-btn:hover {
     box-shadow: 0 1px 3px rgba(0,0,0,0.05);
 }
 
-.jour-group-header {
+.publication-group-header {
     font-size: 1.2em;
     font-weight: 600;
     color: #343a40;
@@ -2036,13 +2058,13 @@ button.small-cancel-btn:hover {
     border-bottom: 2px solid #e9ecef;
 }
 
-.jour-group-grid {
+.publication-group-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 10px;
 }
 
-.jour-group-empty-text {
+.publication-group-empty-text {
     font-style: italic;
     color: #6c757d;
     grid-column: 1 / -1;
@@ -2072,7 +2094,7 @@ button.small-cancel-btn:hover {
     transition: background-color 0.3s, border-color 0.3s;
 }
 
-.jour-list-item-checkbox {
+.publication-list-item-checkbox {
     margin-left: auto;
     transform: scale(1.2);
 }
@@ -2111,7 +2133,7 @@ button.small-cancel-btn:hover {
     height: calc(100vh - 150px);
 }
 
-#croppingJourListPanel {
+#croppingPublicationListPanel {
     width: 280px;
     min-width: 250px;
     border-right: 1px solid #ddd;
@@ -2185,8 +2207,8 @@ button.small-cancel-btn:hover {
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
 }
 
-/* === STYLES: SÉLECTION DES JOURS === */
-.jour-selection-container {
+/* === STYLES: SÉLECTION DES PUBLICATIONS === */
+.publication-selection-container {
     margin-top: 15px;
     padding: 15px;
     background-color: #f8f9fa;
@@ -2194,7 +2216,7 @@ button.small-cancel-btn:hover {
     border-radius: 8px;
 }
 
-.jour-selection-header {
+.publication-selection-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
@@ -2227,7 +2249,7 @@ button.small-cancel-btn:hover {
     background-color: #5a6268;
 }
 
-.jour-checkbox-list {
+.publication-checkbox-list {
     max-height: 200px;
     overflow-y: auto;
     border: 1px solid #e9ecef;
@@ -2235,7 +2257,7 @@ button.small-cancel-btn:hover {
     background-color: white;
 }
 
-.jour-checkbox-item {
+.publication-checkbox-item {
     display: flex;
     align-items: center;
     padding: 8px 12px;
@@ -2244,25 +2266,25 @@ button.small-cancel-btn:hover {
     transition: background-color 0.2s;
 }
 
-.jour-checkbox-item:last-child {
+.publication-checkbox-item:last-child {
     border-bottom: none;
 }
 
-.jour-checkbox-item:hover {
+.publication-checkbox-item:hover {
     background-color: #f8f9fa;
 }
 
-.jour-checkbox-item.selected {
+.publication-checkbox-item.selected {
     background-color: #e3f2fd;
     border-left: 3px solid #2196f3;
 }
 
-.jour-checkbox-item input[type="checkbox"] {
+.publication-checkbox-item input[type="checkbox"] {
     margin-right: 10px;
     cursor: pointer;
 }
 
-.jour-checkbox-label {
+.publication-checkbox-label {
     flex: 1;
     font-size: 0.85em;
     color: #495057;
@@ -2272,7 +2294,7 @@ button.small-cancel-btn:hover {
     gap: 8px;
 }
 
-.jour-color-indicator {
+.publication-color-indicator {
     width: 12px;
     height: 12px;
     border-radius: 50%;
@@ -2280,7 +2302,7 @@ button.small-cancel-btn:hover {
     flex-shrink: 0;
 }
 
-.jour-image-count {
+.publication-image-count {
     font-size: 0.75em;
     color: #6c757d;
     background-color: #e9ecef;
@@ -2473,7 +2495,7 @@ button.small-cancel-btn:hover {
     margin-top: 0;
 }
 
-.unscheduled-jour-item-label {
+.unscheduled-publication-item-label {
     font-size: 0.9em;
     color: #343a40;
     flex-grow: 1;
@@ -2483,7 +2505,7 @@ button.small-cancel-btn:hover {
 }
 
 /* On retire le nom de la galerie de chaque item, car il est maintenant dans le header */
-.unscheduled-jour-item-gallery {
+.unscheduled-publication-item-gallery {
     display: none;
 }
 
@@ -2492,7 +2514,7 @@ button.small-cancel-btn:hover {
 /* --- AJOUT: STYLES POUR L'ONGLET DESCRIPTION COMMUNE --- */
 /* ========================================================== */
 
-#descriptionJourListPanel {
+#descriptionPublicationListPanel {
     display: flex;
     flex-direction: column;
 }
@@ -2503,7 +2525,7 @@ button.small-cancel-btn:hover {
     margin: 0 0 10px 0;
 }
 
-.jour-list-separator {
+.publication-list-separator {
     font-size: 0.9em;
     font-weight: 600;
     color: #6c757d;
@@ -2513,18 +2535,18 @@ button.small-cancel-btn:hover {
     border-bottom: 1px solid #dee2e6;
 }
 
-#descriptionMainList .jour-list-item.main-item {
+#descriptionMainList .publication-list-item.main-item {
     background-color: #f8f9fa;
     border: 1px solid #dee2e6;
     font-weight: 700;
     font-size: 1.1em;
 }
 
-#descriptionMainList .jour-list-item.main-item:hover {
+#descriptionMainList .publication-list-item.main-item:hover {
     background-color: #e9ecef;
 }
 
-#descriptionMainList .jour-list-item.main-item.active-description-jour {
+#descriptionMainList .publication-list-item.main-item.active-description-publication {
     background-color: #007bff;
     color: white;
     border-color: #0056b3;
@@ -2862,8 +2884,9 @@ button.small-cancel-btn:hover {
     color: #6c757d;
     margin-top: 0;
     margin-bottom: 20px;
-}.hash
-tag-container {
+}
+
+.hashtag-container {
     display: flex;
     flex-wrap: wrap;
     gap: 8px;
@@ -2903,4 +2926,61 @@ tag-container {
     justify-content: flex-end;
     gap: 10px;
     margin-top: 20px;
+}
+
+/* ===============================
+   STYLES POUR LE SÉLECTEUR DE MOIS
+=============================== */
+
+.scheduler-header {
+    justify-content: space-between; /* Pour espacer les éléments */
+    align-items: center;
+}
+
+#monthSelectorContainer {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    background-color: #e9ecef;
+    padding: 5px;
+    border-radius: 8px;
+    border: 1px solid #ced4da;
+}
+
+#monthSelector {
+    list-style-type: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    gap: 5px;
+}
+
+#monthSelector li {
+    padding: 6px 12px;
+    font-size: 0.9em;
+    font-weight: 500;
+    color: #495057;
+    cursor: pointer;
+    border-radius: 6px;
+    transition: background-color 0.2s, color 0.2s, font-weight 0.2s;
+    user-select: none; /* Empêche la sélection de texte */
+}
+
+#monthSelector li:hover {
+    background-color: #dee2e6;
+    color: #212529;
+}
+
+#monthSelector li.active {
+    background-color: #007bff;
+    color: white;
+    font-weight: 700; /* Mise en gras du mois sélectionné */
+    box-shadow: 0 1px 4px rgba(0, 123, 255, 0.3);
+}
+
+#yearLabel {
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #343a40;
+    padding-right: 10px;
 }

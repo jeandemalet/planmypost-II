@@ -7,7 +7,7 @@ const fs = require('fs');
 const authController = require('../controllers/authController');
 const galleryController = require('../controllers/galleryController');
 const imageController = require('../controllers/imageController');
-const jourController = require('../controllers/jourController');
+const publicationController = require('../controllers/publicationController');
 const scheduleController = require('../controllers/scheduleController');
 const adminController = require('../controllers/adminController');
 const authMiddleware = require('../middleware/auth');
@@ -92,13 +92,13 @@ router.post('/galleries/:galleryId/images/:originalImageId/crop', authMiddleware
 router.delete('/galleries/:galleryId/images/:imageId', authMiddleware, imageController.deleteImage);
 router.delete('/galleries/:galleryId/images', authMiddleware, imageController.deleteAllImagesForGallery);
 
-// --- Routes Jours ---
-router.post('/galleries/:galleryId/jours', authMiddleware, jourController.createJour);
-router.get('/galleries/:galleryId/jours', authMiddleware, jourController.getJoursForGallery);
-router.put('/galleries/:galleryId/jours/:jourId', authMiddleware, jourController.updateJour);
-router.delete('/galleries/:galleryId/jours/:jourId', authMiddleware, jourController.deleteJour);
+// --- Routes Publications ---
+router.post('/galleries/:galleryId/publications', authMiddleware, publicationController.createPublication);
+router.get('/galleries/:galleryId/publications', authMiddleware, publicationController.getPublicationsForGallery);
+router.put('/galleries/:galleryId/publications/:publicationId', authMiddleware, publicationController.updatePublication);
+router.delete('/galleries/:galleryId/publications/:publicationId', authMiddleware, publicationController.deletePublication);
 // NOUVELLE ROUTE CI-DESSOUS
-router.get('/galleries/:galleryId/jours/:jourId/export', authMiddleware, jourController.exportJourImagesAsZip);
+router.get('/galleries/:galleryId/publications/:publicationId/export', authMiddleware, publicationController.exportPublicationImagesAsZip);
 
 // --- Routes Calendrier ---
 router.get('/galleries/:galleryId/schedule', authMiddleware, scheduleController.getScheduleForGallery);

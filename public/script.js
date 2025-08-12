@@ -4,12 +4,13 @@
 =============================== */
 
 const BASE_API_URL = '';
-const JOUR_COLORS = ["red", "blue", "green", "purple", "orange", "brown", "magenta", "gold", "cyan", "darkgreen", "pink", "navy", "gray", "darkorange"];
+const PUBLICATION_COLORS = ["red", "blue", "green", "purple", "orange", "brown", "magenta", "gold", "cyan", "darkgreen", "pink", "navy", "gray", "darkorange"];
 const CALENDAR_THUMB_SIZE = { width: 30, height: 30 };
 const CALENDAR_HOVER_THUMB_SIZE = { width: 100, height: 100 };
 const PREVIEW_WIDTH = 100;
 const PREVIEW_HEIGHT = 100;
 const CROPPER_BACKGROUND_GRAY = 'rgb(46, 46, 46)';
+const MONTHS_FR_ABBR = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Août", "Sep", "Oct", "Nov", "Déc"];
 
 let app = null;
 
@@ -287,68 +288,68 @@ class GridItemBackend {
     }
 }
 
-class JourFrameBackend {
-    constructor(organizer, jourData) {
+class PublicationFrameBackend {
+    constructor(organizer, publicationData) {
         this.organizer = organizer;
-        this.id = jourData._id;
-        this.galleryId = jourData.galleryId;
-        this.index = jourData.index;
-        this.letter = jourData.letter;
-        this.autoCropSettings = jourData.autoCropSettings || { vertical: 'none', horizontal: 'none' };
+        this.id = publicationData._id;
+        this.galleryId = publicationData.galleryId;
+        this.index = publicationData.index;
+        this.letter = publicationData.letter;
+        this.autoCropSettings = publicationData.autoCropSettings || { vertical: 'none', horizontal: 'none' };
         this.maxImages = 20;
         this.imagesData = [];
-        this.descriptionText = jourData.descriptionText || '';
+        this.descriptionText = publicationData.descriptionText || '';
 
         this.element = document.createElement('div');
-        this.element.className = 'jour-frame';
-        this.element.dataset.id = `jour-${this.letter}`;
-        this.element.dataset.jourDbId = this.id;
+        this.element.className = 'publication-frame';
+        this.element.dataset.id = `publication-${this.letter}`;
+        this.element.dataset.publicationDbId = this.id;
 
         this.labelElement = document.createElement('button');
-        this.labelElement.className = 'jour-frame-label';
-        this.labelElement.textContent = `Jour ${this.letter}`;
+        this.labelElement.className = 'publication-frame-label';
+        this.labelElement.textContent = `Publication ${this.letter}`;
 
         this.canvasWrapper = document.createElement('div');
-        this.canvasWrapper.className = 'jour-frame-canvas-wrapper';
+        this.canvasWrapper.className = 'publication-frame-canvas-wrapper';
 
         const buttonsContainer = document.createElement('div');
-        buttonsContainer.className = 'jour-frame-buttons';
+        buttonsContainer.className = 'publication-frame-buttons';
 
-        this.exportJourImagesBtn = document.createElement('button');
-        this.exportJourImagesBtn.textContent = 'Exporter Images';
+        this.exportPublicationImagesBtn = document.createElement('button');
+        this.exportPublicationImagesBtn.textContent = 'Exporter Images';
 
-        this.deleteJourBtn = document.createElement('button');
-        this.deleteJourBtn.textContent = '🗑️ Suppr. Jour';
-        this.deleteJourBtn.className = 'danger-btn-small';
+        this.deletePublicationBtn = document.createElement('button');
+        this.deletePublicationBtn.textContent = '🗑️ Suppr. Publication';
+        this.deletePublicationBtn.className = 'danger-btn-small';
 
-        buttonsContainer.appendChild(this.exportJourImagesBtn);
-        buttonsContainer.appendChild(this.deleteJourBtn);
+        buttonsContainer.appendChild(this.exportPublicationImagesBtn);
+        buttonsContainer.appendChild(this.deletePublicationBtn);
 
         this.element.appendChild(this.labelElement);
         this.element.appendChild(this.canvasWrapper);
         this.element.appendChild(buttonsContainer);
 
-        this.labelElement.addEventListener('click', () => this.organizer.setCurrentJourFrame(this));
+        this.labelElement.addEventListener('click', () => this.organizer.setCurrentPublicationFrame(this));
         this.element.addEventListener('click', (e) => {
             if (e.target === this.element || e.target === this.canvasWrapper) {
-                this.organizer.setCurrentJourFrame(this);
+                this.organizer.setCurrentPublicationFrame(this);
             }
         });
 
-        this.exportJourImagesBtn.addEventListener('click', () => this.exportJourAsZip());
-        this.deleteJourBtn.addEventListener('click', () => this.organizer.closeJourFrame(this));
+        this.exportPublicationImagesBtn.addEventListener('click', () => this.exportPublicationAsZip());
+        this.deletePublicationBtn.addEventListener('click', () => this.organizer.closePublicationFrame(this));
 
         this.debouncedSave = Utils.debounce(() => this.save(), 1500);
 
         this.placeholderElement = document.createElement('div');
-        this.placeholderElement.className = 'jour-image-placeholder';
+        this.placeholderElement.className = 'publication-image-placeholder';
 
         this.canvasWrapper.addEventListener('dragover', (e) => this.onDragOver(e));
         this.canvasWrapper.addEventListener('dragleave', (e) => this.onDragLeave(e));
         this.canvasWrapper.addEventListener('drop', (e) => this.onDrop(e));
 
-        if (jourData.images && Array.isArray(jourData.images)) {
-            jourData.images.sort((a, b) => a.order - b.order).forEach(imgEntry => {
+        if (publicationData.images && Array.isArray(publicationData.images)) {
+            publicationData.images.sort((a, b) => a.order - b.order).forEach(imgEntry => {
                 if (imgEntry.imageId && typeof imgEntry.imageId === 'object') {
                     this.addImageFromBackendData(imgEntry.imageId);
                 } else if (typeof imgEntry.imageId === 'string') {
@@ -373,7 +374,7 @@ class JourFrameBackend {
     }
 
     getDragAfterElement(x) {
-        const draggableElements = [...this.canvasWrapper.querySelectorAll('.jour-image-item:not(.dragging-jour-item)')];
+        const draggableElements = [...this.canvasWrapper.querySelectorAll('.publication-image-item:not(.dragging-publication-item)')];
         for (const child of draggableElements) {
             const box = child.getBoundingClientRect();
             if (x < box.left + box.width / 2) {
@@ -427,28 +428,28 @@ class JourFrameBackend {
                         }
                     }
 
-                    // 2. Mettre à jour le modèle de données d'abord
+                    // 2. Mettre à publication le modèle de données d'abord
                     this.imagesData.splice(insertIndex, 0, newItemData);
 
                     // 3. Créer et insérer le nouvel élément DOM
-                    const newElement = this.createJourItemElement(newItemData);
+                    const newElement = this.createPublicationItemElement(newItemData);
                     this.canvasWrapper.insertBefore(newElement, afterElement);
 
                     // 4. Appeler directement les fonctions de mise à jour
                     this.organizer.updateGridUsage();
                     this.debouncedSave();
                     this.checkAndApplyCroppedStyle();
-                    this.updateUnscheduledJoursList();
+                    this.updateUnscheduledPublicationsList();
                 }
                 // --- FIN DE LA CORRECTION ---
-            } else if (data.sourceType === 'jour') {
-                const sourceJourFrame = this.organizer.jourFrames.find(jf => jf.id === data.sourceJourId);
-                const draggedElement = document.querySelector('.dragging-jour-item');
+            } else if (data.sourceType === 'publication') {
+                const sourcePublicationFrame = this.organizer.publicationFrames.find(pf => pf.id === data.sourcePublicationId);
+                const draggedElement = document.querySelector('.dragging-publication-item');
 
-                if (draggedElement && sourceJourFrame) {
+                if (draggedElement && sourcePublicationFrame) {
                     this.canvasWrapper.insertBefore(draggedElement, afterElement);
-                    if (sourceJourFrame !== this) {
-                        sourceJourFrame.syncDataArrayFromDOM();
+                    if (sourcePublicationFrame !== this) {
+                        sourcePublicationFrame.syncDataArrayFromDOM();
                     }
                     this.syncDataArrayFromDOM();
                 }
@@ -456,17 +457,17 @@ class JourFrameBackend {
         } catch (err) {
             console.error("Erreur lors du drop dans le JourFrame:", err);
         } finally {
-            const dragging = document.querySelector('.dragging-jour-item');
-            if (dragging) dragging.classList.remove('dragging-jour-item');
+            const dragging = document.querySelector('.dragging-publication-item');
+            if (dragging) dragging.classList.remove('dragging-publication-item');
         }
     }
 
     syncDataArrayFromDOM() {
         const newImagesData = [];
-        const imageElements = this.canvasWrapper.querySelectorAll('.jour-image-item');
+        const imageElements = this.canvasWrapper.querySelectorAll('.publication-image-item');
         const allImageDataById = new Map();
-        this.organizer.jourFrames.forEach(jf => {
-            jf.imagesData.forEach(data => allImageDataById.set(data.imageId, data));
+        this.organizer.publicationFrames.forEach(pf => {
+            pf.imagesData.forEach(data => allImageDataById.set(data.imageId, data));
         });
         this.organizer.gridItems.forEach(gridItem => {
             if (!allImageDataById.has(gridItem.id)) {
@@ -490,8 +491,8 @@ class JourFrameBackend {
         this.debouncedSave();
         this.checkAndApplyCroppedStyle();
 
-        // Mettre à jour la liste des jours à planifier
-        this.updateUnscheduledJoursList();
+        // Mettre à publication la liste des publications à planifier
+        this.updateUnscheduledPublicationsList();
     }
 
     addImageFromBackendData(imageData, isGridItemInstance = false) {
@@ -510,30 +511,30 @@ class JourFrameBackend {
             isCropped: imageData.isCroppedVersion || false,
         };
         this.imagesData.push(imageItemData);
-        const newElement = this.createJourItemElement(imageItemData);
+        const newElement = this.createPublicationItemElement(imageItemData);
         this.canvasWrapper.appendChild(newElement);
 
-        // Mettre à jour la grille
+        // Mettre à publication la grille
         this.organizer.updateGridUsage();
     }
 
-    createJourItemElement(imageItemData) {
+    createPublicationItemElement(imageItemData) {
         const itemElement = document.createElement('div');
-        itemElement.className = 'jour-image-item';
+        itemElement.className = 'publication-image-item';
         itemElement.style.backgroundImage = `url(${imageItemData.dataURL})`;
         itemElement.draggable = true;
         itemElement.dataset.imageId = imageItemData.imageId;
         itemElement.addEventListener('dragstart', (e) => {
-            e.target.classList.add('dragging-jour-item');
+            e.target.classList.add('dragging-publication-item');
             e.dataTransfer.setData("application/json", JSON.stringify({
-                sourceType: 'jour',
-                sourceJourId: this.id,
+                sourceType: 'publication',
+                sourcePublicationId: this.id,
                 imageId: imageItemData.imageId,
             }));
             e.dataTransfer.effectAllowed = "move";
         });
         itemElement.addEventListener('dragend', (e) => {
-            e.target.classList.remove('dragging-jour-item');
+            e.target.classList.remove('dragging-publication-item');
         });
         const deleteBtn = document.createElement('span');
         deleteBtn.className = 'delete-btn';
@@ -557,38 +558,38 @@ class JourFrameBackend {
     checkAndApplyCroppedStyle() {
         this.hasBeenProcessedByCropper = this.imagesData.some(img => img.isCropped);
         if (this.hasBeenProcessedByCropper) {
-            this.element.classList.add('jour-frame-processed');
+            this.element.classList.add('publication-frame-processed');
         } else {
-            this.element.classList.remove('jour-frame-processed');
+            this.element.classList.remove('publication-frame-processed');
         }
     }
 
-    // Fonction utilitaire pour mettre à jour la liste des jours à planifier
-    updateUnscheduledJoursList() {
-        console.log(`🔄 updateUnscheduledJoursList appelée pour jour ${this.letter}`);
+    // Fonction utilitaire pour mettre à publication la liste des publications à planifier
+    updateUnscheduledPublicationsList() {
+        console.log(`🔄 updateUnscheduledPublicationsList appelée pour publication ${this.letter}`);
         if (this.organizer && this.organizer.calendarPage) {
-            // S'assurer que ce jour est dans allUserJours
-            this.organizer.ensureJourInAllUserJours(this);
-            console.log(`✅ Mise à jour de la liste des jours à planifier`);
-            this.organizer.calendarPage.buildUnscheduledJoursList();
+            // S'assurer que ce publication est dans allUserPublications
+            this.organizer.ensureJourInAllUserPublications(this);
+            console.log(`✅ Mise à publication de la liste des publications à planifier`);
+            this.organizer.calendarPage.buildUnscheduledPublicationsList();
         } else {
             console.log(`❌ Pas de calendarPage disponible`);
         }
     }
 
-    async exportJourAsZip() {
+    async exportPublicationAsZip() {
         if (this.imagesData.length === 0) {
-            alert(`Le Jour ${this.letter} est vide. Aucun ZIP ne sera généré.`);
+            alert(`Le Publication ${this.letter} est vide. Aucun ZIP ne sera généré.`);
             return;
         }
         if (!this.galleryId || !this.id) {
-            alert("Erreur: Impossible de déterminer la galerie ou l'ID du jour pour l'exportation.");
+            alert("Erreur: Impossible de déterminer la galerie ou l'ID du publication pour l'exportation.");
             return;
         }
-        const exportUrl = `${BASE_API_URL}/api/galleries/${this.galleryId}/jours/${this.id}/export`;
-        const originalButtonText = this.exportJourImagesBtn.textContent;
-        this.exportJourImagesBtn.textContent = 'Préparation...';
-        this.exportJourImagesBtn.disabled = true;
+        const exportUrl = `${BASE_API_URL}/api/galleries/${this.galleryId}/publications/${this.id}/export`;
+        const originalButtonText = this.exportPublicationImagesBtn.textContent;
+        this.exportPublicationImagesBtn.textContent = 'Préparation...';
+        this.exportPublicationImagesBtn.disabled = true;
         try {
             const response = await fetch(exportUrl);
             if (!response.ok) {
@@ -596,7 +597,7 @@ class JourFrameBackend {
                 throw new Error(`Erreur HTTP ${response.status}: ${errorText}`);
             }
             const blob = await response.blob();
-            let filename = `Jour${this.letter}.zip`;
+            let filename = `Publication${this.letter}.zip`;
             const contentDisposition = response.headers.get('content-disposition');
             if (contentDisposition) {
                 const filenameMatch = contentDisposition.match(/filename="?(.+)"?/i);
@@ -606,11 +607,11 @@ class JourFrameBackend {
             }
             Utils.downloadDataURL(window.URL.createObjectURL(blob), filename);
         } catch (error) {
-            console.error(`Erreur lors de l'exportation du Jour ${this.letter}:`, error);
+            console.error(`Erreur lors de l'exportation du Publication ${this.letter}:`, error);
             alert(`Erreur d'exportation: ${error.message}`);
         } finally {
-            this.exportJourImagesBtn.textContent = originalButtonText;
-            this.exportJourImagesBtn.disabled = false;
+            this.exportPublicationImagesBtn.textContent = originalButtonText;
+            this.exportPublicationImagesBtn.disabled = false;
         }
     }
 
@@ -624,14 +625,14 @@ class JourFrameBackend {
             descriptionText: this.descriptionText
         };
         try {
-            const response = await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/jours/${this.id}`, {
+            const response = await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/publications/${this.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(payload)
             });
             if (!response.ok) {
                 const errorData = await response.text();
-                throw new Error(`Failed to save Jour ${this.letter}: ${response.statusText} - ${errorData}`);
+                throw new Error(`Failed to save Publication ${this.letter}: ${response.statusText} - ${errorData}`);
             }
             await response.json();
             if (this.organizer && this.organizer.calendarPage && document.getElementById('calendar').classList.contains('active')) {
@@ -639,7 +640,7 @@ class JourFrameBackend {
             }
             return true;
         } catch (error) {
-            console.error(`Error saving Jour ${this.letter}:`, error);
+            console.error(`Error saving Publication ${this.letter}:`, error);
             if (app && app.descriptionManager) {
                 app.descriptionManager.showSaveStatus(false);
             }
@@ -651,7 +652,7 @@ class JourFrameBackend {
         let changesApplied = false;
         const newImagesDataArray = [];
         const finalElements = [];
-        this.canvasWrapper.querySelectorAll('.jour-image-item').forEach(element => {
+        this.canvasWrapper.querySelectorAll('.publication-image-item').forEach(element => {
             const currentImageId = element.dataset.imageId;
             const modificationOutput = modifiedDataMap[currentImageId];
             if (modificationOutput) {
@@ -660,12 +661,12 @@ class JourFrameBackend {
                     modificationOutput.forEach(newImageDoc => {
                         const newData = this.createImageItemDataFromBackendDoc(newImageDoc);
                         newImagesDataArray.push(newData);
-                        finalElements.push(this.createJourItemElement(newData));
+                        finalElements.push(this.createPublicationItemElement(newData));
                     });
                 } else {
                     const newData = this.createImageItemDataFromBackendDoc(modificationOutput);
                     newImagesDataArray.push(newData);
-                    finalElements.push(this.createJourItemElement(newData));
+                    finalElements.push(this.createPublicationItemElement(newData));
                 }
             } else {
                 const oldData = this.imagesData.find(d => d.imageId === currentImageId);
@@ -681,8 +682,8 @@ class JourFrameBackend {
             finalElements.forEach(el => this.canvasWrapper.appendChild(el));
             this.debouncedSave();
             this.checkAndApplyCroppedStyle();
-            // Mettre à jour la liste des jours à planifier après modification par le cropper
-            this.updateUnscheduledJoursList();
+            // Mettre à publication la liste des publications à planifier après modification par le cropper
+            this.updateUnscheduledPublicationsList();
         }
     }
 
@@ -701,7 +702,7 @@ class JourFrameBackend {
 
     getUsageDataForMultiple() {
         const usage = new Map();
-        const color = JOUR_COLORS[this.index % JOUR_COLORS.length];
+        const color = PUBLICATION_COLORS[this.index % PUBLICATION_COLORS.length];
         this.imagesData.forEach((imgData, i) => {
             const label = `${this.letter}${i + 1}`;
             const originalId = imgData.originalReferencePath;
@@ -716,9 +717,9 @@ class JourFrameBackend {
     async destroy() {
         if (this.id && app.currentGalleryId) {
             try {
-                await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/jours/${this.id}`, { method: 'DELETE' });
+                await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/publications/${this.id}`, { method: 'DELETE' });
             } catch (error) {
-                console.error(`Error deleting Jour ${this.letter} from backend:`, error);
+                console.error(`Error deleting Publication ${this.letter} from backend:`, error);
             }
         }
         if (this.element.parentNode) {
@@ -739,15 +740,15 @@ class AutoCropper {
             horizontal: document.querySelectorAll('input[name="horizontal_treatment"]')
         };
 
-        // Éléments pour la sélection des jours
+        // Éléments pour la sélection des publications
         this.scopeRadios = document.querySelectorAll('input[name="crop_scope"]');
-        this.jourSelectionContainer = document.getElementById('jourSelectionContainer');
-        this.jourCheckboxList = document.getElementById('jourCheckboxList');
-        this.selectAllBtn = document.getElementById('selectAllJoursBtn');
-        this.deselectAllBtn = document.getElementById('deselectAllJoursBtn');
+        this.jourSelectionContainer = document.getElementById('publicationSelectionContainer');
+        this.publicationCheckboxList = document.getElementById('publicationCheckboxList');
+        this.selectAllBtn = document.getElementById('selectAllPublicationsBtn');
+        this.deselectAllBtn = document.getElementById('deselectAllPublicationsBtn');
 
         this.isRunning = false;
-        this.selectedJourIds = new Set();
+        this.selectedPublicationIds = new Set();
         this.debouncedSaveSettings = Utils.debounce(() => this.saveSettings(), 1000);
 
         this._initEventListeners();
@@ -769,8 +770,8 @@ class AutoCropper {
         });
 
         // Boutons de sélection/désélection
-        this.selectAllBtn.addEventListener('click', () => this._selectAllJours());
-        this.deselectAllBtn.addEventListener('click', () => this._deselectAllJours());
+        this.selectAllBtn.addEventListener('click', () => this._selectAllPublications());
+        this.deselectAllBtn.addEventListener('click', () => this._deselectAllPublications());
     }
 
     _initJourSelection() {
@@ -778,15 +779,15 @@ class AutoCropper {
     }
 
     async saveSettings() {
-        const jourFrame = this.croppingPage.currentSelectedJourFrame;
-        if (!jourFrame || this.isRunning) return;
+        const publicationFrame = this.croppingPage.currentSelectedPublicationFrame;
+        if (!publicationFrame || this.isRunning) return;
         const settings = {
             vertical: document.querySelector('input[name="vertical_treatment"]:checked').value,
             horizontal: document.querySelector('input[name="horizontal_treatment"]:checked').value
         };
-        jourFrame.autoCropSettings = settings;
+        publicationFrame.autoCropSettings = settings;
         try {
-            await fetch(`${BASE_API_URL}/api/galleries/${jourFrame.galleryId}/jours/${jourFrame.id}`, {
+            await fetch(`${BASE_API_URL}/api/galleries/${publicationFrame.galleryId}/publications/${publicationFrame.id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ autoCropSettings: settings })
@@ -796,9 +797,9 @@ class AutoCropper {
         }
     }
 
-    loadSettingsForJour(jourFrame) {
-        if (!jourFrame) return;
-        const settings = jourFrame.autoCropSettings || { vertical: 'none', horizontal: 'none' };
+    loadSettingsForPublication(publicationFrame) {
+        if (!publicationFrame) return;
+        const settings = publicationFrame.autoCropSettings || { vertical: 'none', horizontal: 'none' };
         const vertRadio = document.querySelector(`input[name="vertical_treatment"][value="${settings.vertical}"]`);
         if (vertRadio) vertRadio.checked = true;
         const horizRadio = document.querySelector(`input[name="horizontal_treatment"][value="${settings.horizontal}"]`);
@@ -817,41 +818,41 @@ class AutoCropper {
     }
 
     _populateJourCheckboxes() {
-        this.jourCheckboxList.innerHTML = '';
+        this.publicationCheckboxList.innerHTML = '';
 
-        if (!this.organizerApp.jourFrames || this.organizerApp.jourFrames.length === 0) {
-            this.jourCheckboxList.innerHTML = '<div style="padding: 15px; text-align: center; color: #6c757d; font-size: 0.85em;">Aucun jour disponible</div>';
+        if (!this.organizerApp.publicationFrames || this.organizerApp.publicationFrames.length === 0) {
+            this.publicationCheckboxList.innerHTML = '<div style="padding: 15px; text-align: center; color: #6c757d; font-size: 0.85em;">Aucun publication disponible</div>';
             return;
         }
 
-        this.organizerApp.jourFrames.forEach((jourFrame, index) => {
+        this.organizerApp.publicationFrames.forEach((publicationFrame, index) => {
             const item = document.createElement('div');
-            item.className = 'jour-checkbox-item';
+            item.className = 'publication-checkbox-item';
 
             const checkbox = document.createElement('input');
             checkbox.type = 'checkbox';
-            checkbox.id = `jour-checkbox-${jourFrame.id}`;
-            checkbox.dataset.jourId = jourFrame.id;
-            checkbox.checked = this.selectedJourIds.has(jourFrame.id);
+            checkbox.id = `publication-checkbox-${publicationFrame.id}`;
+            checkbox.dataset.publicationId = publicationFrame.id;
+            checkbox.checked = this.selectedPublicationIds.has(publicationFrame.id);
 
             const label = document.createElement('label');
-            label.className = 'jour-checkbox-label';
+            label.className = 'publication-checkbox-label';
             label.htmlFor = checkbox.id;
 
-            // Indicateur de couleur du jour
+            // Indicateur de couleur de la publication
             const colorIndicator = document.createElement('div');
-            colorIndicator.className = 'jour-color-indicator';
-            const jourColor = JOUR_COLORS[index % JOUR_COLORS.length];
-            colorIndicator.style.backgroundColor = jourColor;
+            colorIndicator.className = 'publication-color-indicator';
+            const publicationColor = PUBLICATION_COLORS[index % PUBLICATION_COLORS.length];
+            colorIndicator.style.backgroundColor = publicationColor;
 
-            // Nom du jour
-            const jourName = document.createElement('span');
-            jourName.textContent = `Jour ${jourFrame.letter}`;
+            // Nom de la publication
+            const publicationName = document.createElement('span');
+            publicationName.textContent = `Publication ${publicationFrame.letter}`;
 
             // Nombre d'images
             const imageCount = document.createElement('span');
-            imageCount.className = 'jour-image-count';
-            imageCount.textContent = jourFrame.imagesData.length;
+            imageCount.className = 'publication-image-count';
+            imageCount.textContent = publicationFrame.imagesData.length;
 
             label.appendChild(colorIndicator);
             label.appendChild(jourName);
@@ -863,13 +864,13 @@ class AutoCropper {
             // Gestion des événements
             const updateSelection = () => {
                 if (checkbox.checked) {
-                    this.selectedJourIds.add(jourFrame.id);
+                    this.selectedPublicationIds.add(publicationFrame.id);
                     item.classList.add('selected');
-                    this._highlightJourFrame(jourFrame, true);
+                    this._highlightPublicationFrame(publicationFrame, true);
                 } else {
-                    this.selectedJourIds.delete(jourFrame.id);
+                    this.selectedPublicationIds.delete(publicationFrame.id);
                     item.classList.remove('selected');
-                    this._highlightJourFrame(jourFrame, false);
+                    this._highlightPublicationFrame(publicationFrame, false);
                 }
             };
 
@@ -884,57 +885,57 @@ class AutoCropper {
             // Appliquer l'état initial
             if (checkbox.checked) {
                 item.classList.add('selected');
-                this._highlightJourFrame(jourFrame, true);
+                this._highlightPublicationFrame(publicationFrame, true);
             }
 
-            this.jourCheckboxList.appendChild(item);
+            this.publicationCheckboxList.appendChild(item);
         });
 
     }
 
-    _selectAllJours() {
-        this.organizerApp.jourFrames.forEach(jourFrame => {
-            this.selectedJourIds.add(jourFrame.id);
-            this._highlightJourFrame(jourFrame, true);
+    _selectAllPublications() {
+        this.organizerApp.publicationFrames.forEach(publicationFrame => {
+            this.selectedPublicationIds.add(publicationFrame.id);
+            this._highlightPublicationFrame(publicationFrame, true);
         });
 
-        // Mettre à jour les checkboxes
-        this.jourCheckboxList.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+        // Mettre à publication les checkboxes
+        this.publicationCheckboxList.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
             checkbox.checked = true;
-            checkbox.closest('.jour-checkbox-item').classList.add('selected');
+            checkbox.closest('.publication-checkbox-item').classList.add('selected');
         });
     }
 
-    _deselectAllJours() {
-        this.organizerApp.jourFrames.forEach(jourFrame => {
-            this.selectedJourIds.delete(jourFrame.id);
-            this._highlightJourFrame(jourFrame, false);
+    _deselectAllPublications() {
+        this.organizerApp.publicationFrames.forEach(publicationFrame => {
+            this.selectedPublicationIds.delete(publicationFrame.id);
+            this._highlightPublicationFrame(publicationFrame, false);
         });
 
-        // Mettre à jour les checkboxes
-        this.jourCheckboxList.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
+        // Mettre à publication les checkboxes
+        this.publicationCheckboxList.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
             checkbox.checked = false;
-            checkbox.closest('.jour-checkbox-item').classList.remove('selected');
+            checkbox.closest('.publication-checkbox-item').classList.remove('selected');
         });
     }
 
-    _highlightJourFrame(jourFrame, highlight) {
-        if (!jourFrame.element) return;
+    _highlightPublicationFrame(publicationFrame, highlight) {
+        if (!publicationFrame.element) return;
 
         if (highlight) {
-            jourFrame.element.style.boxShadow = '0 0 0 3px rgba(33, 150, 243, 0.3)';
-            jourFrame.element.style.borderColor = '#2196f3';
-            jourFrame.element.style.transform = 'scale(1.02)';
+            publicationFrame.element.style.boxShadow = '0 0 0 3px rgba(33, 150, 243, 0.3)';
+            publicationFrame.element.style.borderColor = '#2196f3';
+            publicationFrame.element.style.transform = 'scale(1.02)';
         } else {
-            jourFrame.element.style.boxShadow = '';
-            jourFrame.element.style.borderColor = '';
-            jourFrame.element.style.transform = '';
+            publicationFrame.element.style.boxShadow = '';
+            publicationFrame.element.style.borderColor = '';
+            publicationFrame.element.style.transform = '';
         }
     }
 
 
 
-    // Méthode publique pour rafraîchir la liste des jours (appelée quand des jours sont ajoutés/supprimés)
+    // Méthode publique pour rafraîchir la liste des publications (appelée quand des publications sont ajoutés/supprimés)
     refreshJourSelection() {
         if (this.jourSelectionContainer.style.display !== 'none') {
             this._populateJourCheckboxes();
@@ -943,16 +944,16 @@ class AutoCropper {
 
     async run() {
         const scope = document.querySelector('input[name="crop_scope"]:checked').value;
-        let joursToProcess = [];
+        let publicationsToProcess = [];
 
         if (scope === 'all') {
-            joursToProcess = this.organizerApp.jourFrames;
+            publicationsToProcess = this.organizerApp.publicationFrames;
         } else if (scope === 'selection') {
-            joursToProcess = this.organizerApp.jourFrames.filter(jf => this.selectedJourIds.has(jf.id));
+            publicationsToProcess = this.organizerApp.publicationFrames.filter(jf => this.selectedPublicationIds.has(jf.id));
         }
 
-        if (joursToProcess.length === 0) {
-            alert("Aucun jour sélectionné à traiter.");
+        if (publicationsToProcess.length === 0) {
+            alert("Aucun publication sélectionné à traiter.");
             return;
         }
 
@@ -968,17 +969,17 @@ class AutoCropper {
             horizontal: document.querySelector('input[name="horizontal_treatment"]:checked').value
         };
 
-        for (const jour of joursToProcess) {
-            let jourNeedsUpdate = false;
+        for (const publication of publicationsToProcess) {
+            let publicationNeedsUpdate = false;
             const modifiedDataMap = {};
             const newImagesData = [];
 
-            if (jour.imagesData.length === 0) continue;
+            if (publication.imagesData.length === 0) continue;
 
-            for (let i = 0; i < jour.imagesData.length; i++) {
-                const imgData = jour.imagesData[i];
+            for (let i = 0; i < publication.imagesData.length; i++) {
+                const imgData = publication.imagesData[i];
 
-                this.progressElement.textContent = `Traitement Jour ${jour.letter} (${i + 1}/${jour.imagesData.length})...`;
+                this.progressElement.textContent = `Traitement Publication ${publication.letter} (${i + 1}/${publication.imagesData.length})...`;
 
                 const originalGridItem = this.organizerApp.gridItemsDict[imgData.originalReferencePath];
                 if (!originalGridItem) {
@@ -1008,7 +1009,7 @@ class AutoCropper {
                                     isCropped: originalGridItem.isCroppedVersion
                                 };
                                 newImagesData.push(restoredImageData);
-                                jourNeedsUpdate = true;
+                                publicationNeedsUpdate = true;
                             } else {
                                 // Sécurité : si l'original est introuvable, on garde la version recadrée
                                 // pour éviter la perte de données (l'image qui disparaît).
@@ -1019,7 +1020,7 @@ class AutoCropper {
                             // C'est déjà l'image originale, on la conserve telle quelle.
                             newImagesData.push(imgData);
                         }
-                        continue; // On passe à l'image suivante du jour.
+                        continue; // On passe à l'image suivante de la publication.
                     }
 
                     // Si l'image est déjà recadrée et que le réglage n'est pas "none", on la saute
@@ -1068,7 +1069,7 @@ class AutoCropper {
                     }
 
                     if (dataURL) {
-                        const response = await fetch(`${BASE_API_URL}/api/galleries/${jour.galleryId}/images/${originalGridItem.id}/crop`, {
+                        const response = await fetch(`${BASE_API_URL}/api/galleries/${publication.galleryId}/images/${originalGridItem.id}/crop`, {
                             method: 'POST',
                             headers: { 'Content-Type': 'application/json' },
                             body: JSON.stringify({ imageDataUrl: dataURL, cropInfo, filenameSuffix })
@@ -1081,33 +1082,33 @@ class AutoCropper {
                             this.organizerApp.gridItemsDict[newImageDoc._id] = newGridItem;
                         }
                         modifiedDataMap[imgData.imageId] = newImageDoc;
-                        newImagesData.push(jour.createImageItemDataFromBackendDoc(newImageDoc));
-                        jourNeedsUpdate = true;
+                        newImagesData.push(publication.createImageItemDataFromBackendDoc(newImageDoc));
+                        publicationNeedsUpdate = true;
                     } else {
                         // Si aucun recadrage n'a été appliqué, on garde l'ancienne data
                         newImagesData.push(imgData);
                     }
                 } catch (err) {
                     console.error(`Erreur auto-crop pour ${originalGridItem.basename}:`, err);
-                    this.progressElement.textContent = `Erreur sur l'image ${i + 1} du Jour ${jour.letter}.`;
+                    this.progressElement.textContent = `Erreur sur l'image ${i + 1} de la Publication ${publication.letter}.`;
                     await new Promise(resolve => setTimeout(resolve, 1500));
                     newImagesData.push(imgData);
                 }
             }
 
-            if (jourNeedsUpdate) {
-                jour.imagesData = newImagesData;
+            if (publicationNeedsUpdate) {
+                publication.imagesData = newImagesData;
 
-                // Rafraîchit le DOM du JourFrame
-                jour.canvasWrapper.innerHTML = '';
-                jour.imagesData.forEach(data => {
-                    const el = jour.createJourItemElement(data);
-                    jour.canvasWrapper.appendChild(el);
+                // Rafraîchit le DOM du PublicationFrame
+                publication.canvasWrapper.innerHTML = '';
+                publication.imagesData.forEach(data => {
+                    const el = publication.createPublicationItemElement(data);
+                    publication.canvasWrapper.appendChild(el);
                 });
 
-                jour.debouncedSave();
-                jour.checkAndApplyCroppedStyle();
-                jour.updateUnscheduledJoursList();
+                publication.debouncedSave();
+                publication.checkAndApplyCroppedStyle();
+                publication.updateUnscheduledPublicationsList();
             }
         }
 
@@ -1129,13 +1130,13 @@ class AutoCropper {
 class CroppingPage {
     constructor(organizerApp) {
         this.organizerApp = organizerApp;
-        this.jourListElement = document.getElementById('croppingJourList');
+        this.jourListElement = document.getElementById('croppingPublicationList');
         this.editorContainerElement = document.getElementById('croppingEditorContainer');
         this.editorPanelElement = document.getElementById('croppingEditorPanel');
         this.editorPlaceholderElement = document.getElementById('croppingEditorPlaceholder');
         this.editorTitleElement = document.getElementById('croppingEditorTitle');
         this.thumbnailStripElement = document.getElementById('croppingThumbnailStrip');
-        this.currentSelectedJourFrame = null;
+        this.currentSelectedPublicationFrame = null;
         this.croppingManager = new CroppingManager(this.organizerApp, this);
         this.autoCropper = new AutoCropper(this.organizerApp, this);
 
@@ -1158,7 +1159,7 @@ class CroppingPage {
 
     show() {
         if (!this.organizerApp.currentGalleryId) {
-            this.jourListElement.innerHTML = '<li>Chargez une galerie pour voir ses jours.</li>';
+            this.jourListElement.innerHTML = '<li>Chargez une galerie pour voir ses publications.</li>';
             this.clearEditor();
             return;
         }
@@ -1167,11 +1168,11 @@ class CroppingPage {
         if (this.isAllPhotosViewActive) {
             this.toggleAllPhotosView(true);
         } else {
-            const stillExists = this.currentSelectedJourFrame ? this.organizerApp.jourFrames.find(jf => jf.id === this.currentSelectedJourFrame.id) : null;
+            const stillExists = this.currentSelectedPublicationFrame ? this.organizerApp.publicationFrames.find(jf => jf.id === this.currentSelectedPublicationFrame.id) : null;
             if (stillExists) {
-                this.selectJour(stillExists, true);
-            } else if (this.organizerApp.jourFrames.length > 0) {
-                this.selectJour(this.organizerApp.jourFrames[0]);
+                this.selectPublication(stillExists, true);
+            } else if (this.organizerApp.publicationFrames.length > 0) {
+                this.selectPublication(this.organizerApp.publicationFrames[0]);
             } else {
                 this.clearEditor();
             }
@@ -1179,38 +1180,38 @@ class CroppingPage {
     }
 
     populateJourList() {
-        this.organizerApp._populateSharedJourList(this.jourListElement, this.isAllPhotosViewActive ? null : (this.currentSelectedJourFrame ? this.currentSelectedJourFrame.id : null), 'cropping');
+        this.organizerApp._populateSharedJourList(this.jourListElement, this.isAllPhotosViewActive ? null : (this.currentSelectedPublicationFrame ? this.currentSelectedPublicationFrame.id : null), 'cropping');
     }
 
     onJourClick(event) {
         const li = event.target.closest('li');
-        if (!li || !li.dataset.jourId) return;
-        const jourFrame = this.organizerApp.jourFrames.find(jf => jf.id === li.dataset.jourId);
-        if (jourFrame) {
+        if (!li || !li.dataset.publicationId) return;
+        const publicationFrame = this.organizerApp.publicationFrames.find(jf => jf.id === li.dataset.publicationId);
+        if (publicationFrame) {
             if (this.isAllPhotosViewActive) {
                 this.toggleAllPhotosView(false); // Switch to editor view
             }
-            this.selectJour(jourFrame);
+            this.selectPublication(publicationFrame);
         }
     }
 
-    async selectJour(jourFrame, preventStart = false) {
+    async selectPublication(publicationFrame, preventStart = false) {
         if (this.isAllPhotosViewActive) {
             this.toggleAllPhotosView(false); // Should switch to editor view
         }
 
-        if (this.currentSelectedJourFrame === jourFrame && this.editorPanelElement.style.display !== 'none' && !preventStart) {
+        if (this.currentSelectedPublicationFrame === publicationFrame && this.editorPanelElement.style.display !== 'none' && !preventStart) {
             return;
         }
-        this.currentSelectedJourFrame = jourFrame;
+        this.currentSelectedPublicationFrame = publicationFrame;
         this.populateJourList();
-        this.autoCropper.loadSettingsForJour(jourFrame);
+        this.autoCropper.loadSettingsForPublication(publicationFrame);
 
         if (!preventStart) {
-            await this.startCroppingForJour(jourFrame);
+            await this.startCroppingForJour(publicationFrame);
         } else {
             this.showEditor();
-            this.editorTitleElement.textContent = `Recadrage pour Jour ${jourFrame.letter}`;
+            this.editorTitleElement.textContent = `Recadrage pour Publication ${publicationFrame.letter}`;
         }
     }
 
@@ -1220,19 +1221,19 @@ class CroppingPage {
         if (this.isAllPhotosViewActive) {
             if (this.croppingManager && this.croppingManager.currentImageIndex > -1 && !this.croppingManager.ignoreSaveForThisImage) {
                 await this.croppingManager.applyAndSaveCurrentImage();
-                if (this.croppingManager.currentJourFrameInstance) {
-                    this.croppingManager.currentJourFrameInstance.updateImagesFromCropper(this.croppingManager.modifiedDataMap);
+                if (this.croppingManager.currentPublicationFrameInstance) {
+                    this.croppingManager.currentPublicationFrameInstance.updateImagesFromCropper(this.croppingManager.modifiedDataMap);
                     this.croppingManager.modifiedDataMap = {};
                 }
             }
 
-            this.currentSelectedJourFrame = null;
+            this.currentSelectedPublicationFrame = null;
             this.populateJourList();
             this.renderAllPhotosGroupedView();
             this.toggleViewBtnText.textContent = 'Retour au recadrage';
             this.toggleViewBtn.style.backgroundColor = '#5a6268';
             this.toggleViewBtn.style.borderColor = '#545b62';
-            this.editorTitleElement.textContent = 'Toutes les photos par jour';
+            this.editorTitleElement.textContent = 'Toutes les photos par publication';
             this.editorPanelElement.style.display = 'none';
             this.editorPlaceholderElement.style.display = 'none';
             this.allPhotosGroupedViewContainer.style.display = 'block';
@@ -1246,9 +1247,9 @@ class CroppingPage {
             this.toggleViewBtn.style.borderColor = '';
             this.autoCropSidebar.style.display = 'none';
 
-            const firstJour = this.organizerApp.jourFrames[0];
-            if (firstJour) {
-                this.selectJour(firstJour);
+            const firstPublication = this.organizerApp.publicationFrames[0];
+            if (firstPublication) {
+                this.selectPublication(firstPublication);
             } else {
                 this.clearEditor();
             }
@@ -1260,8 +1261,8 @@ class CroppingPage {
         container.innerHTML = '';
         const app = this.organizerApp;
 
-        if (!app.jourFrames || app.jourFrames.length === 0) {
-            container.innerHTML = '<p class="sidebar-info" style="text-align: center; padding: 20px;">Aucun jour à afficher. Créez des jours dans l\'onglet "Tri".</p>';
+        if (!app.publicationFrames || app.publicationFrames.length === 0) {
+            container.innerHTML = '<p class="sidebar-info" style="text-align: center; padding: 20px;">Aucun publication à afficher. Créez des publications dans l\'onglet "Tri".</p>';
             return;
         }
 
@@ -1276,30 +1277,30 @@ class CroppingPage {
             return itemDiv;
         };
 
-        app.jourFrames.forEach(jourFrame => {
+        app.publicationFrames.forEach(publicationFrame => {
             const groupDiv = document.createElement('div');
-            groupDiv.className = 'jour-group-container';
+            groupDiv.className = 'publication-group-container';
 
             const header = document.createElement('h4');
-            header.className = 'jour-group-header';
-            header.textContent = `Jour ${jourFrame.letter}`;
+            header.className = 'publication-group-header';
+            header.textContent = `Publication ${publicationFrame.letter}`;
             groupDiv.appendChild(header);
 
             const gridDiv = document.createElement('div');
-            gridDiv.className = 'jour-group-grid';
+            gridDiv.className = 'publication-group-grid';
 
-            if (jourFrame.imagesData.length === 0) {
-                gridDiv.innerHTML = '<p class="jour-group-empty-text">Ce jour est vide.</p>';
+            if (publicationFrame.imagesData.length === 0) {
+                gridDiv.innerHTML = '<p class="publication-group-empty-text">Cette publication est vide.</p>';
             } else {
-                jourFrame.imagesData.forEach((imgData, index) => {
+                publicationFrame.imagesData.forEach((imgData, index) => {
                     const gridItem = app.gridItemsDict[imgData.imageId];
                     if (gridItem) {
                         const itemDiv = createItemDiv(gridItem);
                         itemDiv.classList.add('clickable-in-grid');
-                        itemDiv.addEventListener('click', () => this.switchToCropperForImage(jourFrame, index));
+                        itemDiv.addEventListener('click', () => this.switchToCropperForImage(publicationFrame, index));
                         gridDiv.appendChild(itemDiv);
                     } else {
-                        console.warn(`Impossible de trouver l'image avec l'ID: ${imgData.imageId} pour le Jour ${jourFrame.letter} dans la vue groupée.`);
+                        console.warn(`Impossible de trouver l'image avec l'ID: ${imgData.imageId} pour le Publication ${publicationFrame.letter} dans la vue groupée.`);
                         const errorDiv = document.createElement('div');
                         errorDiv.className = 'grouped-view-item-error';
                         errorDiv.textContent = 'Erreur';
@@ -1312,30 +1313,30 @@ class CroppingPage {
         });
     }
 
-    async switchToCropperForImage(jourFrame, imageIndex) {
+    async switchToCropperForImage(publicationFrame, imageIndex) {
         this.toggleAllPhotosView(false);
-        await this.startCroppingForJour(jourFrame, imageIndex);
+        await this.startCroppingForJour(publicationFrame, imageIndex);
     }
 
-    async startCroppingForJour(jourFrame, startIndex = 0) {
-        if (!jourFrame.imagesData || jourFrame.imagesData.length === 0) {
+    async startCroppingForJour(publicationFrame, startIndex = 0) {
+        if (!publicationFrame.imagesData || publicationFrame.imagesData.length === 0) {
             this.clearEditor();
-            this.editorTitleElement.textContent = `Jour ${jourFrame.letter}`;
-            this.editorPlaceholderElement.textContent = `Le Jour ${jourFrame.letter} est vide et ne peut pas être recadré.`;
+            this.editorTitleElement.textContent = `Publication ${publicationFrame.letter}`;
+            this.editorPlaceholderElement.textContent = `Le Publication ${publicationFrame.letter} est vide et ne peut pas être recadré.`;
             this.editorPlaceholderElement.style.display = 'block';
             return;
         }
 
         this.showEditor();
-        this.editorTitleElement.textContent = `Recadrage pour Jour ${jourFrame.letter}`;
+        this.editorTitleElement.textContent = `Recadrage pour Publication ${publicationFrame.letter}`;
 
         // Préparer les données pour le cropper
-        const imageInfosForCropper = jourFrame.imagesData.map(imgDataInJour => {
-            const currentImageId = imgDataInJour.imageId;
+        const imageInfosForCropper = publicationFrame.imagesData.map(imgDataInPublication => {
+            const currentImageId = imgDataInPublication.imageId;
             const currentGridItem = this.organizerApp.gridItemsDict[currentImageId];
 
             if (!currentGridItem) {
-                console.warn(`Image ID ${currentImageId} du Jour ${jourFrame.letter} non trouvée.`);
+                console.warn(`Image ID ${currentImageId} du Publication ${publicationFrame.letter} non trouvée.`);
                 return null;
             }
 
@@ -1349,7 +1350,7 @@ class CroppingPage {
 
             return {
                 pathForCropper: currentImageId,
-                dataURL: imgDataInJour.dataURL,
+                dataURL: imgDataInPublication.dataURL,
                 originalReferenceId: originalImageId,
                 baseImageToCropFromDataURL: originalGridItem.imagePath,
                 currentImageId: currentImageId
@@ -1358,7 +1359,7 @@ class CroppingPage {
 
         if (imageInfosForCropper.length === 0) {
             this.clearEditor();
-            this.editorPlaceholderElement.textContent = `Aucune image valide à recadrer pour le Jour ${jourFrame.letter}.`;
+            this.editorPlaceholderElement.textContent = `Aucune image valide à recadrer pour le Publication ${publicationFrame.letter}.`;
             this.editorPlaceholderElement.style.display = 'block';
             return;
         }
@@ -1367,22 +1368,22 @@ class CroppingPage {
 
         // 1. D'abord, on lance le chargement de l'image principale.
         //    Cela envoie la requête réseau la plus importante en premier.
-        await this.croppingManager.startCropping(imageInfosForCropper, jourFrame, startIndex);
+        await this.croppingManager.startCropping(imageInfosForCropper, publicationFrame, startIndex);
 
         // 2. ENSUITE, et seulement après que la première image soit gérée,
         //    on peuple la bande de vignettes. Le navigateur peut maintenant
         //    charger ces images secondaires sans annuler la requête principale.
-        this._populateThumbnailStrip(jourFrame);
+        this._populateThumbnailStrip(publicationFrame);
 
-        // 3. On met à jour le surlignage de la vignette active.
+        // 3. On met à publication le surlignage de la vignette active.
         this._updateThumbnailStripHighlight(this.croppingManager.currentImageIndex);
 
         // --- FIN DE LA CORRECTION CRUCIALE ---
     }
 
-    _populateThumbnailStrip(jourFrame) {
+    _populateThumbnailStrip(publicationFrame) {
         this.thumbnailStripElement.innerHTML = '';
-        jourFrame.imagesData.forEach((imgData, index) => {
+        publicationFrame.imagesData.forEach((imgData, index) => {
             const thumbDiv = document.createElement('div');
             thumbDiv.className = 'crop-strip-thumb';
             thumbDiv.style.backgroundImage = `url(${imgData.dataURL})`;
@@ -1418,10 +1419,10 @@ class CroppingPage {
         this.editorPlaceholderElement.style.display = 'block';
         this.allPhotosGroupedViewContainer.style.display = 'none';
         this.autoCropSidebar.style.display = 'none';
-        this.editorTitleElement.textContent = "Sélectionnez un jour à recadrer";
+        this.editorTitleElement.textContent = "Sélectionnez un publication à recadrer";
         this.thumbnailStripElement.innerHTML = '';
-        if (this.currentSelectedJourFrame) {
-            this.currentSelectedJourFrame = null;
+        if (this.currentSelectedPublicationFrame) {
+            this.currentSelectedPublicationFrame = null;
             this.populateJourList();
         }
     }
@@ -1452,7 +1453,7 @@ class CroppingManager {
         this.currentImageIndex = -1;
         this.currentImageObject = null;
         this.modifiedDataMap = {};
-        this.currentJourFrameInstance = null;
+        this.currentPublicationFrameInstance = null;
         this.cropRectDisplay = null;
         this.isDragging = false;
         this.dragMode = null;
@@ -1481,12 +1482,12 @@ class CroppingManager {
             const imageIdToDelete = imageToDelete.currentImageId;
             const originalGridItem = this.organizer.gridItemsDict[imageToDelete.originalReferenceId];
             const displayName = originalGridItem ? originalGridItem.basename : `Image ID ${imageToDelete.originalReferenceId}`;
-            if (this.currentJourFrameInstance) {
-                this.currentJourFrameInstance.removeImageById(imageIdToDelete);
+            if (this.currentPublicationFrameInstance) {
+                this.currentPublicationFrameInstance.removeImageById(imageIdToDelete);
             }
             this.imagesToCrop.splice(this.currentImageIndex, 1);
-            this.croppingPage._populateThumbnailStrip(this.currentJourFrameInstance);
-            this.infoLabel.textContent = `Image ${displayName} supprimée du jour.`;
+            this.croppingPage._populateThumbnailStrip(this.currentPublicationFrameInstance);
+            this.infoLabel.textContent = `Image ${displayName} supprimée de la publication.`;
             this.loadCurrentImage();
         };
         this.flipBtn.onclick = () => this.toggleFlip();
@@ -1525,7 +1526,7 @@ class CroppingManager {
                 this._waitForContainerAndResize(attempts + 1);
             }, delay);
         } else {
-            console.warn('[CroppingManager] Impossible d\'initialiser le recadrage : conteneur toujours trop petit après 10 tentatives.');
+            console.warn('[CroppingManager] Impossible d\'initialiser le recadrage : conteneur toupublications trop petit après 10 tentatives.');
         }
     }
 
@@ -1758,11 +1759,11 @@ class CroppingManager {
         this.isLoading = true; // Verrouiller
 
         // [LOG] Log de démarrage de toute l'opération de recadrage.
-        console.log(`[CroppingManager] startCropping appelé pour Jour ${callingJourFrame.letter}, début à l'index ${startIndex}.`);
+        console.log(`[CroppingManager] startCropping appelé pour Publication ${callingJourFrame.letter}, début à l'index ${startIndex}.`);
 
         try {
             this.imagesToCrop = images;
-            this.currentJourFrameInstance = callingJourFrame;
+            this.currentPublicationFrameInstance = callingJourFrame;
             this.currentImageIndex = startIndex;
             this.modifiedDataMap = {};
             this.saveMode = 'crop';
@@ -1790,11 +1791,11 @@ class CroppingManager {
         if (this.currentImageIndex >= 0 && this.currentImageIndex < this.imagesToCrop.length && !this.ignoreSaveForThisImage) {
             await this.applyAndSaveCurrentImage();
         }
-        if (this.currentJourFrameInstance) {
-            this.currentJourFrameInstance.updateImagesFromCropper(this.modifiedDataMap);
+        if (this.currentPublicationFrameInstance) {
+            this.currentPublicationFrameInstance.updateImagesFromCropper(this.modifiedDataMap);
         }
         this.imagesToCrop = [];
-        this.currentJourFrameInstance = null;
+        this.currentPublicationFrameInstance = null;
         this.currentImageObject = null;
         this.ctx.clearRect(0, 0, this.canvasElement.width, this.canvasElement.height);
         this.infoLabel.textContent = "";
@@ -2183,8 +2184,8 @@ class CroppingManager {
         if (this.ignoreSaveForThisImage || !this.currentImageObject || this.currentImageIndex < 0) return;
         const currentImgInfoForCropper = this.imagesToCrop[this.currentImageIndex];
         const originalImageId = currentImgInfoForCropper.originalReferenceId;
-        const currentImageIdInJour = currentImgInfoForCropper.currentImageId;
-        const galleryIdForAPI = this.currentJourFrameInstance.galleryId;
+        const currentImageIdInPublication = currentImgInfoForCropper.currentImageId;
+        const galleryIdForAPI = this.currentPublicationFrameInstance.galleryId;
         const saveCanvas = document.createElement('canvas');
         const saveCtx = saveCanvas.getContext('2d');
         let cropOperationsPayloads = [];
@@ -2420,7 +2421,7 @@ class DescriptionManager {
     constructor(organizerApp) {
         this.organizerApp = organizerApp;
         this.mainListElement = document.getElementById('descriptionMainList');
-        this.jourListElement = document.getElementById('descriptionJourList');
+        this.jourListElement = document.getElementById('descriptionPublicationList');
         this.editorTitleElement = document.getElementById('descriptionEditorTitle');
         this.editorContentElement = document.getElementById('descriptionEditorContent');
         this.editorPlaceholderElement = document.getElementById('descriptionEditorPlaceholder');
@@ -2433,11 +2434,11 @@ class DescriptionManager {
         this.hashtagManager = new HashtagManager(this); // Remplace l'ancienne logique
         // ▲▲▲ FIN DE LA MODIFICATION ▲▲▲
 
-        this.currentSelectedJourFrame = null;
+        this.currentSelectedPublicationFrame = null;
         this.commonDescriptionText = '';
         this.isEditingCommon = true;
 
-        this.debouncedSaveJour = Utils.debounce(() => this.saveCurrentJourDescription(true), 1500);
+        this.debouncedSavePublication = Utils.debounce(() => this.saveCurrentJourDescription(true), 1500);
         this.debouncedSaveCommon = Utils.debounce(() => this.saveCommonDescription(true), 1500);
         this._initListeners();
     }
@@ -2447,9 +2448,9 @@ class DescriptionManager {
             if (this.isEditingCommon) {
                 this.commonDescriptionText = this.editorElement.innerText;
                 this.debouncedSaveCommon();
-            } else if (this.currentSelectedJourFrame) {
-                this.currentSelectedJourFrame.descriptionText = this._extractTextFromEditor();
-                this.debouncedSaveJour();
+            } else if (this.currentSelectedPublicationFrame) {
+                this.currentSelectedPublicationFrame.descriptionText = this._extractTextFromEditor();
+                this.debouncedSavePublication();
             }
             this._updateShortcutButtonsState();
         });
@@ -2474,9 +2475,9 @@ class DescriptionManager {
 
         this.jourListElement.addEventListener('click', (e) => {
             const li = e.target.closest('li');
-            if (li && li.dataset.jourId) {
-                const jourFrame = this.organizerApp.jourFrames.find(jf => jf.id === li.dataset.jourId);
-                if (jourFrame) this.selectJour(jourFrame);
+            if (li && li.dataset.publicationId) {
+                const publicationFrame = this.organizerApp.publicationFrames.find(jf => jf.id === li.dataset.publicationId);
+                if (publicationFrame) this.selectPublication(publicationFrame);
             }
         });
 
@@ -2569,7 +2570,7 @@ class DescriptionManager {
 
     show() {
         if (!app.currentGalleryId) {
-            this.jourListElement.innerHTML = '<li>Chargez une galerie pour voir ses jours.</li>';
+            this.jourListElement.innerHTML = '<li>Chargez une galerie pour voir ses publications.</li>';
             this.mainListElement.innerHTML = '';
             this.clearEditor();
             return;
@@ -2581,39 +2582,39 @@ class DescriptionManager {
     populateLists() {
         this.mainListElement.innerHTML = '';
         const liCommon = document.createElement('li');
-        liCommon.className = 'jour-list-item main-item';
-        liCommon.innerHTML = `<span class="jour-list-item-text">Description Commune</span>`;
+        liCommon.className = 'publication-list-item main-item';
+        liCommon.innerHTML = `<span class="publication-list-item-text">Description Commune</span>`;
         if (this.isEditingCommon) {
-            liCommon.classList.add('active-description-jour');
+            liCommon.classList.add('active-description-publication');
         }
         this.mainListElement.appendChild(liCommon);
 
-        const activeId = this.isEditingCommon ? null : (this.currentSelectedJourFrame ? this.currentSelectedJourFrame.id : null);
+        const activeId = this.isEditingCommon ? null : (this.currentSelectedPublicationFrame ? this.currentSelectedPublicationFrame.id : null);
         this.organizerApp._populateSharedJourList(this.jourListElement, activeId, 'description');
     }
 
     async selectCommon() {
-        if (!this.isEditingCommon && this.currentSelectedJourFrame) {
+        if (!this.isEditingCommon && this.currentSelectedPublicationFrame) {
             await this.saveCurrentJourDescription();
         }
 
         this.isEditingCommon = true;
-        this.currentSelectedJourFrame = null;
+        this.currentSelectedPublicationFrame = null;
         this.populateLists();
         this.loadCommonDescription();
     }
 
-    async selectJour(jourFrame) {
+    async selectPublication(publicationFrame) {
         if (this.isEditingCommon) {
             await this.saveCommonDescription();
-        } else if (this.currentSelectedJourFrame && this.currentSelectedJourFrame.id !== jourFrame.id) {
+        } else if (this.currentSelectedPublicationFrame && this.currentSelectedPublicationFrame.id !== publicationFrame.id) {
             await this.saveCurrentJourDescription();
         }
 
         this.isEditingCommon = false;
-        this.currentSelectedJourFrame = jourFrame;
+        this.currentSelectedPublicationFrame = publicationFrame;
         this.populateLists();
-        this.loadDescriptionForJour(jourFrame);
+        this.loadDescriptionForJour(publicationFrame);
     }
 
     loadCommonDescription() {
@@ -2631,14 +2632,14 @@ class DescriptionManager {
         this._updateShortcutButtonsState();
     }
 
-    loadDescriptionForJour(jourFrame) {
-        if (!jourFrame) {
+    loadDescriptionForJour(publicationFrame) {
+        if (!publicationFrame) {
             this.clearEditor();
             return;
         }
-        this.editorTitleElement.textContent = `Description pour Jour ${jourFrame.letter}`;
+        this.editorTitleElement.textContent = `Description pour Publication ${publicationFrame.letter}`;
 
-        const jourText = jourFrame.descriptionText || '';
+        const jourText = publicationFrame.descriptionText || '';
         const isEffectivelyEmpty = jourText.trim() === '' || jourText.trim() === '{{COMMON_TEXT}}';
 
         const escapedCommonText = this.commonDescriptionText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -2665,8 +2666,8 @@ class DescriptionManager {
         this.editorPlaceholderElement.style.display = 'none';
 
         this.imagesPreviewBanner.innerHTML = '';
-        if (jourFrame.imagesData && jourFrame.imagesData.length > 0) {
-            jourFrame.imagesData.forEach(imgData => {
+        if (publicationFrame.imagesData && publicationFrame.imagesData.length > 0) {
+            publicationFrame.imagesData.forEach(imgData => {
                 const previewDiv = document.createElement('div');
                 previewDiv.className = 'img-preview';
                 const imgElement = document.createElement('img');
@@ -2683,13 +2684,13 @@ class DescriptionManager {
     }
 
     clearEditor() {
-        this.editorTitleElement.textContent = "Sélectionnez un jour";
+        this.editorTitleElement.textContent = "Sélectionnez une publication";
         this.editorElement.innerHTML = '';
         this.editorElement.classList.remove('structured');
-        this.currentSelectedJourFrame = null;
+        this.currentSelectedPublicationFrame = null;
         this.isEditingCommon = true;
         this.editorContentElement.style.display = 'none';
-        this.editorPlaceholderElement.textContent = "Aucun jour sélectionné, ou la galerie n'a pas de jours.";
+        this.editorPlaceholderElement.textContent = "Aucun publication sélectionné, ou la galerie n'a pas de publications.";
         this.editorPlaceholderElement.style.display = 'block';
         if (this.imagesPreviewBanner) {
             this.imagesPreviewBanner.innerHTML = '';
@@ -2698,11 +2699,11 @@ class DescriptionManager {
         this.shortcutsContainer.style.display = 'none';
     }
 
-    async saveCurrentJourDescription(isDebounced = false) {
-        if (!this.currentSelectedJourFrame || !app.currentGalleryId) return;
-        if (!isDebounced) this.debouncedSaveJour.cancel();
+    async saveCurrentPublicationDescription(isDebounced = false) {
+        if (!this.currentSelectedPublicationFrame || !app.currentGalleryId) return;
+        if (!isDebounced) this.debouncedSavePublication.cancel();
 
-        const jourToUpdate = this.currentSelectedJourFrame;
+        const publicationToUpdate = this.currentSelectedPublicationFrame;
         jourToUpdate.descriptionText = this._extractTextFromEditor();
         await jourToUpdate.save();
         this.organizerApp.refreshSidePanels();
@@ -2726,7 +2727,7 @@ class DescriptionManager {
     async saveOnTabExit() {
         if (this.isEditingCommon) {
             await this.saveCommonDescription();
-        } else if (this.currentSelectedJourFrame) {
+        } else if (this.currentSelectedPublicationFrame) {
             await this.saveCurrentJourDescription();
         }
     }
@@ -2738,9 +2739,11 @@ class CalendarPage {
         this.organizerApp = organizerApp;
         this.currentDate = new Date();
         this.calendarGridElement = this.parentElement.querySelector('#calendarGrid');
-        this.monthYearLabelElement = this.parentElement.querySelector('#monthYearLabel');
-        this.jourListElement = this.parentElement.querySelector('#calendarJourList');
-        this.unscheduledJoursListElement = this.parentElement.querySelector('#unscheduledJoursList');
+        // MODIFIÉ : Remplacer monthYearLabelElement par les nouveaux éléments
+        this.monthSelectorElement = this.parentElement.querySelector('#monthSelector');
+        this.yearLabelElement = this.parentElement.querySelector('#yearLabel');
+        this.jourListElement = this.parentElement.querySelector('#calendarPublicationList');
+        this.unscheduledPublicationsListElement = this.parentElement.querySelector('#unscheduledPublicationsList');
         this.contextPreviewModal = document.getElementById('calendarContextPreviewModal');
         this.contextPreviewTitle = document.getElementById('calendarContextTitle');
         this.contextPreviewImages = document.getElementById('calendarContextImages');
@@ -2751,8 +2754,42 @@ class CalendarPage {
         this.debouncedChangeMonth = Utils.debounce(this.changeMonth.bind(this), 100);
     }
 
+    // NOUVELLE MÉTHODE : Construire le sélecteur de mois
+    _buildMonthSelector() {
+        this.monthSelectorElement.innerHTML = '';
+        const currentMonth = this.currentDate.getMonth();
+
+        MONTHS_FR_ABBR.forEach((monthName, index) => {
+            const li = document.createElement('li');
+            li.textContent = monthName;
+            li.dataset.month = index; // On stocke l'index du mois (0-11)
+
+            if (index === currentMonth) {
+                li.classList.add('active'); // On met en évidence le mois actuel
+            }
+
+            this.monthSelectorElement.appendChild(li);
+        });
+    }
+
+    // NOUVELLE MÉTHODE : Gérer la sélection d'un mois
+    _selectMonth(monthIndex) {
+        this.currentDate.setMonth(monthIndex);
+        this.buildCalendarUI();
+    }
+
     _initListeners() {
         this.parentElement.querySelector('#todayBtn').addEventListener('click', () => this.goToToday());
+        
+        // NOUVEAU : Gérer les clics sur le sélecteur de mois
+        this.monthSelectorElement.addEventListener('click', (event) => {
+            const target = event.target.closest('li');
+            if (target && target.dataset.month) {
+                const monthIndex = parseInt(target.dataset.month, 10);
+                this._selectMonth(monthIndex);
+            }
+        });
+
         this.calendarGridElement.addEventListener('wheel', (event) => {
             event.preventDefault();
             if (event.deltaY < 0) {
@@ -2784,7 +2821,7 @@ class CalendarPage {
     }
 
     reorganizeAll() {
-        if (!confirm("Êtes-vous sûr de vouloir retirer tous les jours du calendrier et les replacer dans la liste 'Jours à Planifier' ?")) {
+        if (!confirm("Êtes-vous sûr de vouloir retirer tous les publications du calendrier et les replacer dans la liste 'Publications à Planifier' ?")) {
             return;
         }
         this.organizerApp.scheduleContext.schedule = {};
@@ -2809,19 +2846,19 @@ class CalendarPage {
         return `${year}-${month}-${day}`;
     }
 
-    // Fonction pour nettoyer les jours inexistants du calendrier
-    cleanupNonExistentJours() {
+    // Fonction pour nettoyer les publications inexistants du calendrier
+    cleanupNonExistentPublications() {
         if (!this.organizerApp.scheduleContext || !this.organizerApp.scheduleContext.schedule) {
             return;
         }
 
         const scheduleData = this.organizerApp.scheduleContext.schedule;
-        const existingJours = new Set();
+        const existingPublications = new Set();
 
-        // Créer un Set des jours qui existent encore dans la galerie actuelle
-        if (this.organizerApp.jourFrames) {
-            this.organizerApp.jourFrames.forEach(jourFrame => {
-                existingJours.add(`${jourFrame.galleryId}_${jourFrame.letter}`);
+        // Créer un Set des publications qui existent encore dans la galerie actuelle
+        if (this.organizerApp.publicationFrames) {
+            this.organizerApp.publicationFrames.forEach(publicationFrame => {
+                existingPublications.add(`${publicationFrame.galleryId}_${publicationFrame.letter}`);
             });
         }
 
@@ -2833,24 +2870,24 @@ class CalendarPage {
             const daySchedule = scheduleData[dateStr];
             const lettersToRemove = [];
 
-            // Vérifier chaque jour programmé pour cette date
+            // Vérifier chaque publication programmé pour cette date
             for (const letter in daySchedule) {
                 const itemData = daySchedule[letter];
                 const jourKey = `${itemData.galleryId}_${letter}`;
 
-                // Si ce jour n'existe plus dans la galerie actuelle, le marquer pour suppression
-                if (itemData.galleryId === this.organizerApp.currentGalleryId && !existingJours.has(jourKey)) {
+                // Si ce publication n'existe plus dans la galerie actuelle, le marquer pour suppression
+                if (itemData.galleryId === this.organizerApp.currentGalleryId && !existingPublications.has(jourKey)) {
                     lettersToRemove.push(letter);
                     removedCount++;
                 }
             }
 
-            // Supprimer les jours inexistants
+            // Supprimer les publications inexistants
             lettersToRemove.forEach(letter => {
                 delete daySchedule[letter];
             });
 
-            // Si la date n'a plus aucun jour programmé, la marquer pour suppression complète
+            // Si la date n'a plus aucun publication programmé, la marquer pour suppression complète
             if (Object.keys(daySchedule).length === 0) {
                 datesToClean.push(dateStr);
             }
@@ -2861,26 +2898,26 @@ class CalendarPage {
             delete scheduleData[dateStr];
         });
 
-        // Nettoyer aussi allUserJours
-        if (this.organizerApp.scheduleContext.allUserJours) {
-            const originalLength = this.organizerApp.scheduleContext.allUserJours.length;
-            this.organizerApp.scheduleContext.allUserJours = this.organizerApp.scheduleContext.allUserJours.filter(jour => {
-                if (jour.galleryId === this.organizerApp.currentGalleryId) {
-                    const jourKey = `${jour.galleryId}_${jour.letter}`;
-                    return existingJours.has(jourKey);
+        // Nettoyer aussi allUserPublications
+        if (this.organizerApp.scheduleContext.allUserPublications) {
+            const originalLength = this.organizerApp.scheduleContext.allUserPublications.length;
+            this.organizerApp.scheduleContext.allUserPublications = this.organizerApp.scheduleContext.allUserPublications.filter(publication => {
+                if (publication.galleryId === this.organizerApp.currentGalleryId) {
+                    const publicationKey = `${publication.galleryId}_${publication.letter}`;
+                    return existingPublications.has(publicationKey);
                 }
-                return true; // Garder les jours des autres galeries
+                return true; // Garder les publications des autres galeries
             });
 
-            const cleanedFromAllUserJours = originalLength - this.organizerApp.scheduleContext.allUserJours.length;
-            if (cleanedFromAllUserJours > 0) {
-                removedCount += cleanedFromAllUserJours;
+            const cleanedFromAllUserPublications = originalLength - this.organizerApp.scheduleContext.allUserPublications.length;
+            if (cleanedFromAllUserPublications > 0) {
+                removedCount += cleanedFromAllUserPublications;
             }
         }
 
         // Log et sauvegarde si des éléments ont été supprimés
         if (removedCount > 0) {
-            console.log(`[CalendarPage.cleanupNonExistentJours] Supprimé ${removedCount} référence(s) de jour(s) inexistant(s) du calendrier`);
+            console.log(`[CalendarPage.cleanupNonExistentPublications] Supprimé ${removedCount} référence(s) de publication(s) inexistante(s) du calendrier`);
 
             // Sauvegarder les changements
             this.organizerApp.saveAppState();
@@ -2888,8 +2925,8 @@ class CalendarPage {
     }
 
     buildCalendarUI() {
-        // Nettoyer les jours inexistants du calendrier avant de construire l'UI
-        this.cleanupNonExistentJours();
+        // Nettoyer les publications inexistants du calendrier avant de construire l'UI
+        this.cleanupNonExistentPublications();
         
         // Corriger automatiquement les noms de galerie manquants
         this.fixMissingGalleryNames();
@@ -2897,16 +2934,25 @@ class CalendarPage {
         this.calendarGridElement.innerHTML = '';
         if (!app || !app.currentGalleryId) {
             this.calendarGridElement.innerHTML = '<p style="grid-column: 1 / -1; text-align: center; padding: 20px;">Chargez une galerie pour voir le calendrier.</p>';
-            this.monthYearLabelElement.textContent = "Calendrier";
+            // NOUVEAU : Cacher le sélecteur si aucune galerie n'est chargée
+            this.monthSelectorElement.innerHTML = '';
+            this.yearLabelElement.textContent = 'Calendrier';
             this.populateJourList();
-            this.buildUnscheduledJoursList();
+            this.buildUnscheduledPublicationsList();
             return;
         }
         this.populateJourList();
-        this.buildUnscheduledJoursList();
+        this.buildUnscheduledPublicationsList();
+
+        // --- MODIFICATION PRINCIPALE ---
         const year = this.currentDate.getFullYear();
         const month = this.currentDate.getMonth();
-        this.monthYearLabelElement.textContent = `${this.currentDate.toLocaleDateString('fr-FR', { month: 'long', year: 'numeric' })}`;
+        // On met à publication le sélecteur de mois (qui gère aussi le style "active")
+        this._buildMonthSelector();
+        
+        // On met à publication l'affichage de l'année
+        this.yearLabelElement.textContent = year;
+        // --- FIN DE LA MODIFICATION ---
         const daysOfWeekFr = ["Lun", "Mar", "Mer", "Jeu", "Ven", "Sam", "Dim"];
         daysOfWeekFr.forEach(dayName => {
             const headerCell = document.createElement('div');
@@ -2954,7 +3000,7 @@ class CalendarPage {
         const dateKey = this.formatDateKey(dateObj);
         dayCell.dataset.dateKey = dateKey;
         const scheduleData = this.organizerApp.scheduleContext.schedule;
-        const allUserJours = this.organizerApp.scheduleContext.allUserJours;
+        const allUserPublications = this.organizerApp.scheduleContext.allUserPublications;
         if (scheduleData[dateKey]) {
             const itemsOnDay = scheduleData[dateKey];
             const sortedLetters = Object.keys(itemsOnDay).sort();
@@ -2964,10 +3010,10 @@ class CalendarPage {
                 pubItemElement.className = 'scheduled-item';
                 pubItemElement.draggable = true;
                 const colorIndex = letter.charCodeAt(0) - 'A'.charCodeAt(0);
-                pubItemElement.style.borderColor = JOUR_COLORS[colorIndex % JOUR_COLORS.length];
+                pubItemElement.style.borderColor = PUBLICATION_COLORS[colorIndex % PUBLICATION_COLORS.length];
                 const textSpan = document.createElement('span');
                 textSpan.className = 'scheduled-item-text';
-                textSpan.textContent = itemData.label || `Jour ${letter}`;
+                textSpan.textContent = itemData.label || `Publication ${letter}`;
                 pubItemElement.appendChild(textSpan);
                 const thumbContainer = document.createElement('div');
                 thumbContainer.className = 'scheduled-item-thumb-container';
@@ -2981,12 +3027,12 @@ class CalendarPage {
                 const downloadBtn = document.createElement('button');
                 downloadBtn.className = 'scheduled-item-download-btn';
                 downloadBtn.innerHTML = '💾';
-                downloadBtn.title = 'Télécharger le ZIP du Jour';
-                const jourDataForExport = allUserJours.find(j => j.galleryId === itemData.galleryId && j.letter === letter);
-                if (jourDataForExport) {
+                downloadBtn.title = 'Télécharger le ZIP de la Publication';
+                const publicationDataForExport = allUserPublications.find(j => j.galleryId === itemData.galleryId && j.letter === letter);
+                if (publicationDataForExport) {
                     downloadBtn.onclick = (e) => {
                         e.stopPropagation();
-                        this.exportJourById(itemData.galleryId, jourDataForExport._id, letter);
+                        this.exportJourById(itemData.galleryId, publicationDataForExport._id, letter);
                     };
                     actionsContainer.appendChild(downloadBtn);
                 }
@@ -3034,15 +3080,15 @@ class CalendarPage {
         this.calendarGridElement.appendChild(dayCell);
     }
 
-    buildUnscheduledJoursList() {
-        if (!this.unscheduledJoursListElement) return;
-        this.unscheduledJoursListElement.innerHTML = '';
+    buildUnscheduledPublicationsList() {
+        if (!this.unscheduledPublicationsListElement) return;
+        this.unscheduledPublicationsListElement.innerHTML = '';
 
         const scheduleData = this.organizerApp.scheduleContext.schedule;
-        const allUserJours = this.organizerApp.scheduleContext.allUserJours;
+        const allUserPublications = this.organizerApp.scheduleContext.allUserPublications;
 
-        if (!allUserJours || allUserJours.length === 0) {
-            this.unscheduledJoursListElement.innerHTML = '<p class="sidebar-info">Aucun jour à planifier.</p>';
+        if (!allUserPublications || allUserPublications.length === 0) {
+            this.unscheduledPublicationsListElement.innerHTML = '<p class="sidebar-info">Aucun publication à planifier.</p>';
             return;
         }
 
@@ -3054,90 +3100,90 @@ class CalendarPage {
             }
         }
 
-        const unscheduled = allUserJours.filter(jour => !scheduledSet.has(`${jour.galleryId}-${jour.letter}`));
+        const unscheduled = allUserPublications.filter(publication => !scheduledSet.has(`${publication.galleryId}-${publication.letter}`));
 
         if (unscheduled.length === 0) {
-            this.unscheduledJoursListElement.innerHTML = '<p class="sidebar-info">Tous les jours sont planifiés !</p>';
+            this.unscheduledPublicationsListElement.innerHTML = '<p class="sidebar-info">Tous les publications sont planifiés !</p>';
             return;
         }
 
         // --- DÉBUT DE LA NOUVELLE LOGIQUE DE REGROUPEMENT ET TRI ---
 
-        // 1. Regrouper les jours par galerie
-        const groupedByGallery = unscheduled.reduce((acc, jour) => {
-            if (!acc[jour.galleryId]) {
-                acc[jour.galleryId] = {
-                    name: jour.galleryName,
-                    jours: []
+        // 1. Regrouper les publications par galerie
+        const groupedByGallery = unscheduled.reduce((acc, publication) => {
+            if (!acc[publication.galleryId]) {
+                acc[publication.galleryId] = {
+                    name: publication.galleryName,
+                    publications: []
                 };
             }
-            acc[jour.galleryId].jours.push(jour);
+            acc[publication.galleryId].publications.push(publication);
             return acc;
         }, {});
 
-        // 2. Trier les galeries par nom, puis les jours de chaque galerie par lettre
+        // 2. Trier les galeries par nom, puis les publications de chaque galerie par lettre
         const sortedGalleryIds = Object.keys(groupedByGallery).sort((a, b) =>
             groupedByGallery[a].name.localeCompare(groupedByGallery[b].name)
         );
 
         sortedGalleryIds.forEach(galleryId => {
             const galleryGroup = groupedByGallery[galleryId];
-            galleryGroup.jours.sort((a, b) => a.letter.localeCompare(b.letter));
+            galleryGroup.publications.sort((a, b) => a.letter.localeCompare(b.letter));
 
             // 3. Créer et ajouter le header de la galerie
             const galleryHeader = document.createElement('div');
             galleryHeader.className = 'unscheduled-gallery-header';
             galleryHeader.textContent = galleryGroup.name;
-            this.unscheduledJoursListElement.appendChild(galleryHeader);
+            this.unscheduledPublicationsListElement.appendChild(galleryHeader);
 
-            // 4. Créer et ajouter les jours pour cette galerie
-            galleryGroup.jours.forEach(jour => {
+            // 4. Créer et ajouter les publications pour cette galerie
+            galleryGroup.publications.forEach(publication => {
                 const itemElement = document.createElement('div');
-                itemElement.className = 'unscheduled-jour-item';
+                itemElement.className = 'unscheduled-publication-item';
                 itemElement.draggable = true;
 
                 const contentDiv = document.createElement('div');
-                contentDiv.className = 'unscheduled-jour-item-content';
+                contentDiv.className = 'unscheduled-publication-item-content';
 
                 const letterSpan = document.createElement('span');
-                letterSpan.className = 'unscheduled-jour-item-letter';
-                letterSpan.textContent = jour.letter;
-                const colorIndex = jour.letter.charCodeAt(0) - 'A'.charCodeAt(0);
-                letterSpan.style.backgroundColor = JOUR_COLORS[colorIndex % JOUR_COLORS.length];
+                letterSpan.className = 'unscheduled-publication-item-letter';
+                letterSpan.textContent = publication.letter;
+                const colorIndex = publication.letter.charCodeAt(0) - 'A'.charCodeAt(0);
+                letterSpan.style.backgroundColor = PUBLICATION_COLORS[colorIndex % PUBLICATION_COLORS.length];
 
                 const thumbDiv = document.createElement('div');
-                thumbDiv.className = 'unscheduled-jour-item-thumb';
+                thumbDiv.className = 'unscheduled-publication-item-thumb';
 
-                if (jour.firstImageThumbnail) {
-                    const thumbFilename = Utils.getFilenameFromURL(jour.firstImageThumbnail);
-                    const thumbUrl = `${BASE_API_URL}/api/uploads/${jour.galleryId}/${thumbFilename}`;
+                if (publication.firstImageThumbnail) {
+                    const thumbFilename = Utils.getFilenameFromURL(publication.firstImageThumbnail);
+                    const thumbUrl = `${BASE_API_URL}/api/uploads/${publication.galleryId}/${thumbFilename}`;
                     thumbDiv.style.backgroundImage = `url(${thumbUrl})`;
                 } else {
                     thumbDiv.textContent = '...';
                 }
 
-                const jourLabelSpan = document.createElement('span');
-                jourLabelSpan.className = 'unscheduled-jour-item-label';
-                jourLabelSpan.textContent = `Jour ${jour.letter}`;
+                const publicationLabelSpan = document.createElement('span');
+                publicationLabelSpan.className = 'unscheduled-publication-item-label';
+                publicationLabelSpan.textContent = `Publication ${publication.letter}`;
 
                 contentDiv.appendChild(letterSpan);
                 contentDiv.appendChild(thumbDiv);
                 contentDiv.appendChild(jourLabelSpan);
                 itemElement.appendChild(contentDiv);
 
-                itemElement.addEventListener('dragstart', e => this._onDragStart(e, { type: 'unscheduled', ...jour }, itemElement));
+                itemElement.addEventListener('dragstart', e => this._onDragStart(e, { type: 'unscheduled', ...publication }, itemElement));
 
                 itemElement.addEventListener('click', () => {
-                    this.organizerApp.handleLoadGallery(jour.galleryId).then(() => {
-                        const jourFrame = this.organizerApp.jourFrames.find(jf => jf.id === jour._id);
-                        if (jourFrame) {
+                    this.organizerApp.handleLoadGallery(publication.galleryId).then(() => {
+                        const publicationFrame = this.organizerApp.publicationFrames.find(pf => pf.id === publication._id);
+                        if (publicationFrame) {
                             this.organizerApp.activateTab('currentGallery');
-                            this.organizerApp.setCurrentJourFrame(jourFrame);
+                            this.organizerApp.setCurrentPublicationFrame(publicationFrame);
                         }
                     });
                 });
 
-                this.unscheduledJoursListElement.appendChild(itemElement);
+                this.unscheduledPublicationsListElement.appendChild(itemElement);
             });
         });
         // --- FIN DE LA NOUVELLE LOGIQUE ---
@@ -3145,23 +3191,23 @@ class CalendarPage {
 
     // ▼▼▼ REMPLACEZ COMPLÈTEMENT VOTRE ANCIENNE FONCTION loadCalendarThumb PAR CELLE-CI ▼▼▼
     async loadCalendarThumb(thumbElement, jourLetter, galleryIdForJour) {
-        const allUserJours = this.organizerApp.scheduleContext.allUserJours;
-        if (!allUserJours) {
+        const allUserPublications = this.organizerApp.scheduleContext.allUserPublications;
+        if (!allUserPublications) {
             thumbElement.textContent = "?";
             return;
         }
 
-        // On cherche le jour correspondant dans la liste de TOUS les jours de l'utilisateur
-        const jourData = allUserJours.find(j => j.letter === jourLetter && j.galleryId === galleryIdForJour);
+        // On cherche le publication correspondant dans la liste de TOUS les publications de l'utilisateur
+        const publicationData = allUserPublications.find(j => j.letter === jourLetter && j.galleryId === galleryIdForJour);
 
-        if (jourData && jourData.firstImageThumbnail) {
-            // On a trouvé le jour et il a une miniature !
-            const thumbFilename = Utils.getFilenameFromURL(jourData.firstImageThumbnail);
-            const thumbUrl = `${BASE_API_URL}/api/uploads/${jourData.galleryId}/${thumbFilename}`;
+        if (publicationData && publicationData.firstImageThumbnail) {
+            // On a trouvé le publication et il a une miniature !
+            const thumbFilename = Utils.getFilenameFromURL(publicationData.firstImageThumbnail);
+            const thumbUrl = `${BASE_API_URL}/api/uploads/${publicationData.galleryId}/${thumbFilename}`;
             thumbElement.style.backgroundImage = `url(${thumbUrl})`;
             thumbElement.textContent = ""; // On s'assure de vider le texte
         } else {
-            // Le jour est vide ou n'a pas été trouvé (sécurité)
+            // Le publication est vide ou n'a pas été trouvé (sécurité)
             thumbElement.style.backgroundImage = 'none';
             thumbElement.textContent = "N/A";
         }
@@ -3217,12 +3263,12 @@ class CalendarPage {
         this.contextPreviewModal.style.display = 'none';
     }
 
-    async exportJourById(galleryId, jourId, jourLetter) {
-        if (!galleryId || !jourId) {
-            alert("Erreur: Impossible de déterminer la galerie ou l'ID du jour pour l'exportation.");
+    async exportJourById(galleryId, publicationId, jourLetter) {
+        if (!galleryId || !publicationId) {
+            alert("Erreur: Impossible de déterminer la galerie ou l'ID du publication pour l'exportation.");
             return;
         }
-        const exportUrl = `${BASE_API_URL}/api/galleries/${galleryId}/jours/${jourId}/export`;
+        const exportUrl = `${BASE_API_URL}/api/galleries/${galleryId}/publications/${publicationId}/export`;
         try {
             const response = await fetch(exportUrl);
             if (!response.ok) {
@@ -3239,7 +3285,7 @@ class CalendarPage {
             }
             Utils.downloadDataURL(window.URL.createObjectURL(blob), filename);
         } catch (error) {
-            console.error(`Erreur lors de l'exportation du Jour ${jourLetter}:`, error);
+            console.error(`Erreur lors de l'exportation du Publication ${jourLetter}:`, error);
             alert(`Erreur d'exportation: ${error.message}`);
         }
     }
@@ -3277,7 +3323,7 @@ class CalendarPage {
     // Fonction utilitaire pour corriger les blocs existants sans nom de galerie
     fixMissingGalleryNames() {
         const scheduleData = this.organizerApp.scheduleContext.schedule;
-        const allUserJours = this.organizerApp.scheduleContext.allUserJours;
+        const allUserPublications = this.organizerApp.scheduleContext.allUserPublications;
         let fixedCount = 0;
 
         Object.keys(scheduleData).forEach(dateStr => {
@@ -3286,7 +3332,7 @@ class CalendarPage {
                 
                 // Si le nom de galerie est manquant ou vide
                 if (!item.galleryName) {
-                    const jourInfo = allUserJours.find(
+                    const jourInfo = allUserPublications.find(
                         j => j.galleryId === item.galleryId && j.letter === letter
                     );
                     
@@ -3317,12 +3363,12 @@ class CalendarPage {
             return;
         }
 
-        // --- CORRECTION : S'assurer que le nom de la galerie est toujours présent ---
+        // --- CORRECTION : S'assurer que le nom de la galerie est toupublications présent ---
         let finalGalleryName = galleryName;
         
-        // Si le nom n'a pas été fourni, on le recherche dans allUserJours
+        // Si le nom n'a pas été fourni, on le recherche dans allUserPublications
         if (!finalGalleryName) {
-            const jourInfo = this.organizerApp.scheduleContext.allUserJours.find(
+            const jourInfo = this.organizerApp.scheduleContext.allUserPublications.find(
                 j => j.galleryId === galleryId && j.letter === jourLetter
             );
             if (jourInfo) {
@@ -3331,7 +3377,7 @@ class CalendarPage {
         }
         
         scheduleData[dateStr][jourLetter] = { 
-            label: `Jour ${jourLetter}`, 
+            label: `Publication ${jourLetter}`, 
             galleryId: galleryId, 
             galleryName: finalGalleryName || 'Galerie?' // Fallback au cas où
         };
@@ -3361,31 +3407,31 @@ class CalendarPage {
                 throw new Error("Les valeurs de publication doivent être supérieures à zéro.");
             }
             const scheduleData = this.organizerApp.scheduleContext.schedule;
-            const allUserJours = this.organizerApp.scheduleContext.allUserJours;
-            const scheduledJourIdentifiers = new Set();
+            const allUserPublications = this.organizerApp.scheduleContext.allUserPublications;
+            const scheduledPublicationIdentifiers = new Set();
             Object.values(scheduleData).forEach(day => {
                 Object.values(day).forEach(item => {
                     const letter = item.label ? item.label.split(' ')[1] : Object.keys(day).find(k => day[k] === item);
-                    if (letter) scheduledJourIdentifiers.add(`${item.galleryId}-${letter}`);
+                    if (letter) scheduledPublicationIdentifiers.add(`${item.galleryId}-${letter}`);
                 });
             });
-            let unpublishedJours = allUserJours.filter(jour =>
-                !scheduledJourIdentifiers.has(`${jour.galleryId}-${jour.letter}`) && this.organizerApp.isJourReadyForPublishing(jour.galleryId, jour.letter)
+            let unpublishedPublications = allUserPublications.filter(publication =>
+                !scheduledPublicationIdentifiers.has(`${publication.galleryId}-${publication.letter}`) && this.organizerApp.isPublicationReadyForPublishing(publication.galleryId, publication.letter)
             );
-            if (unpublishedJours.length === 0) {
-                this.autoScheduleInfo.textContent = "Tous les jours publiables sont déjà planifiés !";
+            if (unpublishedPublications.length === 0) {
+                this.autoScheduleInfo.textContent = "Tous les publications publiables sont déjà planifiés !";
                 setTimeout(() => this.autoScheduleInfo.textContent = "", 3000);
                 return;
             }
             if (mode === 'chrono') {
-                unpublishedJours.sort((a, b) => {
+                unpublishedPublications.sort((a, b) => {
                     const galleryCompare = a.galleryName.localeCompare(b.galleryName);
                     if (galleryCompare !== 0) return galleryCompare;
                     return a.letter.localeCompare(b.letter);
                 });
             } else if (mode === 'interlaced') {
-                const groupedByGallery = unpublishedJours.reduce((acc, jour) => {
-                    (acc[jour.galleryId] = acc[jour.galleryId] || []).push(jour);
+                const groupedByGallery = unpublishedPublications.reduce((acc, publication) => {
+                    (acc[publication.galleryId] = acc[publication.galleryId] || []).push(publication);
                     return acc;
                 }, {});
                 for (const galleryId in groupedByGallery) {
@@ -3399,31 +3445,31 @@ class CalendarPage {
                         if (queue[i]) interlaced.push(queue[i]);
                     }
                 }
-                unpublishedJours = interlaced;
+                unpublishedPublications = interlaced;
             } else if (mode === 'random') {
-                for (let i = unpublishedJours.length - 1; i > 0; i--) {
+                for (let i = unpublishedPublications.length - 1; i > 0; i--) {
                     const j = Math.floor(Math.random() * (i + 1));
-                    [unpublishedJours[i], unpublishedJours[j]] = [unpublishedJours[j], unpublishedJours[i]];
+                    [unpublishedPublications[i], unpublishedPublications[j]] = [unpublishedPublications[j], unpublishedPublications[i]];
                 }
             }
             let currentDate = new Date();
             currentDate.setHours(0, 0, 0, 0);
-            let joursPlaced = 0;
-            while (unpublishedJours.length > 0) {
+            let publicationsPlaced = 0;
+            while (unpublishedPublications.length > 0) {
                 const dateKey = this.formatDateKey(currentDate);
                 let postsOnThisDay = scheduleData[dateKey] ? Object.keys(scheduleData[dateKey]).length : 0;
-                while (postsOnThisDay < postsPerDay && unpublishedJours.length > 0) {
-                    const jourToPlace = unpublishedJours.shift();
+                while (postsOnThisDay < postsPerDay && unpublishedPublications.length > 0) {
+                    const jourToPlace = unpublishedPublications.shift();
                     if (!scheduleData[dateKey]) {
                         scheduleData[dateKey] = {};
                     }
                     scheduleData[dateKey][jourToPlace.letter] = {
                         galleryId: jourToPlace.galleryId,
                         galleryName: jourToPlace.galleryName,
-                        label: `Jour ${jourToPlace.letter}`
+                        label: `Publication ${jourToPlace.letter}`
                     };
                     postsOnThisDay++;
-                    joursPlaced++;
+                    publicationsPlaced++;
                 }
                 if (postsOnThisDay > 0 || everyXDays > 1) {
                     currentDate.setDate(currentDate.getDate() + everyXDays);
@@ -3431,7 +3477,7 @@ class CalendarPage {
                     currentDate.setDate(currentDate.getDate() + 1);
                 }
             }
-            this.autoScheduleInfo.textContent = `${joursPlaced} jour(s) planifié(s).`;
+            this.autoScheduleInfo.textContent = `${publicationsPlaced} publication(s) planifiée(s).`;
             this.saveSchedule();
         } catch (error) {
             console.error("Erreur de planification auto:", error);
@@ -3452,14 +3498,14 @@ class PublicationOrganizer {
         this.zoomStep = 25;
         this.gridItems = [];
         this.gridItemsDict = {};
-        this.jourFrames = [];
-        this.currentJourFrame = null;
-        this.nextJourIndex = 0;
+        this.publicationFrames = [];
+        this.currentPublicationFrame = null;
+        this.nextPublicationIndex = 0;
         this.galleryCache = {};
         this.activeUploadXHR = null;
         this.activeCallingButton = null;
         this.isLoadingGallery = false;
-        this.scheduleContext = { schedule: {}, allUserJours: [] };
+        this.scheduleContext = { schedule: {}, allUserPublications: [] };
         this.imageSelectorInput = document.getElementById('imageSelector');
         this.addNewImagesBtn = document.getElementById('addNewImagesBtn');
         this.addPhotosToPreviewGalleryBtn = document.getElementById('addPhotosToPreviewGalleryBtn');
@@ -3477,8 +3523,8 @@ class PublicationOrganizer {
         this.currentGalleryUploadProgressContainer = document.getElementById('currentGalleryUploadProgressContainer');
         this.currentGalleryUploadProgressText = document.getElementById('currentGalleryUploadProgressText');
         this.currentGalleryUploadProgressBarInner = document.getElementById('currentGalleryUploadProgressBarInner');
-        this.jourFramesContainer = document.getElementById('jourFramesContainer');
-        this.addJourFrameBtn = document.getElementById('addJourFrameBtn');
+        this.publicationFramesContainer = document.getElementById('publicationFramesContainer');
+        this.addPublicationFrameBtn = document.getElementById('addPublicationFrameBtn');
         this.galleriesTabContent = document.getElementById('galleries');
         this.galleriesListElement = document.getElementById('galleriesList');
         this.createNewGalleryBtn = document.getElementById('createNewGalleryBtn');
@@ -3491,6 +3537,7 @@ class PublicationOrganizer {
         this.galleryPreviewNameElement = document.getElementById('galleryPreviewName');
         this.galleryPreviewGridElement = document.getElementById('galleryPreviewGrid');
         this.galleryPreviewPlaceholder = document.getElementById('galleryPreviewPlaceholder');
+        this.galleryStatsLabelText = document.getElementById('galleryStatsLabelText');
         // Bouton "Trier" retiré - la sélection d'une galerie charge automatiquement l'onglet Tri
         this.selectedGalleryForPreviewId = null;
         this.tabs = document.querySelectorAll('.tab-button');
@@ -3569,11 +3616,11 @@ class PublicationOrganizer {
         this.zoomInBtn.addEventListener('click', () => this.zoomIn());
         this.sortOptionsSelect.addEventListener('change', () => this.sortGridItemsAndReflow());
         // Bouton "Vider" retiré
-        this.addJourFrameBtn.addEventListener('click', () => this.addJourFrame());
+        this.addPublicationFrameBtn.addEventListener('click', () => this.addPublicationFrame());
 
         const downloadAllBtn = document.getElementById('downloadAllScheduledBtn');
         if (downloadAllBtn) {
-            downloadAllBtn.addEventListener('click', () => this.downloadAllScheduledJours());
+            downloadAllBtn.addEventListener('click', () => this.downloadAllScheduledPublications());
         }
 
         this.createNewGalleryBtn.addEventListener('click', () => {
@@ -3590,27 +3637,27 @@ class PublicationOrganizer {
 
     _populateSharedJourList(listElement, activeJourId, listType, showCheckboxes = false) {
         listElement.innerHTML = '';
-        const jours = this.jourFrames;
-        if (!jours || jours.length === 0) {
-            listElement.innerHTML = '<li>Aucun jour défini.</li>';
+        const publications = this.publicationFrames;
+        if (!publications || publications.length === 0) {
+            listElement.innerHTML = '<li>Aucun publication défini.</li>';
             return;
         }
-        jours.forEach(jourFrame => {
+        publications.forEach(publicationFrame => {
             const li = document.createElement('li');
-            li.className = 'jour-list-item';
-            li.dataset.jourId = jourFrame.id;
-            if (activeJourId === jourFrame.id) {
-                if (listType === 'cropping') li.classList.add('active-cropping-jour');
-                else if (listType === 'description') li.classList.add('active-description-jour');
+            li.className = 'publication-list-item';
+            li.dataset.publicationId = publicationFrame.id;
+            if (activeJourId === publicationFrame.id) {
+                if (listType === 'cropping') li.classList.add('active-cropping-publication');
+                else if (listType === 'description') li.classList.add('active-description-publication');
             }
             const textSpan = document.createElement('span');
-            textSpan.className = 'jour-list-item-text';
-            textSpan.textContent = `Jour ${jourFrame.letter}`;
+            textSpan.className = 'publication-list-item-text';
+            textSpan.textContent = `Publication ${publicationFrame.letter}`;
             const iconsDiv = document.createElement('div');
-            iconsDiv.className = 'jour-list-item-icons';
-            const isCropped = jourFrame.hasBeenProcessedByCropper;
-            const hasDescription = (jourFrame.descriptionText && jourFrame.descriptionText.trim() !== '');
-            const isScheduled = this.calendarPage ? this.calendarPage.isJourScheduled(jourFrame.galleryId, jourFrame.letter) : false;
+            iconsDiv.className = 'publication-list-item-icons';
+            const isCropped = publicationFrame.hasBeenProcessedByCropper;
+            const hasDescription = (publicationFrame.descriptionText && publicationFrame.descriptionText.trim() !== '');
+            const isScheduled = this.calendarPage ? this.calendarPage.isJourScheduled(publicationFrame.galleryId, publicationFrame.letter) : false;
             const cropIcon = document.createElement('img');
             cropIcon.className = 'status-icon crop-icon';
             cropIcon.src = 'assets/crop.png';
@@ -3635,8 +3682,8 @@ class PublicationOrganizer {
             if (showCheckboxes) {
                 const checkbox = document.createElement('input');
                 checkbox.type = 'checkbox';
-                checkbox.className = 'jour-list-item-checkbox';
-                checkbox.dataset.jourId = jourFrame.id;
+                checkbox.className = 'publication-list-item-checkbox';
+                checkbox.dataset.publicationId = publicationFrame.id;
                 li.appendChild(checkbox);
             }
 
@@ -3653,26 +3700,26 @@ class PublicationOrganizer {
         }
     }
 
-    async downloadAllScheduledJours() {
+    async downloadAllScheduledPublications() {
         if (!this.calendarPage || !this.scheduleContext.schedule) {
             alert("Les données du calendrier ne sont pas chargées.");
             return;
         }
-        const scheduledJours = [];
-        const jourMap = new Map(this.scheduleContext.allUserJours.map(j => [`${j.galleryId}-${j.letter}`, j._id]));
+        const scheduledPublications = [];
+        const jourMap = new Map(this.scheduleContext.allUserPublications.map(j => [`${j.galleryId}-${j.letter}`, j._id]));
         for (const date in this.scheduleContext.schedule) {
             for (const letter in this.scheduleContext.schedule[date]) {
                 const item = this.scheduleContext.schedule[date][letter];
-                const jourId = jourMap.get(`${item.galleryId}-${letter}`);
-                if (jourId) {
-                    if (!scheduledJours.some(j => j.jourId === jourId)) {
-                        scheduledJours.push({ galleryId: item.galleryId, jourId: jourId });
+                const publicationId = jourMap.get(`${item.galleryId}-${letter}`);
+                if (publicationId) {
+                    if (!scheduledPublications.some(j => j.publicationId === publicationId)) {
+                        scheduledPublications.push({ galleryId: item.galleryId, publicationId: publicationId });
                     }
                 }
             }
         }
-        if (scheduledJours.length === 0) {
-            alert("Aucun jour n'est actuellement planifié dans le calendrier.");
+        if (scheduledPublications.length === 0) {
+            alert("Aucun publication n'est actuellement planifié dans le calendrier.");
             return;
         }
         const downloadBtn = document.getElementById('downloadAllScheduledBtn');
@@ -3680,10 +3727,10 @@ class PublicationOrganizer {
         downloadBtn.textContent = 'Préparation...';
         downloadBtn.disabled = true;
         try {
-            const response = await fetch(`${BASE_API_URL}/api/jours/export-all-scheduled`, {
+            const response = await fetch(`${BASE_API_URL}/api/publications/export-all-scheduled`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ jours: scheduledJours })
+                body: JSON.stringify({ publications: scheduledPublications })
             });
             if (!response.ok) {
                 const errorText = await response.text();
@@ -3700,7 +3747,7 @@ class PublicationOrganizer {
             }
             Utils.downloadDataURL(window.URL.createObjectURL(blob), filename);
         } catch (error) {
-            console.error("Erreur lors du téléchargement de tous les jours planifiés:", error);
+            console.error("Erreur lors du téléchargement de tous les publications planifiés:", error);
             alert(`Erreur de téléchargement : ${error.message}`);
         } finally {
             downloadBtn.textContent = originalText;
@@ -3718,7 +3765,7 @@ class PublicationOrganizer {
         // Bouton "Trier" retiré
         if (noGalleryActive) {
             this.imageGridElement.innerHTML = '<p style="text-align:center; margin-top:20px;">Chargez ou créez une galerie pour voir les images.</p>';
-            this.jourFramesContainer.innerHTML = '<p style="text-align:center;">Chargez ou créez une galerie pour gérer les jours.</p>';
+            this.publicationFramesContainer.innerHTML = '<p style="text-align:center;">Chargez ou créez une galerie pour gérer les publications.</p>';
             this.addPhotosPlaceholderBtn.style.display = 'none';
             this.statsLabelText.textContent = "Aucune galerie chargée";
             if (this.currentGalleryUploadProgressContainer) this.currentGalleryUploadProgressContainer.style.display = 'none';
@@ -3737,9 +3784,8 @@ class PublicationOrganizer {
         }
         if (this.calendarPage) {
             if (noGalleryActive) {
-                this.scheduleContext = { schedule: {}, allUserJours: [] };
+                this.scheduleContext = { schedule: {}, allUserPublications: [] };
                 this.calendarPage.buildCalendarUI();
-                this.calendarPage.monthYearLabelElement.textContent = "Calendrier";
             } else {
                 this.calendarPage.buildCalendarUI();
             }
@@ -3793,9 +3839,9 @@ class PublicationOrganizer {
             await this.descriptionManager.saveOnTabExit();
         }
 
-        // Détecter si on quitte l'onglet "currentGallery" (tri) pour supprimer les jours vides
+        // Détecter si on quitte l'onglet "currentGallery" (tri) pour supprimer les publications vides
         if (currentActiveTab && currentActiveTab.id === 'currentGallery' && tabId !== 'currentGallery') {
-            this.removeEmptyJours();
+            this.removeEmptyPublications();
         }
 
         // L'ancienne logique spécifique à 'currentGallery' est maintenant redondante et a été supprimée.
@@ -3814,9 +3860,9 @@ class PublicationOrganizer {
                     this.clearGalleryPreview();
                 }
             } else if (tabId === 'currentGallery') {
-                if (this.currentGalleryId && !this.currentJourFrame && this.jourFrames.length > 0) {
-                    const jourA = this.jourFrames.find(jf => jf.letter === 'A') || this.jourFrames[0];
-                    if (jourA) this.setCurrentJourFrame(jourA);
+                if (this.currentGalleryId && !this.currentPublicationFrame && this.publicationFrames.length > 0) {
+                    const publicationA = this.publicationFrames.find(jf => jf.letter === 'A') || this.publicationFrames[0];
+                    if (publicationA) this.setCurrentPublicationFrame(publicationA);
                 }
             } else if (tabId === 'cropping') {
                 if (this.currentGalleryId) {
@@ -4014,14 +4060,18 @@ class PublicationOrganizer {
                 // Marquer la grille comme vide pour les styles CSS
                 this.galleryPreviewGridElement.classList.remove('has-photos');
             }
+            
+            // Mettre à publication les statistiques de la galerie
+            this.updateGalleryStatsLabel(galleryId);
         } catch (error) {
             console.error("Erreur lors du chargement de l'aperçu de la galerie:", error);
             this.galleryPreviewGridElement.innerHTML = `<p>Erreur: ${error.message}</p>`;
+            this.galleryStatsLabelText.textContent = "? photos dans la galerie";
         }
     }
 
     async handleDeleteImageFromPreview(previewGalleryId, imageId, imageNameForConfirm) {
-        if (!confirm(`Voulez-vous vraiment supprimer l'image "${imageNameForConfirm}" de la galerie "${this.galleryCache[previewGalleryId] || previewGalleryId}" ?\nCeci affectera aussi les Jours et le Calendrier si l'image y est utilisée.`)) {
+        if (!confirm(`Voulez-vous vraiment supprimer l'image "${imageNameForConfirm}" de la galerie "${this.galleryCache[previewGalleryId] || previewGalleryId}" ?\nCeci affectera aussi les Publications et le Calendrier si l'image y est utilisée.`)) {
             return;
         }
         try {
@@ -4042,7 +4092,7 @@ class PublicationOrganizer {
                         this.gridItems = this.gridItems.filter(item => item.id !== idToDelete);
                         delete this.gridItemsDict[idToDelete];
                     }
-                    this.jourFrames.forEach(jf => jf.removeImageByActualId(idToDelete));
+                    this.publicationFrames.forEach(jf => jf.removeImageByActualId(idToDelete));
                 });
                 this.updateGridUsage();
                 this.updateStatsLabel();
@@ -4059,6 +4109,7 @@ class PublicationOrganizer {
         this.galleryPreviewPlaceholder.style.display = 'block';
         this.galleryPreviewHeader.style.display = 'none';
         this.galleryPreviewGridElement.innerHTML = '';
+        this.galleryStatsLabelText.textContent = "0 photo dans la galerie";
         if (this.galleriesUploadProgressContainer) this.galleriesUploadProgressContainer.style.display = 'none';
         this.galleriesListElement.querySelectorAll('.gallery-list-item.selected-for-preview').forEach(item => {
             item.classList.remove('selected-for-preview');
@@ -4217,10 +4268,10 @@ class PublicationOrganizer {
         this.gridItems = [];
         this.gridItemsDict = {};
         this.imageGridElement.innerHTML = '';
-        this.jourFrames = [];
-        this.jourFramesContainer.innerHTML = '';
-        this.currentJourFrame = null;
-        this.scheduleContext = { schedule: {}, allUserJours: [] };
+        this.publicationFrames = [];
+        this.publicationFramesContainer.innerHTML = '';
+        this.currentPublicationFrame = null;
+        this.scheduleContext = { schedule: {}, allUserPublications: [] };
         if (this.descriptionManager) this.descriptionManager.clearEditor();
         if (this.croppingPage) this.croppingPage.clearEditor();
         if (this.galleriesUploadProgressContainer) this.galleriesUploadProgressContainer.style.display = 'none';
@@ -4241,7 +4292,7 @@ class PublicationOrganizer {
         loadingOverlay.style.display = 'flex';
         loadingOverlay.querySelector('p').textContent = 'Chargement de la galerie...';
 
-        // Flag pour éviter les mises à jour redondantes pendant le chargement
+        // Flag pour éviter les mises à publication redondantes pendant le chargement
         this.isLoadingGallery = true;
 
         try {
@@ -4263,9 +4314,9 @@ class PublicationOrganizer {
             this.gridItems = [];
             this.gridItemsDict = {};
             this.imageGridElement.innerHTML = '';
-            this.jourFrames = [];
-            this.jourFramesContainer.innerHTML = '';
-            this.currentJourFrame = null;
+            this.publicationFrames = [];
+            this.publicationFramesContainer.innerHTML = '';
+            this.currentPublicationFrame = null;
             const galleryState = data.galleryState || {};
             this.galleryCache[this.currentGalleryId] = galleryState.name || 'Galerie sans nom';
             document.getElementById('currentGalleryNameDisplay').textContent = `Galerie : ${this.getCurrentGalleryName()}`;
@@ -4275,7 +4326,7 @@ class PublicationOrganizer {
             // ignorant l'option qui était sauvegardée.
             const defaultSortOption = 'name_asc';
             this.sortOptionsSelect.value = defaultSortOption;
-            this.nextJourIndex = galleryState.nextJourIndex || 0;
+            this.nextPublicationIndex = galleryState.nextJourIndex || 0;
             // Pour l'onglet Tri : charger TOUTES les images sans pagination
             if (data.images) {
                 let imagesToLoad = [];
@@ -4292,24 +4343,24 @@ class PublicationOrganizer {
                     this.sortGridItemsAndReflow();
                 }
             }
-            if (data.jours && data.jours.length > 0) {
-                data.jours.sort((a, b) => a.index - b.index).forEach(jourData => {
-                    const newJourFrame = new JourFrameBackend(this, jourData);
-                    this.jourFramesContainer.appendChild(newJourFrame.element);
-                    this.jourFrames.push(newJourFrame);
+            if (data.publications && data.publications.length > 0) {
+                data.publications.sort((a, b) => a.index - b.index).forEach(publicationData => {
+                    const newPublicationFrame = new PublicationFrameBackend(this, publicationData);
+                    this.publicationFramesContainer.appendChild(newPublicationFrame.element);
+                    this.publicationFrames.push(newPublicationFrame);
                 });
-                this.recalculateNextJourIndex();
+                this.recalculateNextPublicationIndex();
 
-                // Sélectionner automatiquement le jour A par défaut s'il existe
-                if (!this.currentJourFrame) {
-                    const jourA = this.jourFrames.find(jf => jf.letter === 'A');
-                    if (jourA) {
-                        this.setCurrentJourFrame(jourA);
+                // Sélectionner automatiquement le publication A par défaut s'il existe
+                if (!this.currentPublicationFrame) {
+                    const publicationA = this.publicationFrames.find(jf => jf.letter === 'A');
+                    if (publicationA) {
+                        this.setCurrentPublicationFrame(publicationA);
                     } else {
-                        // Si pas de jour A, prendre le premier jour disponible
-                        const firstJour = this.jourFrames.sort((a, b) => a.letter.localeCompare(b.letter))[0];
-                        if (firstJour) {
-                            this.setCurrentJourFrame(firstJour);
+                        // Si pas de publication A, prendre le premier publication disponible
+                        const firstPublication = this.publicationFrames.sort((a, b) => a.letter.localeCompare(b.letter))[0];
+                        if (firstPublication) {
+                            this.setCurrentPublicationFrame(firstPublication);
                         }
                     }
                 }
@@ -4322,21 +4373,21 @@ class PublicationOrganizer {
 
             this.scheduleContext = {
                 schedule: data.schedule || {},
-                allUserJours: data.scheduleContext.allUserJours || []
+                allUserPublications: data.scheduleContext.allUserPublications || []
             };
 
             // ▼▼▼ AJOUT DE LA SECTION CORRIGÉE ▼▼▼
-            // Maintenant que TOUS les Jours sont initialisés et dans app.jourFrames,
-            // on peut lancer la mise à jour de l'UI du calendrier en toute sécurité.
+            // Maintenant que TOUS les Publications sont initialisés et dans app.publicationFrames,
+            // on peut lancer la mise à publication de l'UI du calendrier en toute sécurité.
             if (this.calendarPage) {
-                // S'assure que tous les jours de la galerie actuelle sont bien dans le contexte global
-                this.jourFrames.forEach(jf => this.ensureJourInAllUserJours(jf));
-                // Construit l'affichage du calendrier ET de la liste des jours non planifiés
+                // S'assure que tous les publications de la galerie actuelle sont bien dans le contexte global
+                this.publicationFrames.forEach(jf => this.ensureJourInAllUserPublications(jf));
+                // Construit l'affichage du calendrier ET de la liste des publications non planifiés
                 this.calendarPage.buildCalendarUI();
             }
             // ▲▲▲ FIN DE LA SECTION AJOUTÉE ▲▲▲
 
-            // Désactiver le flag de chargement avant les mises à jour finales
+            // Désactiver le flag de chargement avant les mises à publication finales
             this.isLoadingGallery = false;
 
             this.updateGridUsage();
@@ -4345,7 +4396,7 @@ class PublicationOrganizer {
             this.updateGridItemStyles();
             this.updateUIToNoGalleryState();
 
-            // Rafraîchir la sélection des jours dans l'AutoCropper
+            // Rafraîchir la sélection des publications dans l'AutoCropper
             if (this.croppingPage && this.croppingPage.autoCropper) {
                 this.croppingPage.autoCropper.refreshJourSelection();
             }
@@ -4405,11 +4456,11 @@ class PublicationOrganizer {
                 this.gridItems = [];
                 this.gridItemsDict = {};
                 this.imageGridElement.innerHTML = '';
-                this.jourFrames = [];
-                this.jourFramesContainer.innerHTML = '';
-                this.currentJourFrame = null;
-                this.nextJourIndex = 0;
-                this.scheduleContext = { schedule: {}, allUserJours: [] };
+                this.publicationFrames = [];
+                this.publicationFramesContainer.innerHTML = '';
+                this.currentPublicationFrame = null;
+                this.nextPublicationIndex = 0;
+                this.scheduleContext = { schedule: {}, allUserPublications: [] };
                 if (this.descriptionManager) this.descriptionManager.clearEditor();
                 if (this.croppingPage) this.croppingPage.clearEditor();
             }
@@ -4663,7 +4714,7 @@ class PublicationOrganizer {
                     this.gridItems = this.gridItems.filter(item => item.id !== idToDelete);
                     delete this.gridItemsDict[idToDelete];
                 }
-                this.jourFrames.forEach(jf => {
+                this.publicationFrames.forEach(jf => {
                     jf.removeImageById(idToDelete);
                 });
             });
@@ -4745,22 +4796,22 @@ class PublicationOrganizer {
 
     onGridItemClick(gridItem) {
         if (!gridItem || !gridItem.isValid) return;
-        if (!this.currentJourFrame) {
-            alert("Veuillez d'abord sélectionner ou ajouter un Jour de publication actif.");
+        if (!this.currentPublicationFrame) {
+            alert("Veuillez d'abord sélectionner ou ajouter un Publication de publication actif.");
             return;
         }
-        const alreadyInCurrentJourFrame = this.currentJourFrame.imagesData.some(imgData => imgData.imageId === gridItem.id);
+        const alreadyInCurrentJourFrame = this.currentPublicationFrame.imagesData.some(imgData => imgData.imageId === gridItem.id);
         if (alreadyInCurrentJourFrame) {
-            this.currentJourFrame.removeImageById(gridItem.id);
-            // Mise à jour immédiate de la liste des jours à planifier après suppression
-            this.currentJourFrame.updateUnscheduledJoursList();
+            this.currentPublicationFrame.removeImageById(gridItem.id);
+            // Mise à publication immédiate de la liste des publications à planifier après suppression
+            this.currentPublicationFrame.updateUnscheduledPublicationsList();
         } else {
             const combinedUsage = this.getCombinedUsageMapForMultiDay();
             const originalId = gridItem.parentImageId || gridItem.id;
             const usageArray = combinedUsage.get(originalId) || [];
             const uniqueJourLetters = new Set(usageArray.map(u => u.jourLetter));
             if (uniqueJourLetters.size >= 4) {
-                alert("Une image ne peut pas être sélectionnée dans plus de 4 jours différents.");
+                alert("Une image ne peut pas être sélectionnée dans plus de 4 publications différents.");
                 return;
             }
 
@@ -4772,18 +4823,18 @@ class PublicationOrganizer {
                 isCropped: gridItem.isCroppedVersion
             };
 
-            // 1. Mettre à jour le modèle de données d'abord
-            this.currentJourFrame.imagesData.push(newItemData);
+            // 1. Mettre à publication le modèle de données d'abord
+            this.currentPublicationFrame.imagesData.push(newItemData);
 
             // 2. Créer et ajouter le nouvel élément DOM
-            const newElement = this.currentJourFrame.createJourItemElement(newItemData);
-            this.currentJourFrame.canvasWrapper.appendChild(newElement);
+            const newElement = this.currentPublicationFrame.createPublicationItemElement(newItemData);
+            this.currentPublicationFrame.canvasWrapper.appendChild(newElement);
 
-            // 3. Appeler directement les fonctions de mise à jour (au lieu de syncDataArrayFromDOM)
+            // 3. Appeler directement les fonctions de mise à publication (au lieu de syncDataArrayFromDOM)
             this.updateGridUsage();
-            this.currentJourFrame.debouncedSave();
-            this.currentJourFrame.checkAndApplyCroppedStyle();
-            this.currentJourFrame.updateUnscheduledJoursList();
+            this.currentPublicationFrame.debouncedSave();
+            this.currentPublicationFrame.checkAndApplyCroppedStyle();
+            this.currentPublicationFrame.updateUnscheduledPublicationsList();
             // --- FIN DE LA CORRECTION ---
         }
     }
@@ -4806,7 +4857,7 @@ class PublicationOrganizer {
         }
         this.updateStatsLabel();
 
-        // Mettre à jour le calendrier si l'onglet calendrier est actif
+        // Mettre à publication le calendrier si l'onglet calendrier est actif
         // MAIS seulement si on n'est pas en train de charger une galerie
         if (this.calendarPage && document.getElementById('calendar').classList.contains('active') && !this.isLoadingGallery) {
             this.calendarPage.buildCalendarUI();
@@ -4815,7 +4866,7 @@ class PublicationOrganizer {
 
     getCombinedUsageMapForMultiDay() {
         const combined = new Map();
-        this.jourFrames.forEach(jf => {
+        this.publicationFrames.forEach(jf => {
             const jfUsage = jf.getUsageDataForMultiple();
             for (const [imageId, usageInfos] of jfUsage.entries()) {
                 if (!combined.has(imageId)) {
@@ -4837,23 +4888,60 @@ class PublicationOrganizer {
             return;
         }
         const numGridImages = this.gridItems.filter(item => item.isValid).length;
-        const numJourImages = this.jourFrames.reduce((sum, jf) => sum + jf.imagesData.length, 0);
-        this.statsLabelText.textContent = `Grille: ${numGridImages} | Jours: ${numJourImages}`;
+        this.statsLabelText.textContent = `${numGridImages} photo${numGridImages > 1 ? 's' : ''} dans la galerie`;
+        
+        // Mettre à publication aussi les statistiques de la galerie si c'est la même galerie
+        if (this.selectedGalleryForPreviewId === this.currentGalleryId) {
+            this.galleryStatsLabelText.textContent = `${numGridImages} photo${numGridImages > 1 ? 's' : ''} dans la galerie`;
+        }
     }
 
-    async addJourFrame() {
-        if (!this.currentGalleryId) { alert("Aucune galerie active."); return; }
-        this.recalculateNextJourIndex();
-        if (this.nextJourIndex >= 26) { alert("Maximum de Jours (A-Z) atteint."); return; }
-        this.addJourFrameBtn.disabled = true;
+    updateGalleryStatsLabel(galleryId = null) {
+        const targetGalleryId = galleryId || this.selectedGalleryForPreviewId;
+        if (!targetGalleryId) {
+            this.galleryStatsLabelText.textContent = "0 photo dans la galerie";
+            return;
+        }
+        
+        // Si c'est la galerie actuellement chargée, utiliser les données en mémoire
+        if (targetGalleryId === this.currentGalleryId) {
+            const numGridImages = this.gridItems.filter(item => item.isValid).length;
+            this.galleryStatsLabelText.textContent = `${numGridImages} photo${numGridImages > 1 ? 's' : ''} dans la galerie`;
+        } else {
+            // Pour les autres galeries, faire un appel API pour obtenir les statistiques
+            this.fetchGalleryStats(targetGalleryId);
+        }
+    }
+
+    async fetchGalleryStats(galleryId) {
         try {
-            const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/jours`, {
+            const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryId}`);
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            const galleryDetails = await response.json();
+            
+            const totalImages = galleryDetails.images?.total || galleryDetails.images?.docs?.length || 0;
+            this.galleryStatsLabelText.textContent = `${totalImages} photo${totalImages > 1 ? 's' : ''} dans la galerie`;
+        } catch (error) {
+            console.error("Erreur lors du chargement des statistiques de la galerie:", error);
+            this.galleryStatsLabelText.textContent = "? photos dans la galerie";
+        }
+    }
+
+    async addPublicationFrame() {
+        if (!this.currentGalleryId) { alert("Aucune galerie active."); return; }
+        this.recalculateNextPublicationIndex();
+        if (this.nextPublicationIndex >= 26) { alert("Maximum de Publications (A-Z) atteint."); return; }
+        this.addPublicationFrameBtn.disabled = true;
+        try {
+            const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/publications`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
             });
             if (!response.ok) {
                 let errorBody = await response.text();
-                let userMessage = `Erreur lors de la création du Jour : ${response.statusText}`;
+                let userMessage = `Erreur lors de la création du Publication : ${response.statusText}`;
                 try {
                     const errorJson = JSON.parse(errorBody);
                     if (errorJson.message) userMessage = errorJson.message;
@@ -4863,14 +4951,14 @@ class PublicationOrganizer {
                 throw new Error(userMessage);
             }
             const newJourData = await response.json();
-            const newJourFrame = new JourFrameBackend(this, newJourData);
-            this.jourFramesContainer.appendChild(newJourFrame.element);
-            this.jourFrames.push(newJourFrame);
-            this.jourFrames.sort((a, b) => a.index - b.index);
+            const newPublicationFrame = new PublicationFrameBackend(this, newJourData);
+            this.publicationFramesContainer.appendChild(newPublicationFrame.element);
+            this.publicationFrames.push(newPublicationFrame);
+            this.publicationFrames.sort((a, b) => a.index - b.index);
 
-            // Sélectionner automatiquement le nouveau jour, surtout si c'est le jour A
-            this.setCurrentJourFrame(newJourFrame);
-            this.recalculateNextJourIndex();
+            // Sélectionner automatiquement le nouveau jour, surtout si c'est le publication A
+            this.setCurrentPublicationFrame(newPublicationFrame);
+            this.recalculateNextPublicationIndex();
             this.updateStatsLabel();
             this.saveAppState();
             if (this.calendarPage) {
@@ -4880,14 +4968,14 @@ class PublicationOrganizer {
                     galleryId: newJourData.galleryId.toString(),
                     galleryName: this.getCurrentGalleryName()
                 };
-                this.scheduleContext.allUserJours.push(newJourContext);
+                this.scheduleContext.allUserPublications.push(newJourContext);
                 if (document.getElementById('calendar').classList.contains('active')) {
                     this.calendarPage.buildCalendarUI();
                 }
             }
             this.refreshSidePanels();
 
-            // Rafraîchir la sélection des jours dans l'AutoCropper
+            // Rafraîchir la sélection des publications dans l'AutoCropper
             if (this.croppingPage && this.croppingPage.autoCropper) {
                 this.croppingPage.autoCropper.refreshJourSelection();
             }
@@ -4895,139 +4983,139 @@ class PublicationOrganizer {
             console.error("Error adding JourFrame:", error);
             alert(error.message);
         } finally {
-            this.addJourFrameBtn.disabled = false;
+            this.addPublicationFrameBtn.disabled = false;
         }
     }
 
-    setCurrentJourFrame(jourFrame) {
-        if (this.currentJourFrame) {
-            this.currentJourFrame.element.classList.remove('current');
+    setCurrentPublicationFrame(publicationFrame) {
+        if (this.currentPublicationFrame) {
+            this.currentPublicationFrame.element.classList.remove('current');
         }
-        this.currentJourFrame = jourFrame;
-        if (this.currentJourFrame) {
-            this.currentJourFrame.element.classList.add('current');
+        this.currentPublicationFrame = publicationFrame;
+        if (this.currentPublicationFrame) {
+            this.currentPublicationFrame.element.classList.add('current');
         }
     }
 
-    async closeJourFrame(jourFrameToClose) {
-        if (!confirm(`Voulez-vous vraiment supprimer le Jour ${jourFrameToClose.letter} ?`)) return;
-        const index = this.jourFrames.indexOf(jourFrameToClose);
+    async closePublicationFrame(publicationFrameToClose) {
+        if (!confirm(`Voulez-vous vraiment supprimer le Publication ${publicationFrameToClose.letter} ?`)) return;
+        const index = this.publicationFrames.indexOf(publicationFrameToClose);
         if (index > -1) {
-            await jourFrameToClose.destroy();
-            this.jourFrames.splice(index, 1);
-            if (this.currentJourFrame === jourFrameToClose) {
-                this.setCurrentJourFrame(this.jourFrames[index] || this.jourFrames[index - 1] || (this.jourFrames.length > 0 ? this.jourFrames[0] : null));
+            await publicationFrameToClose.destroy();
+            this.publicationFrames.splice(index, 1);
+            if (this.currentPublicationFrame === publicationFrameToClose) {
+                this.setCurrentPublicationFrame(this.publicationFrames[index] || this.publicationFrames[index - 1] || (this.publicationFrames.length > 0 ? this.publicationFrames[0] : null));
             }
-            this.recalculateNextJourIndex();
+            this.recalculateNextPublicationIndex();
             this.updateGridUsage();
             this.updateStatsLabel();
             this.saveAppState();
             if (this.calendarPage) {
                 const datesToRemove = [];
                 for (const dateStr in this.scheduleContext.schedule) {
-                    if (this.scheduleContext.schedule[dateStr][jourFrameToClose.letter] && this.scheduleContext.schedule[dateStr][jourFrameToClose.letter].galleryId === jourFrameToClose.galleryId) {
+                    if (this.scheduleContext.schedule[dateStr][publicationFrameToClose.letter] && this.scheduleContext.schedule[dateStr][publicationFrameToClose.letter].galleryId === publicationFrameToClose.galleryId) {
                         datesToRemove.push(new Date(dateStr + 'T00:00:00'));
                     }
                 }
                 datesToRemove.forEach(dateObj => {
-                    this.calendarPage.removePublicationForDate(dateObj, jourFrameToClose.letter);
+                    this.calendarPage.removePublicationForDate(dateObj, publicationFrameToClose.letter);
                 });
             }
             this.refreshSidePanels();
 
-            // Rafraîchir la sélection des jours dans l'AutoCropper
+            // Rafraîchir la sélection des publications dans l'AutoCropper
             if (this.croppingPage && this.croppingPage.autoCropper) {
                 this.croppingPage.autoCropper.refreshJourSelection();
             }
         }
     }
 
-    // Nouvelle fonction pour supprimer automatiquement les jours vides
-    async removeEmptyJours() {
-        const emptyJours = this.jourFrames.filter(jourFrame =>
-            !jourFrame.imagesData || jourFrame.imagesData.length === 0
+    // Nouvelle fonction pour supprimer automatiquement les publications vides
+    async removeEmptyPublications() {
+        const emptyPublications = this.publicationFrames.filter(publicationFrame =>
+            !publicationFrame.imagesData || publicationFrame.imagesData.length === 0
         );
 
-        if (emptyJours.length === 0) return;
+        if (emptyPublications.length === 0) return;
 
-        console.log(`[removeEmptyJours] Suppression automatique de ${emptyJours.length} jour(s) vide(s):`,
-            emptyJours.map(j => j.letter).join(', '));
+        console.log(`[removeEmptyPublications] Suppression automatique de ${emptyPublications.length} publication(s) vide(s):`,
+            emptyPublications.map(j => j.letter).join(', '));
 
-        // Supprimer chaque jour vide sans demander confirmation
-        for (const jourFrame of emptyJours) {
-            const index = this.jourFrames.indexOf(jourFrame);
+        // Supprimer chaque publication vide sans demander confirmation
+        for (const publicationFrame of emptyPublications) {
+            const index = this.publicationFrames.indexOf(publicationFrame);
             if (index > -1) {
-                await jourFrame.destroy();
-                this.jourFrames.splice(index, 1);
+                await publicationFrame.destroy();
+                this.publicationFrames.splice(index, 1);
 
-                // Si le jour supprimé était le jour actuel, sélectionner un autre jour
-                if (this.currentJourFrame === jourFrame) {
-                    this.setCurrentJourFrame(this.jourFrames[index] || this.jourFrames[index - 1] ||
-                        (this.jourFrames.length > 0 ? this.jourFrames[0] : null));
+                // Si le publication supprimé était le publication actuel, sélectionner un autre jour
+                if (this.currentPublicationFrame === publicationFrame) {
+                    this.setCurrentPublicationFrame(this.publicationFrames[index] || this.publicationFrames[index - 1] ||
+                        (this.publicationFrames.length > 0 ? this.publicationFrames[0] : null));
                 }
 
                 // Nettoyer le calendrier si nécessaire
                 if (this.calendarPage) {
                     const datesToRemove = [];
                     for (const dateStr in this.scheduleContext.schedule) {
-                        if (this.scheduleContext.schedule[dateStr][jourFrame.letter] &&
-                            this.scheduleContext.schedule[dateStr][jourFrame.letter].galleryId === jourFrame.galleryId) {
+                        if (this.scheduleContext.schedule[dateStr][publicationFrame.letter] &&
+                            this.scheduleContext.schedule[dateStr][publicationFrame.letter].galleryId === publicationFrame.galleryId) {
                             datesToRemove.push(new Date(dateStr + 'T00:00:00'));
                         }
                     }
                     datesToRemove.forEach(dateObj => {
-                        this.calendarPage.removePublicationForDate(dateObj, jourFrame.letter);
+                        this.calendarPage.removePublicationForDate(dateObj, publicationFrame.letter);
                     });
                 }
             }
         }
 
-        // Mettre à jour l'interface après suppression
-        if (emptyJours.length > 0) {
-            this.recalculateNextJourIndex();
+        // Mettre à publication l'interface après suppression
+        if (emptyPublications.length > 0) {
+            this.recalculateNextPublicationIndex();
             this.updateGridUsage();
             this.updateStatsLabel();
             this.saveAppState();
             this.refreshSidePanels();
 
-            // Rafraîchir la sélection des jours dans l'AutoCropper
+            // Rafraîchir la sélection des publications dans l'AutoCropper
             if (this.croppingPage && this.croppingPage.autoCropper) {
                 this.croppingPage.autoCropper.refreshJourSelection();
             }
         }
     }
 
-    recalculateNextJourIndex() {
-        if (this.jourFrames.length === 0) { this.nextJourIndex = 0; return; }
-        const existingIndices = new Set(this.jourFrames.map(jf => jf.index));
+    recalculateNextPublicationIndex() {
+        if (this.publicationFrames.length === 0) { this.nextPublicationIndex = 0; return; }
+        const existingIndices = new Set(this.publicationFrames.map(jf => jf.index));
         let smallestAvailable = 0;
         while (existingIndices.has(smallestAvailable) && smallestAvailable < 26) {
             smallestAvailable++;
         }
-        this.nextJourIndex = smallestAvailable;
+        this.nextPublicationIndex = smallestAvailable;
     }
 
-    ensureJourInAllUserJours(jourFrame) {
-        const jourKey = `${jourFrame.galleryId}-${jourFrame.letter}`;
-        const existingJour = this.scheduleContext.allUserJours.find(j =>
-            j.galleryId === jourFrame.galleryId && j.letter === jourFrame.letter
+    ensureJourInAllUserPublications(publicationFrame) {
+        const jourKey = `${publicationFrame.galleryId}-${publicationFrame.letter}`;
+        const existingPublication = this.scheduleContext.allUserPublications.find(j =>
+            j.galleryId === publicationFrame.galleryId && j.letter === publicationFrame.letter
         );
 
         if (!existingJour) {
-            console.log(`➕ Ajout du jour ${jourFrame.letter} à allUserJours`);
+            console.log(`➕ Ajout du publication ${publicationFrame.letter} à allUserPublications`);
             const newJourContext = {
-                _id: jourFrame.id,
-                letter: jourFrame.letter,
-                galleryId: jourFrame.galleryId.toString(),
+                _id: publicationFrame.id,
+                letter: publicationFrame.letter,
+                galleryId: publicationFrame.galleryId.toString(),
                 galleryName: this.getCurrentGalleryName()
             };
-            this.scheduleContext.allUserJours.push(newJourContext);
+            this.scheduleContext.allUserPublications.push(newJourContext);
         } else {
-            console.log(`✅ Jour ${jourFrame.letter} déjà dans allUserJours`);
+            console.log(`✅ Publication ${publicationFrame.letter} déjà dans allUserPublications`);
         }
     }
 
-    addOrUpdateJourInCalendar(jourFrame) {
+    addOrUpdateJourInCalendar(publicationFrame) {
         if (this.calendarPage && document.getElementById('calendar').classList.contains('active')) {
             this.calendarPage.buildCalendarUI();
         }
@@ -5040,7 +5128,7 @@ class PublicationOrganizer {
         return this.galleryCache[galleryId];
     }
 
-    isJourReadyForPublishing(galleryId, letter) {
+    isPublicationReadyForPublishing(galleryId, letter) {
         return true;
     }
 
@@ -5050,7 +5138,7 @@ class PublicationOrganizer {
             currentThumbSize: this.currentThumbSize,
             sortOption: this.sortOptionsSelect.value,
             activeTab: document.querySelector('.tab-button.active')?.dataset.tab || 'galleries',
-            nextJourIndex: this.nextJourIndex
+            nextJourIndex: this.nextPublicationIndex
         };
         try {
             await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/state`, {
@@ -5064,13 +5152,13 @@ class PublicationOrganizer {
     }
 
     findImageInAnyJour(imageId, returnFullObject = false) {
-        for (const jour of this.jourFrames) {
-            const foundInData = jour.imagesData.find(img => img.imageId === imageId);
+        for (const publication of this.publicationFrames) {
+            const foundInData = publication.imagesData.find(img => img.imageId === imageId);
             if (foundInData) {
                 if (returnFullObject) {
                     return this.gridItemsDict[imageId] || {
                         _id: foundInData.imageId,
-                        galleryId: jour.galleryId,
+                        galleryId: publication.galleryId,
                         path: Utils.getFilenameFromURL(foundInData.dataURL).replace('thumb-', ''),
                         thumbnailPath: Utils.getFilenameFromURL(foundInData.dataURL),
                         originalFilename: `Image ${foundInData.imageId}`,

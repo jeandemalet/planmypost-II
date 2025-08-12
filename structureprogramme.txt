@@ -27,6 +27,3 @@ publication-organizer/
     └── profile.png
 
 
-Style visuel du UI : 
-
-Glassmorphism verre brossé et transparent, coins arrondis, accents lignes noires marquées et touche de couleur jaune fluo bold. Inspiration Apple, look pro dynamique et responsive.

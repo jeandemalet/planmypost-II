@@ -4,7 +4,7 @@
 
 const Image = require('../models/Image');
 const Gallery = require('../models/Gallery');
-const Jour = require('../models/Jour');
+const Publication = require('../models/Publication');
 const mongoose = require('mongoose');
 const sharp = require('sharp');
 const exifParser = require('exif-parser');
@@ -344,7 +344,7 @@ exports.deleteImage = async (req, res) => {
 
         await Image.deleteOne({ _id: imageId });
 
-        await Jour.updateMany(
+        await Publication.updateMany(
             { galleryId: galleryId },
             { $pull: { images: { imageId: { $in: allAffectedImageIds.map(id => new mongoose.Types.ObjectId(id)) } } } }
         );
@@ -375,7 +375,7 @@ exports.deleteAllImagesForGallery = async (req, res) => {
             }
         });
         await Image.deleteMany({ galleryId: galleryId });
-        await Jour.updateMany({ galleryId: galleryId }, { $set: { images: [] } });
+        await Publication.updateMany({ galleryId: galleryId }, { $set: { images: [] } });
 
         res.status(200).send(`All images for gallery ${galleryId} deleted successfully.`);
     } catch (error) {

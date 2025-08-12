@@ -65,6 +65,9 @@
                 <div id="galleryPreviewArea">
                     <div id="galleryPreviewHeader" style="display:none;">
                         <h3 id="galleryPreviewName"></h3>
+                        <div id="galleryStatsArea" style="text-align: center; margin: 5px 0;">
+                            <span id="galleryStatsLabelText">0 photo dans la galerie</span>
+                        </div>
                         <div class="gallery-header-actions">
                             <button id="addPhotosToPreviewGalleryBtn" class="add-btn-green header-add-btn">
                                 <img src="/assets/add-button.png" alt="" class="btn-icon"> <span class="btn-text">Ajouter des photos</span>
@@ -77,6 +80,7 @@
                             <div id="galleriesUploadProgressBarInner" class="upload-progress-bar-inner">0%</div>
                         </div>
                     </div>
+
                     <div id="galleryPreviewGrid"></div>
                      <p id="galleryPreviewPlaceholder">Sélectionnez une galerie pour voir un aperçu ou la charger.</p>
                 </div>
@@ -113,7 +117,7 @@
                 </div>
 
                 <div id="statsArea" style="margin-left:auto;">
-                    <span id="statsLabelText">Grille: 0 | Jours: 0</span>
+                    <span id="statsLabelText">Grille: 0 | Publications: 0</span>
                 </div>
             </div>
 
@@ -124,12 +128,12 @@
                     </button>
                     <div id="imageGrid"></div>
                 </div>
-                <div id="jourFramesArea">
-                    <h3>Jours de Publication</h3>
-                    <div id="jourFramesContainer"></div>
-                    <div class="jour-frames-actions">
-                        <button id="addJourFrameBtn">
-                             <img src="assets/add-button.png" alt="" class="btn-icon"> Ajouter Jour
+                <div id="publicationFramesArea">
+                    <!-- Le titre <h3>Publications</h3> a été supprimé -->
+                    <div id="publicationFramesContainer"></div>
+                    <div class="publication-frames-actions">
+                        <button id="addPublicationFrameBtn">
+                             <img src="assets/add-button.png" alt="" class="btn-icon"> Ajouter Publication
                         </button>
                     </div>
                 </div>
@@ -141,20 +145,20 @@
         <!-- =============================== -->
         <div id="cropping" class="tab-content">
             <div class="cropping-layout">
-                <!-- COLONNE DE GAUCHE : LISTE DES JOURS -->
-                <div id="croppingJourListPanel">
-                    <h4>Jours de la Galerie</h4>
+                <!-- COLONNE DE GAUCHE : LISTE DES PUBLICATIONS -->
+                <div id="croppingPublicationListPanel">
+                    <h4>Publications de la Galerie</h4>
                     <button id="toggleCroppingViewBtn" class="secondary-action" style="width: 100%; margin-bottom: 10px;">
                         <img src="/assets/tri.png" alt="Tout voir" class="btn-icon"> 
                         <span id="toggleCroppingViewBtnText">Tout voir</span>
                     </button>
-                    <ul id="croppingJourList">
+                    <ul id="croppingPublicationList">
                     </ul>
                 </div>
 
                 <!-- COLONNE CENTRALE : CONTENU PRINCIPAL (VUE D'ENSEMBLE OU ÉDITEUR) -->
                 <div id="croppingEditorContainer">
-                    <h3 id="croppingEditorTitle">Sélectionnez un jour à recadrer</h3>
+                    <h3 id="croppingEditorTitle">Sélectionnez une publication à recadrer</h3>
                     
                     <div id="allPhotosGroupedViewContainer" style="display: none;">
                         <!-- Le contenu de la vue d'ensemble sera injecté ici par JS -->
@@ -194,7 +198,7 @@
                         </div>
                         <div id="croppingThumbnailStrip" class="cropping-thumbnail-strip"></div>
                     </div>
-                    <p id="croppingEditorPlaceholder">Aucun jour sélectionné.</p>
+                    <p id="croppingEditorPlaceholder">Aucune publication sélectionnée.</p>
                 </div>
 
                 <!-- COLONNE DE DROITE : BARRE LATÉRALE POUR LE RECADRAGE AUTO -->
@@ -251,15 +255,15 @@
                                 <label for="cropScopeDay">Sélection</label>
                             </div>
                             
-                            <div id="jourSelectionContainer" class="jour-selection-container" style="display: none;">
-                                <div class="jour-selection-header">
-                                    <span class="selection-title">Sélectionner les jours :</span>
+                            <div id="publicationSelectionContainer" class="publication-selection-container" style="display: none;">
+                                <div class="publication-selection-header">
+                                    <span class="selection-title">Sélectionner les publications :</span>
                                     <div class="selection-actions">
-                                        <button type="button" id="selectAllJoursBtn" class="selection-btn">Tout</button>
-                                        <button type="button" id="deselectAllJoursBtn" class="selection-btn">Aucun</button>
+                                        <button type="button" id="selectAllPublicationsBtn" class="selection-btn">Tout</button>
+                                        <button type="button" id="deselectAllPublicationsBtn" class="selection-btn">Aucun</button>
                                     </div>
                                 </div>
-                                <div id="jourCheckboxList" class="jour-checkbox-list">
+                                <div id="publicationCheckboxList" class="publication-checkbox-list">
                                     <!-- Les checkboxes seront générées dynamiquement ici -->
                                 </div>
                             </div>
@@ -278,16 +282,16 @@
         <div id="description" class="tab-content">
             <!-- ▼▼▼ REMPLACEZ TOUT LE BLOC <div class="description-layout"> PAR CELUI-CI ▼▼▼ -->
             <div class="description-layout">
-                <div id="descriptionJourListPanel">
+                <div id="descriptionPublicationListPanel">
                     <ul id="descriptionMainList"></ul>
-                    <h4 class="jour-list-separator">Jours Spécifiques</h4>
-                    <ul id="descriptionJourList"></ul>
+                    <h4 class="publication-list-separator">Publications Spécifiques</h4>
+                    <ul id="descriptionPublicationList"></ul>
                 </div>
                 
                 <!-- Nouveau conteneur pour l'éditeur et la colonne de raccourcis -->
                 <div class="description-editor-area">
                     <div id="descriptionEditorPanel">
-                        <h3 id="descriptionEditorTitle">Sélectionnez un jour pour éditer sa description</h3>
+                        <h3 id="descriptionEditorTitle">Sélectionnez une publication pour éditer sa description</h3>
                         <div id="descriptionEditorContent" style="display: none;">
                             <div id="descriptionImagesPreview" class="images-preview-banner"></div>
                             <div class="description-fields">
@@ -296,7 +300,7 @@
                                      role="textbox" aria-multiline="true" data-placeholder="Écrivez votre description ici..."></div>
                             </div>
                         </div>
-                        <p id="descriptionEditorPlaceholder">Aucun jour sélectionné.</p>
+                        <p id="descriptionEditorPlaceholder">Aucune publication sélectionnée.</p>
                     </div>
                     
                     <!-- Le bloc de raccourcis est maintenant ici, à côté de l'éditeur -->
@@ -341,13 +345,18 @@
 
         <div id="calendar" class="tab-content">
             <div class="calendar-layout">
-                <div id="calendarJourListPanel">
-                    <ul id="calendarJourList">
+                <div id="calendarPublicationListPanel">
+                    <ul id="calendarPublicationList">
                     </ul>
                 </div>
                 <div id="calendar-main-content">
                     <div class="scheduler-header">
-                        <h2 id="monthYearLabel">Mois Année</h2>
+                        <div id="monthSelectorContainer">
+                            <ul id="monthSelector">
+                                <!-- Les mois seront générés ici par JavaScript -->
+                            </ul>
+                            <span id="yearLabel">2025</span>
+                        </div>
                         <button id="todayBtn">Aujourd'hui</button>
                     </div>
                     <div id="calendarGrid"></div>
@@ -358,15 +367,15 @@
                         <div class="auto-schedule-options">
                             <div class="option-group">
                                 <input type="radio" id="autoScheduleChrono" name="autoScheduleMode" value="chrono" checked>
-                                <label for="autoScheduleChrono" title="Place les jours les uns après les autres, dans l'ordre (Jour A, Jour B, Jour C...)."><img src="/assets/chronologique.png" alt="Icone chronologique" class="schedule-icon"/> Chronologique</label>
+                                <label for="autoScheduleChrono" title="Place les publications les unes après les autres, dans l'ordre (Publication A, Publication B, Publication C...)."><img src="/assets/chronologique.png" alt="Icone chronologique" class="schedule-icon"/> Chronologique</label>
                             </div>
                             <div class="option-group">
                                 <input type="radio" id="autoScheduleInterlaced" name="autoScheduleMode" value="interlaced">
-                                <label for="autoScheduleInterlaced" title="Place les jours en alternant les galeries, tout en respectant l'ordre chronologique de chaque galerie."><img src="/assets/aléatoire interlacé.png" alt="Icone aléatoire interlacé" class="schedule-icon"/> Chronologique Interlacé</label>
+                                <label for="autoScheduleInterlaced" title="Place les publications en alternant les galeries, tout en respectant l'ordre chronologique de chaque galerie."><img src="/assets/aléatoire interlacé.png" alt="Icone aléatoire interlacé" class="schedule-icon"/> Chronologique Interlacé</label>
                             </div>
                             <div class="option-group">
                                 <input type="radio" id="autoScheduleRandom" name="autoScheduleMode" value="random">
-                                <label for="autoScheduleRandom" title="Place les jours de manière aléatoire sur les dates disponibles."><img src="/assets/aléatoire (2).png" alt="Icone aléatoire" class="schedule-icon"/> Aléatoire</label>
+                                <label for="autoScheduleRandom" title="Place les publications de manière aléatoire sur les dates disponibles."><img src="/assets/aléatoire (2).png" alt="Icone aléatoire" class="schedule-icon"/> Aléatoire</label>
                             </div>
                         </div>
                         <div class="auto-schedule-settings">
@@ -381,9 +390,9 @@
                         <button id="runAutoScheduleBtn" class="primary-action icon-only" title="Lancer la Planification"><img src="/assets/play.png" alt="Lancer la Planification" class="btn-icon"></button>
                         <p id="auto-schedule-info" class="sidebar-info"></p>
                     </div>
-                    <div id="unscheduledJoursContainer" class="sidebar-section">
-                        <h4>Jours à Planifier</h4>
-                        <div id="unscheduledJoursList">
+                    <div id="unscheduledPublicationsContainer" class="sidebar-section">
+                        <h4>Publications à Planifier</h4>
+                        <div id="unscheduledPublicationsList">
                         </div>
                         <button id="reorganizeAllBtn" class="secondary-action" style="margin-top: 10px;">Tout Réorganiser</button>
                         <button id="downloadAllScheduledBtn" class="primary-action" style="margin-top: 5px;">Tout Télécharger</button>

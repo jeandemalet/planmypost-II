@@ -1,6 +1,6 @@
 const Gallery = require('../models/Gallery');
 const Image = require('../models/Image');
-const Jour = require('../models/Jour');
+const Publication = require('../models/Publication');
 const Schedule = require('../models/Schedule'); 
 const User = require('../models/User'); // Ajout pour la logique utilisateur
 const fse = require('fs-extra');
@@ -23,10 +23,10 @@ const cleanupOrphanedData = async () => {
         const existingGalleries = await Gallery.find({}).select('_id').lean();
         const existingGalleryIds = new Set(existingGalleries.map(g => g._id.toString()));
 
-        // 2. Supprimer tous les Jours dont le `galleryId` n'est PAS dans la liste des galeries existantes.
-        const jourCleanupResult = await Jour.deleteMany({ galleryId: { $nin: Array.from(existingGalleryIds) } });
-        if (jourCleanupResult.deletedCount > 0) {
-            console.log(`[CLEANUP] ✅ ${jourCleanupResult.deletedCount} Jour(s) orphelin(s) supprimé(s).`);
+        // 2. Supprimer toutes les Publications dont le `galleryId` n'est PAS dans la liste des galeries existantes.
+        const publicationCleanupResult = await Publication.deleteMany({ galleryId: { $nin: Array.from(existingGalleryIds) } });
+        if (publicationCleanupResult.deletedCount > 0) {
+            console.log(`[CLEANUP] ✅ ${publicationCleanupResult.deletedCount} Publication(s) orpheline(s) supprimée(s).`);
         }
 
         // 3. Supprimer toutes les entrées du calendrier dont le `galleryId` n'est PAS dans la liste.
@@ -43,14 +43,14 @@ const cleanupOrphanedData = async () => {
 
 const createInitialJour = async (galleryId) => {
     try {
-        const newJour = new Jour({
+        const newPublication = new Publication({
             galleryId,
             letter: 'A',
             index: 0,
             images: [],
             descriptionText: ''
         });
-        await newJour.save();
+        await newPublication.save();
 
         const gallery = await Gallery.findById(galleryId);
         if (gallery) {
@@ -155,7 +155,7 @@ exports.getGalleryDetails = async (req, res) => {
                  .sort({ uploadDate: 1 })
                  .select('-__v -mimeType -size') // Exclure des champs inutiles pour la grille
                  .lean(),
-            Jour.find({ galleryId: galleryId })
+            Publication.find({ galleryId: galleryId })
                 .populate({
                     path: 'images.imageId',
                     select: 'path thumbnailPath originalFilename isCroppedVersion parentImageId' // Ne peupler que les champs utiles
@@ -164,7 +164,7 @@ exports.getGalleryDetails = async (req, res) => {
                 .lean(),
             // CORRECTION CRUCIALE: Données globales pour l'utilisateur (pour onglet Calendrier)
             Schedule.find({ galleryId: { $in: userGalleryIds } }).select('date jourLetter galleryId').lean(),
-            Jour.find({ galleryId: { $in: userGalleryIds } })
+            Publication.find({ galleryId: { $in: userGalleryIds } })
                 .populate({ path: 'images.imageId', select: 'thumbnailPath' })
                 .select('_id letter galleryId images')
                 .lean()
@@ -277,7 +277,7 @@ exports.deleteGallery = async (req, res) => {
         await Promise.all([
             fse.remove(galleryUploadDir), 
             Image.deleteMany({ galleryId: galleryId }),
-            Jour.deleteMany({ galleryId: galleryId }),
+            Publication.deleteMany({ galleryId: galleryId }),
             Schedule.deleteMany({ galleryId: galleryId }),
             Gallery.findByIdAndDelete(galleryId)
         ]);

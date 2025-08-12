@@ -1,9 +1,9 @@
 // ===============================
-//  Fichier: controllers\jourController.js
+//  Fichier: controllers\publicationController.js
 // ===============================
-const Jour = require('../models/Jour');
+const Publication = require('../models/Publication');
 const Gallery = require('../models/Gallery');
-const Image = require('../models/Image'); // Ajouté pour peupler les images du Jour
+const Image = require('../models/Image'); // Ajouté pour peupler les images de la Publication
 const mongoose = require('mongoose');
 const archiver = require('archiver'); // Ajouté pour le ZIP
 const path = require('path');       // Ajouté pour les chemins de fichiers
@@ -11,7 +11,7 @@ const fs = require('fs');           // Ajouté pour vérifier l'existence des fi
 
 const UPLOAD_DIR = path.join(__dirname, '..', 'uploads'); // S'assurer que UPLOAD_DIR est défini
 
-exports.createJour = async (req, res) => {
+exports.createPublication = async (req, res) => {
     const { galleryId } = req.params;
 
     try {
@@ -20,8 +20,8 @@ exports.createJour = async (req, res) => {
             return res.status(404).json({ message: `Gallery with ID ${galleryId} not found.` });
         }
 
-        const existingJours = await Jour.find({ galleryId: galleryId }).select('index letter').sort({ index: 1 });
-        const existingIndices = new Set(existingJours.map(j => j.index));
+        const existingPublications = await Publication.find({ galleryId: galleryId }).select('index letter').sort({ index: 1 });
+        const existingIndices = new Set(existingPublications.map(p => p.index));
         
         let nextAvailableIndex = 0;
         while (existingIndices.has(nextAvailableIndex) && nextAvailableIndex < 26) {
@@ -29,26 +29,26 @@ exports.createJour = async (req, res) => {
         }
 
         if (nextAvailableIndex >= 26) {
-            return res.status(400).json({ message: 'Maximum number of Jours (A-Z) reached for this gallery.' });
+            return res.status(400).json({ message: 'Maximum number of Publications (A-Z) reached for this gallery.' });
         }
         
         const letter = String.fromCharCode('A'.charCodeAt(0) + nextAvailableIndex);
 
-        const alreadyExists = existingJours.find(j => j.letter === letter);
+        const alreadyExists = existingPublications.find(p => p.letter === letter);
         if (alreadyExists) {
-            console.warn(`Attempt to create Jour ${letter} (index ${nextAvailableIndex}) which already exists for gallery ${galleryId}.`);
-            const populatedExistingJour = await Jour.findById(alreadyExists._id).populate('images.imageId');
-            return res.status(200).json(populatedExistingJour);
+            console.warn(`Attempt to create Publication ${letter} (index ${nextAvailableIndex}) which already exists for gallery ${galleryId}.`);
+            const populatedExistingPublication = await Publication.findById(alreadyExists._id).populate('images.imageId');
+            return res.status(200).json(populatedExistingPublication);
         }
 
-        const newJour = new Jour({
+        const newPublication = new Publication({
             galleryId,
             letter,
             index: nextAvailableIndex,
             images: [],
             descriptionText: ''
         });
-        await newJour.save();
+        await newPublication.save();
 
         let galleryNextHintIndex = 0;
         const currentIndicesAfterCreation = new Set([...existingIndices, nextAvailableIndex]);
@@ -59,37 +59,37 @@ exports.createJour = async (req, res) => {
         gallery.nextJourIndex = galleryNextHintIndex;
         await gallery.save(); 
 
-        const populatedJour = await Jour.findById(newJour._id).populate('images.imageId');
-        res.status(201).json(populatedJour);
+        const populatedPublication = await Publication.findById(newPublication._id).populate('images.imageId');
+        res.status(201).json(populatedPublication);
 
     } catch (error) {
-        console.error("Error creating jour:", error);
+        console.error("Error creating publication:", error);
         if (error.name === 'ValidationError') {
             res.status(400).json({ message: `Validation Error: ${error.message}` });
         } else if (error.code === 11000) { 
-             res.status(409).json({ message: `Conflict: Jour with this letter/index likely already exists (DB Error). Original error: ${error.message}` });
+             res.status(409).json({ message: `Conflict: Publication with this letter/index likely already exists (DB Error). Original error: ${error.message}` });
         }
         else {
-            res.status(500).json({ message: 'Server error creating jour.' });
+            res.status(500).json({ message: 'Server error creating publication.' });
         }
     }
 };
 
-exports.getJoursForGallery = async (req, res) => {
+exports.getPublicationsForGallery = async (req, res) => {
     const { galleryId } = req.params;
     try {
-        const jours = await Jour.find({ galleryId: galleryId })
+        const publications = await Publication.find({ galleryId: galleryId })
                               .populate('images.imageId') 
                               .sort({ index: 1 }); 
-        res.json(jours);
+        res.json(publications);
     } catch (error) {
-        console.error("Error getting jours for gallery:", error);
-        res.status(500).send('Server error retrieving jours.');
+        console.error("Error getting publications for gallery:", error);
+        res.status(500).send('Server error retrieving publications.');
     }
 };
 
-exports.updateJour = async (req, res) => {
-    const { galleryId, jourId } = req.params;
+exports.updatePublication = async (req, res) => {
+    const { galleryId, publicationId } = req.params;
     const { images, descriptionText, autoCropSettings } = req.body;
 
     if (images !== undefined && !Array.isArray(images)) {
@@ -103,7 +103,7 @@ exports.updateJour = async (req, res) => {
         for (let i = 0; i < images.length; i++) {
             const imgEntry = images[i];
             if (!imgEntry || !mongoose.Types.ObjectId.isValid(imgEntry.imageId)) {
-                console.warn(`Invalid imageId found in update request for Jour ${jourId}:`, imgEntry);
+                console.warn(`Invalid imageId found in update request for Publication ${publicationId}:`, imgEntry);
                 continue; 
             }
             validatedImages.push({
@@ -133,39 +133,39 @@ exports.updateJour = async (req, res) => {
     }
 
     try {
-        const updatedJour = await Jour.findOneAndUpdate(
-            { _id: jourId, galleryId: galleryId }, 
+        const updatedPublication = await Publication.findOneAndUpdate(
+            { _id: publicationId, galleryId: galleryId }, 
             { $set: updatePayload },  
             { new: true, runValidators: true }     
         ).populate('images.imageId'); 
 
-        if (!updatedJour) {
-            return res.status(404).send('Jour not found or does not belong to the specified gallery.');
+        if (!updatedPublication) {
+            return res.status(404).send('Publication not found or does not belong to the specified gallery.');
         }
-        res.json(updatedJour); 
+        res.json(updatedPublication); 
     } catch (error) {
-        console.error("Error updating jour:", error);
+        console.error("Error updating publication:", error);
          if (error.name === 'ValidationError') {
             res.status(400).send(`Validation Error: ${error.message}`);
         } else {
-            res.status(500).send('Server error updating jour.');
+            res.status(500).send('Server error updating publication.');
         }
     }
 };
 
-exports.deleteJour = async (req, res) => {
-    const { galleryId, jourId } = req.params;
+exports.deletePublication = async (req, res) => {
+    const { galleryId, publicationId } = req.params;
     try {
-        const result = await Jour.deleteOne({ _id: jourId, galleryId: galleryId });
+        const result = await Publication.deleteOne({ _id: publicationId, galleryId: galleryId });
 
         if (result.deletedCount === 0) {
-            return res.status(404).send('Jour not found or does not belong to the specified gallery.');
+            return res.status(404).send('Publication not found or does not belong to the specified gallery.');
         }
         
         const gallery = await Gallery.findById(galleryId);
         if (gallery) {
-            const remainingJours = await Jour.find({ galleryId: galleryId }).select('index').sort({ index: 1 });
-            const remainingIndices = new Set(remainingJours.map(j => j.index));
+            const remainingPublications = await Publication.find({ galleryId: galleryId }).select('index').sort({ index: 1 });
+            const remainingIndices = new Set(remainingPublications.map(p => p.index));
             let nextIndex = 0;
             while (remainingIndices.has(nextIndex) && nextIndex < 26) {
                 nextIndex++;
@@ -174,29 +174,37 @@ exports.deleteJour = async (req, res) => {
             await gallery.save();
         }
 
-        res.status(200).send('Jour deleted successfully.');
+        res.status(200).send('Publication deleted successfully.');
     } catch (error) {
-        console.error("Error deleting jour:", error);
-        res.status(500).send('Server error deleting jour.');
+        console.error("Error deleting publication:", error);
+        res.status(500).send('Server error deleting publication.');
     }
 };
 
-exports.exportJourImagesAsZip = async (req, res) => {
-    const { galleryId, jourId } = req.params;
+exports.exportPublicationImagesAsZip = async (req, res) => {
+    const { galleryId, publicationId } = req.params;
 
     try {
-        const jour = await Jour.findById(jourId)
-            .populate({
+        // NOUVEAU : On récupère les informations de la publication ET de la galerie en parallèle
+        const [publication, gallery] = await Promise.all([
+            Publication.findById(publicationId).populate({
                 path: 'images.imageId',
                 model: 'Image'
-            });
+            }),
+            Gallery.findById(galleryId).select('name').lean() // .lean() pour la performance
+        ]);
 
-        if (!jour || jour.galleryId.toString() !== galleryId) {
-            return res.status(404).send('Jour not found or does not belong to the specified gallery.');
+        if (!publication || publication.galleryId.toString() !== galleryId) {
+            return res.status(404).send('Publication not found or does not belong to the specified gallery.');
         }
 
-        if (!jour.images || jour.images.length === 0) {
-            return res.status(400).send('This Jour contains no images to export.');
+        // NOUVEAU : Vérification pour la galerie
+        if (!gallery) {
+            return res.status(404).send('Gallery not found for this Publication.');
+        }
+
+        if (!publication.images || publication.images.length === 0) {
+            return res.status(400).send('This Publication contains no images to export.');
         }
 
         const archive = archiver('zip', {
@@ -217,21 +225,29 @@ exports.exportJourImagesAsZip = async (req, res) => {
             }
         });
 
-        const zipFileName = `Jour${jour.letter}.zip`;
+        // --- MODIFICATION 1 : NOM DU FICHIER ZIP ---
+        const sanitizedGalleryName = gallery.name.replace(/[^a-zA-Z0-9_.\-]/g, '_');
+        const zipFileName = `${sanitizedGalleryName} - Publication ${publication.letter} - Plan My Post.zip`;
         res.attachment(zipFileName);
+        // --- FIN MODIFICATION 1 ---
 
         archive.pipe(res);
 
-        for (let i = 0; i < jour.images.length; i++) {
-            const imageEntry = jour.images[i];
+        for (let i = 0; i < publication.images.length; i++) {
+            const imageEntry = publication.images[i];
             if (imageEntry.imageId && imageEntry.imageId.path) {
                 const imageDoc = imageEntry.imageId;
                 const filePath = path.join(UPLOAD_DIR, imageDoc.path);
 
                 if (fs.existsSync(filePath)) {
-                    const originalFilenameSafe = (imageDoc.originalFilename || imageDoc.filename)
-                                                .replace(/[^a-zA-Z0-9_.\-]/g, '_');
-                    const filenameInZip = `Jour${jour.letter}_${String(i + 1).padStart(2, '0')}_${originalFilenameSafe}`;
+                    // --- MODIFICATION 2 : NOM DES FICHIERS DANS LE ZIP ---
+                    const position = String(i + 1).padStart(2, '0');
+                    // On extrait l'extension originale pour la conserver
+                    const extension = path.extname(imageDoc.originalFilename) || '.jpg';
+                    
+                    const filenameInZip = `${sanitizedGalleryName} - Publication ${publication.letter} - ${position} - Plan My Post${extension}`;
+                    // --- FIN MODIFICATION 2 ---
+
                     archive.file(filePath, { name: filenameInZip });
                 } else {
                     console.warn(`File not found, skipping: ${filePath}`);
@@ -242,9 +258,9 @@ exports.exportJourImagesAsZip = async (req, res) => {
         await archive.finalize();
 
     } catch (error) {
-        console.error(`Error exporting Jour ${jourId} images:`, error);
+        console.error(`Error exporting Publication ${publicationId} images:`, error);
         if (!res.headersSent) {
-            res.status(500).send('Server error during Jour export.');
+            res.status(500).send('Server error during Publication export.');
         }
     }
 };
