@@ -3168,7 +3168,7 @@ class CalendarPage {
 
                 contentDiv.appendChild(letterSpan);
                 contentDiv.appendChild(thumbDiv);
-                contentDiv.appendChild(jourLabelSpan);
+                contentDiv.appendChild(publicationLabelSpan);
                 itemElement.appendChild(contentDiv);
 
                 itemElement.addEventListener('dragstart', e => this._onDragStart(e, { type: 'unscheduled', ...publication }, itemElement));
@@ -3508,7 +3508,15 @@ class PublicationOrganizer {
         this.scheduleContext = { schedule: {}, allUserPublications: [] };
         this.imageSelectorInput = document.getElementById('imageSelector');
         this.addNewImagesBtn = document.getElementById('addNewImagesBtn');
-        this.addPhotosToPreviewGalleryBtn = document.getElementById('addPhotosToPreviewGalleryBtn');
+        // Remplace l'ancien bouton d'ajout dans l'aperçu
+        this.galleryPreviewAddNewImagesBtn = document.getElementById('galleryPreviewAddNewImagesBtn');
+        
+        // Vérification de sécurité pour les éléments critiques
+        if (!this.galleryPreviewAddNewImagesBtn) {
+            console.error('Élément galleryPreviewAddNewImagesBtn non trouvé dans le DOM');
+        }
+        this.galleryPreviewSortOptions = document.getElementById('galleryPreviewSortOptions');
+        this.galleryPreviewNameDisplay = document.getElementById('galleryPreviewNameDisplay');
         this.addPhotosPlaceholderBtn = document.getElementById('addPhotosPlaceholderBtn');
         this.imageGridElement = document.getElementById('imageGrid');
         this.zoomOutBtn = document.getElementById('zoomOutBtn');
@@ -3602,10 +3610,18 @@ class PublicationOrganizer {
             this.activeCallingButton = this.addNewImagesBtn;
             this.imageSelectorInput.click()
         });
-        this.addPhotosToPreviewGalleryBtn.addEventListener('click', () => {
+        this.galleryPreviewAddNewImagesBtn.addEventListener('click', () => {
             if (!this.selectedGalleryForPreviewId) { alert("Veuillez sélectionner une galerie pour y ajouter des images."); return; }
-            this.activeCallingButton = this.addPhotosToPreviewGalleryBtn;
+            this.activeCallingButton = this.galleryPreviewAddNewImagesBtn;
             this.imageSelectorInput.click();
+        });
+
+        // Ajoute la logique pour le nouveau sélecteur de tri de l'aperçu
+        this.galleryPreviewSortOptions.addEventListener('change', () => {
+            if (this.selectedGalleryForPreviewId) {
+                // Recharge l'aperçu avec la nouvelle option de tri
+                this.showGalleryPreview(this.selectedGalleryForPreviewId, this.galleryCache[this.selectedGalleryForPreviewId]);
+            }
         });
         this.addPhotosPlaceholderBtn.addEventListener('click', () => {
             if (!this.currentGalleryId) { alert("Veuillez d'abord charger ou créer une galerie."); return; }
@@ -3639,7 +3655,7 @@ class PublicationOrganizer {
         listElement.innerHTML = '';
         const publications = this.publicationFrames;
         if (!publications || publications.length === 0) {
-            listElement.innerHTML = '<li>Aucun publication défini.</li>';
+            listElement.innerHTML = '<li>Aucune publication définie.</li>';
             return;
         }
         publications.forEach(publicationFrame => {
@@ -3959,17 +3975,21 @@ class PublicationOrganizer {
     async showGalleryPreview(galleryId, galleryName, isNewGallery = false) {
         this.selectedGalleryForPreviewId = galleryId;
         this.galleryPreviewPlaceholder.style.display = 'none';
-        this.galleryPreviewHeader.style.display = 'flex';
-        this.galleryPreviewNameElement.textContent = galleryName;
+        
+        // Utilise la nouvelle barre de contrôles au lieu de l'ancien header
+        const controlsBar = document.getElementById('galleryPreviewControlsBar');
+        const nameDisplay = document.getElementById('galleryPreviewNameDisplay');
+        controlsBar.style.display = 'flex';
+        nameDisplay.textContent = galleryName;
+
         this.galleryPreviewGridElement.innerHTML = '<p>Chargement des images...</p>';
         this.galleriesUploadProgressContainer.style.display = 'none';
 
         // Marquer comme nouvelle galerie (style discret)
-        const galleryPreviewArea = document.getElementById('galleryPreviewArea');
         if (isNewGallery) {
-            galleryPreviewArea.classList.add('gallery-just-created');
+            this.galleryPreviewArea.classList.add('gallery-just-created');
             setTimeout(() => {
-                galleryPreviewArea.classList.remove('gallery-just-created');
+                this.galleryPreviewArea.classList.remove('gallery-just-created');
             }, 5000);
         }
 
@@ -3979,27 +3999,22 @@ class PublicationOrganizer {
                 item.classList.add('selected-for-preview');
             }
         });
-        // Bouton "Vider" retiré
-        // Bouton "Trier" retiré
-        this.addPhotosToPreviewGalleryBtn.style.display = 'block';
-        this.addPhotosToPreviewGalleryBtn.disabled = false;
+        
+        document.getElementById('galleryPreviewAddNewImagesBtn').disabled = false;
         try {
-            const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryId}?page=1&limit=50`);
+            // NOUVEAU : Récupère la valeur de tri et l'ajoute à l'URL
+            const sortValue = document.getElementById('galleryPreviewSortOptions').value;
+            // Note: L'endpoint API doit être capable de gérer ce paramètre de tri
+            const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryId}/images?sort=${sortValue}&limit=50`);
+            
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
-            const galleryDetails = await response.json();
-            this.galleryCache[galleryId] = galleryDetails.galleryState.name;
+            
+            // La route /images renvoie directement l'objet de pagination
+            const imagesResult = await response.json();
+            this.galleryCache[galleryId] = galleryName; // On garde le nom en cache
             this.galleryPreviewGridElement.innerHTML = '';
-            // Gestion de la pagination des images (nouveau format) et rétrocompatibilité (ancien format)
-            let imagesToDisplay = [];
-            if (galleryDetails.images) {
-                if (Array.isArray(galleryDetails.images)) {
-                    // Ancien format (rétrocompatibilité)
-                    imagesToDisplay = galleryDetails.images;
-                } else if (galleryDetails.images.docs && Array.isArray(galleryDetails.images.docs)) {
-                    // Nouveau format paginé
-                    imagesToDisplay = galleryDetails.images.docs;
-                }
-            }
+            
+            const imagesToDisplay = imagesResult.docs || [];
 
             if (imagesToDisplay.length > 0) {
                 // Marquer la grille comme ayant des photos
@@ -4029,19 +4044,11 @@ class PublicationOrganizer {
                     this.galleryPreviewGridElement.appendChild(itemDiv);
                 });
 
-                // Ajouter une indication du nombre total d'images si c'est paginé
-                if (galleryDetails.images && !Array.isArray(galleryDetails.images) && galleryDetails.images.total) {
+                if (imagesResult.total > imagesToDisplay.length) {
                     const paginationInfo = document.createElement('div');
                     paginationInfo.className = 'gallery-preview-pagination-info';
-                    paginationInfo.style.cssText = `
-                        text-align: center;
-                        padding: 10px;
-                        font-size: 0.9em;
-                        color: #666;
-                        border-top: 1px solid #eee;
-                        margin-top: 10px;
-                    `;
-                    paginationInfo.textContent = `Affichage de ${imagesToDisplay.length} sur ${galleryDetails.images.total} images`;
+                    paginationInfo.style.cssText = `text-align: center; padding: 10px; font-size: 0.9em; color: #666; border-top: 1px solid #eee; margin-top: 10px; grid-column: 1 / -1;`;
+                    paginationInfo.textContent = `Affichage de ${imagesToDisplay.length} sur ${imagesResult.total} images`;
                     this.galleryPreviewGridElement.appendChild(paginationInfo);
                 }
             } else {
@@ -4061,12 +4068,12 @@ class PublicationOrganizer {
                 this.galleryPreviewGridElement.classList.remove('has-photos');
             }
             
-            // Mettre à publication les statistiques de la galerie
-            this.updateGalleryStatsLabel(galleryId);
+            // Mettre à jour les statistiques de la galerie avec le nombre total d'images
+            this.updateGalleryStatsLabel(galleryId, imagesResult.total);
         } catch (error) {
             console.error("Erreur lors du chargement de l'aperçu de la galerie:", error);
             this.galleryPreviewGridElement.innerHTML = `<p>Erreur: ${error.message}</p>`;
-            this.galleryStatsLabelText.textContent = "? photos dans la galerie";
+            this.galleryStatsLabelText.textContent = "Grille: ? | Publications: ?";
         }
     }
 
@@ -4107,16 +4114,17 @@ class PublicationOrganizer {
     clearGalleryPreview() {
         this.selectedGalleryForPreviewId = null;
         this.galleryPreviewPlaceholder.style.display = 'block';
-        this.galleryPreviewHeader.style.display = 'none';
+        
+        // Cache la nouvelle barre de contrôles
+        document.getElementById('galleryPreviewControlsBar').style.display = 'none';
+
         this.galleryPreviewGridElement.innerHTML = '';
-        this.galleryStatsLabelText.textContent = "0 photo dans la galerie";
+        this.galleryStatsLabelText.textContent = "Grille: 0 | Publications: 0";
         if (this.galleriesUploadProgressContainer) this.galleriesUploadProgressContainer.style.display = 'none';
+        
         this.galleriesListElement.querySelectorAll('.gallery-list-item.selected-for-preview').forEach(item => {
             item.classList.remove('selected-for-preview');
         });
-        // Bouton "Vider" retiré
-        // Bouton "Trier" retiré
-        this.addPhotosToPreviewGalleryBtn.style.display = 'none';
     }
 
 
@@ -4365,6 +4373,13 @@ class PublicationOrganizer {
                     }
                 }
             }
+
+            // AJOUT : Si, après avoir chargé la galerie, il n'y a aucune publication,
+            // nous en créons une par défaut pour garantir que l'utilisateur puisse commencer à travailler.
+            if (this.publicationFrames.length === 0) {
+                await this.addPublicationFrame();
+            }
+
             // ▼▼▼ AJOUT : Chargement de la description commune ▼▼▼
             if (this.descriptionManager) {
                 this.descriptionManager.setCommonDescription(data.galleryState.commonDescriptionText || '');
@@ -4896,20 +4911,25 @@ class PublicationOrganizer {
         }
     }
 
-    updateGalleryStatsLabel(galleryId = null) {
+    updateGalleryStatsLabel(galleryId = null, totalImages = null) {
         const targetGalleryId = galleryId || this.selectedGalleryForPreviewId;
         if (!targetGalleryId) {
             this.galleryStatsLabelText.textContent = "0 photo dans la galerie";
             return;
         }
+
+        if (totalImages !== null) {
+            this.galleryStatsLabelText.textContent = `${totalImages} photo${totalImages !== 1 ? 's' : ''} dans la galerie`;
+            return;
+        }
         
         // Si c'est la galerie actuellement chargée, utiliser les données en mémoire
         if (targetGalleryId === this.currentGalleryId) {
-            const numGridImages = this.gridItems.filter(item => item.isValid).length;
-            this.galleryStatsLabelText.textContent = `${numGridImages} photo${numGridImages > 1 ? 's' : ''} dans la galerie`;
+            const numGridImages = this.gridItems.filter(item => !item.isCroppedVersion).length;
+            this.galleryStatsLabelText.textContent = `${numGridImages} photo${numGridImages !== 1 ? 's' : ''} dans la galerie`;
         } else {
-            // Pour les autres galeries, faire un appel API pour obtenir les statistiques
-            this.fetchGalleryStats(targetGalleryId);
+            this.galleryStatsLabelText.textContent = "Chargement...";
+            // La fonction showGalleryPreview s'occupe de mettre à jour le total.
         }
     }
 
@@ -5032,17 +5052,26 @@ class PublicationOrganizer {
 
     // Nouvelle fonction pour supprimer automatiquement les publications vides
     async removeEmptyPublications() {
-        const emptyPublications = this.publicationFrames.filter(publicationFrame =>
+        // On identifie d'abord les publications qui sont candidates à la suppression
+        let publicationsToDelete = this.publicationFrames.filter(publicationFrame =>
             !publicationFrame.imagesData || publicationFrame.imagesData.length === 0
         );
 
-        if (emptyPublications.length === 0) return;
+        // RÈGLE CRUCIALE : Si toutes les publications sont vides, on doit en garder au moins une.
+        if (publicationsToDelete.length === this.publicationFrames.length && this.publicationFrames.length > 0) {
+            // On trie pour trouver celle avec le plus petit index (ex: 'A' avant 'B')
+            publicationsToDelete.sort((a, b) => a.index - b.index);
+            // On la retire de la liste des publications à supprimer pour la conserver
+            publicationsToDelete.shift();
+        }
 
-        console.log(`[removeEmptyPublications] Suppression automatique de ${emptyPublications.length} publication(s) vide(s):`,
-            emptyPublications.map(j => j.letter).join(', '));
+        if (publicationsToDelete.length === 0) return;
+
+        console.log(`[removeEmptyPublications] Suppression automatique de ${publicationsToDelete.length} publication(s) vide(s):`,
+            publicationsToDelete.map(j => j.letter).join(', '));
 
         // Supprimer chaque publication vide sans demander confirmation
-        for (const publicationFrame of emptyPublications) {
+        for (const publicationFrame of publicationsToDelete) {
             const index = this.publicationFrames.indexOf(publicationFrame);
             if (index > -1) {
                 await publicationFrame.destroy();
@@ -5071,7 +5100,7 @@ class PublicationOrganizer {
         }
 
         // Mettre à publication l'interface après suppression
-        if (emptyPublications.length > 0) {
+        if (publicationsToDelete.length > 0) {
             this.recalculateNextPublicationIndex();
             this.updateGridUsage();
             this.updateStatsLabel();
@@ -5101,7 +5130,7 @@ class PublicationOrganizer {
             j.galleryId === publicationFrame.galleryId && j.letter === publicationFrame.letter
         );
 
-        if (!existingJour) {
+        if (!existingPublication) {
             console.log(`➕ Ajout du publication ${publicationFrame.letter} à allUserPublications`);
             const newJourContext = {
                 _id: publicationFrame.id,

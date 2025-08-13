@@ -1,29 +1,53 @@
 publication-organizer/
-├── server.js               # Fichier principal du serveur Node.js
+├── .env # Variables d'environnement (connexion DB, clés API)
+├── .github/
+│ └── workflows/
+│ └── deploy.yml # NOUVEAU : Workflow de déploiement continu
+├── controllers/
+│ ├── adminController.js # NOUVEAU : Logique pour le panneau d'administration
+│ ├── authController.js # NOUVEAU : Logique d'authentification (Google Sign-In)
+│ ├── galleryController.js
+│ ├── imageController.js
+│ └── publicationController.js # Remplace jourController.js
+│ └── scheduleController.js
+├── middleware/ # NOUVEAU : Dossier pour les middlewares (auth, admin)
+│ ├── adminAuth.js
+│ └── auth.js
+├── models/
+│ ├── Gallery.js
+│ ├── Image.js
+│ ├── Publication.js # Remplace Jour.js
+│ ├── Schedule.js
+│ └── User.js # NOUVEAU : Modèle pour les utilisateurs
+├── public/
+│ ├── lib/ # NOUVEAU : Librairies frontend
+│ │ ├── hashtag-thesaurus.json
+│ │ ├── nlp.min.js
+│ │ └── smartcrop.js
+│ ├── assets/ # Déduit des fichiers HTML et de l'ancienne structure
+│ │ ├── logo.png
+│ │ ├── add-button.png
+│ │ ├── settings.png
+│ │ └── profile.png
+│ │ └── ... (autres icônes)
+│ ├── admin.html # NOUVEAU : Page du panneau d'administration
+│ ├── admin.js # NOUVEAU : Script pour le panneau d'administration
+│ ├── exif.js
+│ ├── index.html
+│ ├── script.js
+│ ├── style.css
+│ └── welcome.html # NOUVEAU : Page de connexion
+├── routes/
+│ └── api.js
+├── scripts/ # NOUVEAU : Scripts pour la génération du thésaurus de hashtags
+│ ├── generer_thesaurus_complet.py
+│ ├── generer_thesaurus_final.py
+│ ├── process_hiertags_resilient.py
+│ └── scrape_predis_ai_complet.py
+│ └── ... (autres scripts)
+├── uploads/ # Dossier pour stocker les images (créé dynamiquement)
+├── ecosystem.config.js # NOUVEAU : Fichier de configuration pour le déploiement PM2
+├── image-worker.js # NOUVEAU : Worker Thread pour le traitement d'images en arrière-plan
 ├── package.json
-├── .env                    # Variables d'environnement (connexion DB)
-├── public/                 # Fichiers statiques du frontend
-│   ├── index.html
-│   ├── style.css
-│   ├── script.js           # Frontend JS (modifié)
-│   └── exif.js
-├── uploads/                # Dossier pour stocker les images (sera créé)
-├── models/                 # Modèles Mongoose (schémas DB)
-│   ├── Gallery.js
-│   ├── Image.js
-│   ├── Jour.js
-│   └── Schedule.js
-├── routes/                 # Définitions des routes API
-│   └── api.js
-└── controllers/            # Logique de traitement des routes
-    ├── galleryController.js
-    ├── imageController.js
-    ├── jourController.js
-    └── scheduleController.js
-└── assets/    
-    └── logo.png
-    └── add-button.png
-    └── settings.png
-    └── profile.png
-
-
+├── package-lock.json
+└── server.js # Fichier principal du serveur Node.js (mis à jour)

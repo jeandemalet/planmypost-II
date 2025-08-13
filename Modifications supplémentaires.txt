@@ -1,0 +1,76 @@
+Dans recadrage "aucun publication défini n'est pas françaisn à modifier. 
+
+MAJ du logo
+
+Maj du système de basculement entre le mode de recadrage automatique et le système de recadrage individuel avec un bon toggle comme tout recadrer et sélection dans l'onglet recadrage automatique. 
+
+Ajouter l'option split pour les photos horizontales dans l'onglet de recadrage automatique en suivant la logique suivante : Prendre la taille de la zone combinée des deux images, donc horizontale, utiliser la logique du smart recrop pour détecter le recadrage automatique à adopter, puis scinder en deux l'image au centre comme le fait la logique split actuelle en mode manuel. 
+
+Erreur lors du recadrage auto : 
+
+Ruleset ignored due to bad selector. style.css:2395:52
+📚 Dictionnaire de hashtags chargé. script.js:5303:21
+[CalendarPage.cleanupNonExistentPublications] Supprimé 1 référence(s) de publication(s) inexistante(s) du calendrier script.js:2920:21
+[CroppingManager] _handleResize() appelé. script.js:1535:17
+[CroppingManager] _handleResize() stoppé car le conteneur est trop petit ou non visible. Hauteur: 0px, Largeur: 0px. script.js:1541:21
+[CroppingManager] refreshLayout() appelé. 3 script.js:1507:17
+🔄 updateUnscheduledPublicationsList appelée pour publication E script.js:569:17
+Uncaught ReferenceError: existingJour is not defined
+    ensureJourInAllUserPublications http://localhost:3000/script.js:5112
+    updateUnscheduledPublicationsList http://localhost:3000/script.js:572
+    onGridItemClick http://localhost:3000/script.js:4845
+    addImagesToGrid http://localhost:3000/script.js:4649
+script.js:5112:13
+🔄 updateUnscheduledPublicationsList appelée pour publication E script.js:569:17
+Uncaught ReferenceError: existingJour is not defined
+    ensureJourInAllUserPublications http://localhost:3000/script.js:5112
+    updateUnscheduledPublicationsList http://localhost:3000/script.js:572
+    onGridItemClick http://localhost:3000/script.js:4845
+    addImagesToGrid http://localhost:3000/script.js:4649
+script.js:5112:13
+🔄 updateUnscheduledPublicationsList appelée pour publication E script.js:569:17
+Uncaught ReferenceError: existingJour is not defined
+    ensureJourInAllUserPublications http://localhost:3000/script.js:5112
+    updateUnscheduledPublicationsList http://localhost:3000/script.js:572
+    onGridItemClick http://localhost:3000/script.js:4845
+    addImagesToGrid http://localhost:3000/script.js:4649
+script.js:5112:13
+🔄 updateUnscheduledPublicationsList appelée pour publication E script.js:569:17
+Uncaught ReferenceError: existingJour is not defined
+    ensureJourInAllUserPublications http://localhost:3000/script.js:5112
+    updateUnscheduledPublicationsList http://localhost:3000/script.js:572
+    onGridItemClick http://localhost:3000/script.js:4845
+    addImagesToGrid http://localhost:3000/script.js:4649
+script.js:5112:13
+🔄 updateUnscheduledPublicationsList appelée pour publication E script.js:569:17
+Uncaught ReferenceError: existingJour is not defined
+    ensureJourInAllUserPublications http://localhost:3000/script.js:5112
+    updateUnscheduledPublicationsList http://localhost:3000/script.js:572
+    onGridItemClick http://localhost:3000/script.js:4845
+    addImagesToGrid http://localhost:3000/script.js:4649
+script.js:5112:13
+[CroppingManager] refreshLayout() appelé. 2 script.js:1507:17
+[Utils.loadImage] Demande de chargement pour: /api/uploads/689b4467fa008f51e64baa26/1755006066351-Mariage_Clarisse___Victor_-_J_de_Malet_8.jpg script.js:20:17
+[Utils.loadImage] 'onload' déclenché pour: http://localhost:3000/api/uploads/689b4467fa008f51e64baa26/1755006066351-Mariage_Clarisse___Victor_-... script.js:26:25
+✅ [Utils.loadImage] Image validée avec dimensions: 3180x4770 script.js:35:29
+[Utils.loadImage] Demande de chargement pour: /api/uploads/689b4467fa008f51e64baa26/1755006066351-Mariage_Clarisse___Victor_-_J_de_Malet_7.jpg script.js:20:17
+[Utils.loadImage] 'onload' déclenché pour: http://localhost:3000/api/uploads/689b4467fa008f51e64baa26/1755006066351-Mariage_Clarisse___Victor_-... script.js:26:25
+✅ [Utils.loadImage] Image validée avec dimensions: 3331x4996 script.js:35:29
+[Utils.loadImage] Demande de chargement pour: /api/uploads/689b4467fa008f51e64baa26/1755006066351-Mariage_Clarisse___Victor_-_J_de_Malet_2.jpg script.js:20:17
+[Utils.loadImage] 'onload' déclenché pour: http://localhost:3000/api/uploads/689b4467fa008f51e64baa26/1755006066351-Mariage_Clarisse___Victor_-... script.js:26:25
+✅ [Utils.loadImage] Image validée avec dimensions: 2985x4477 script.js:35:29
+[Utils.loadImage] Demande de chargement pour: /api/uploads/689b4467fa008f51e64baa26/1755006066351-Mariage_Clarisse___Victor_-_J_de_Malet_3.jpg script.js:20:17
+[Utils.loadImage] 'onload' déclenché pour: http://localhost:3000/api/uploads/689b4467fa008f51e64baa26/1755006066351-Mariage_Clarisse___Victor_-... script.js:26:25
+✅ [Utils.loadImage] Image validée avec dimensions: 5167x3445 script.js:35:29
+[Utils.loadImage] Demande de chargement pour: /api/uploads/689b4467fa008f51e64baa26/1755006066351-Mariage_Clarisse___Victor_-_J_de_Malet_9.jpg script.js:20:17
+[Utils.loadImage] 'onload' déclenché pour: http://localhost:3000/api/uploads/689b4467fa008f51e64baa26/1755006066351-Mariage_Clarisse___Victor_-... script.js:26:25
+✅ [Utils.loadImage] Image validée avec dimensions: 2761x4141 script.js:35:29
+🔄 updateUnscheduledPublicationsList appelée pour publication E script.js:569:17
+Uncaught (in promise) ReferenceError: existingJour is not defined
+    ensureJourInAllUserPublications http://localhost:3000/script.js:5112
+    updateUnscheduledPublicationsList http://localhost:3000/script.js:572
+    run http://localhost:3000/script.js:1111
+script.js:5112:13
+
+​Suggère les paramètres les plus cohérents à ajouter à un dropdown menu depuis le bouton paramètres dans l'interface.
+

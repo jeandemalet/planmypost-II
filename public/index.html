@@ -63,16 +63,24 @@
                     </div>
                 </div>
                 <div id="galleryPreviewArea">
-                    <div id="galleryPreviewHeader" style="display:none;">
-                        <h3 id="galleryPreviewName"></h3>
-                        <div id="galleryStatsArea" style="text-align: center; margin: 5px 0;">
+                    <!-- NOUVELLE BARRE DE CONTRÔLE POUR L'APERÇU -->
+                    <div id="galleryPreviewControlsBar" class="controls-bar" style="display:none;">
+                        <span id="galleryPreviewNameDisplay" style="margin-right: 10px; font-weight: bold; font-size: 1.2em;"></span>
+                        <div class="sort-controls">
+                            <select id="galleryPreviewSortOptions">
+                                <option value="" disabled>Trier par...</option>
+                                <option value="name_asc" selected>Nom (A-Z)</option>
+                                <option value="name_desc">Nom (Z-A)</option>
+                                <option value="date_desc">Date Prise (Plus Récente)</option>
+                                <option value="date_asc">Date Prise (Plus Ancienne)</option>
+                            </select>
+                        </div>
+                        <div id="galleryStatsArea" style="flex: 1; text-align: center; margin: 0 15px;">
                             <span id="galleryStatsLabelText">0 photo dans la galerie</span>
                         </div>
-                        <div class="gallery-header-actions">
-                            <button id="addPhotosToPreviewGalleryBtn" class="add-btn-green header-add-btn">
-                                <img src="/assets/add-button.png" alt="" class="btn-icon"> <span class="btn-text">Ajouter des photos</span>
-                            </button>
-                        </div>
+                        <button id="galleryPreviewAddNewImagesBtn" class="add-btn-green">
+                            <img src="/assets/add-button.png" alt="" class="btn-icon"> Ajouter
+                        </button>
                     </div>
                     <div id="galleriesUploadProgressContainer" class="upload-progress-area" style="display:none; margin-bottom: 10px;">
                         <span id="galleriesUploadProgressText" class="upload-progress-text-label"></span>
