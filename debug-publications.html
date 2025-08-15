@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Diagnostic Publications</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        .debug-section { margin: 20px 0; padding: 15px; border: 1px solid #ddd; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; }
+        .warning { background: #fff3cd; color: #856404; }
+        .error { background: #f8d7da; color: #721c24; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        pre { background: #f8f9fa; padding: 10px; border-radius: 3px; overflow-x: auto; }
+        button { padding: 10px 20px; margin: 5px; cursor: pointer; }
+    </style>
+</head>
+<body>
+    <h1>🔍 Diagnostic des Publications</h1>
+    <p>Cet outil vous aide à diagnostiquer les problèmes de publications "invisibles".</p>
+    
+    <button onclick="runDiagnostic()">🚀 Lancer le Diagnostic</button>
+    <button onclick="clearResults()">🧹 Effacer</button>
+    
+    <div id="results"></div>
+    
+    <script>
+        async function runDiagnostic() {
+            const results = document.getElementById('results');
+            results.innerHTML = '<div class="debug-section info">🔄 Diagnostic en cours...</div>';
+            
+            try {
+                // 1. Vérifier la structure DOM
+                const domCheck = checkDOMStructure();
+                results.innerHTML += domCheck;
+                
+                // 2. Vérifier les données JavaScript (si l'app est chargée)
+                const jsCheck = checkJavaScriptData();
+                results.innerHTML += jsCheck;
+                
+                // 3. Vérifier les styles CSS
+                const cssCheck = checkCSSStyles();
+                results.innerHTML += cssCheck;
+                
+                // 4. Vérifier les données serveur
+                const serverCheck = await checkServerData();
+                results.innerHTML += serverCheck;
+                
+            } catch (error) {
+                results.innerHTML += `<div class="debug-section error">
+                    <h3>❌ Erreur lors du diagnostic</h3>
+                    <pre>${error.message}</pre>
+                </div>`;
+            }
+        }
+        
+        function checkDOMStructure() {
+            const container = document.querySelector('#publicationFramesContainer');
+            if (!container) {
+                return `<div class="debug-section error">
+                    <h3>❌ Structure DOM</h3>
+                    <p>Le conteneur #publicationFramesContainer n'existe pas. L'application n'est pas chargée.</p>
+                </div>`;
+            }
+            
+            const frames = container.querySelectorAll('.publication-frame');
+            let html = `<div class="debug-section success">
+                <h3>✅ Structure DOM</h3>
+                <p>Conteneur trouvé. ${frames.length} publication(s) dans le DOM :</p>
+                <ul>`;
+            
+            frames.forEach((frame, index) => {
+                const letter = frame.querySelector('.publication-letter')?.textContent || 'Inconnue';
+                const isVisible = frame.offsetHeight > 0 && frame.offsetWidth > 0;
+                const hasCurrentClass = frame.classList.contains('current');
+                
+                html += `<li>
+                    Publication ${letter} - 
+                    Visible: ${isVisible ? '✅' : '❌'} - 
+                    Active: ${hasCurrentClass ? '✅' : '❌'}
+                </li>`;
+            });
+            
+            html += '</ul></div>';
+            return html;
+        }
+        
+        function checkJavaScriptData() {
+            if (typeof app === 'undefined') {
+                return `<div class="debug-section warning">
+                    <h3>⚠️ Données JavaScript</h3>
+                    <p>L'objet 'app' n'est pas accessible. L'application n'est peut-être pas complètement chargée.</p>
+                </div>`;
+            }
+            
+            const publications = app.publicationFrames || [];
+            let html = `<div class="debug-section success">
+                <h3>✅ Données JavaScript</h3>
+                <p>${publications.length} publication(s) en mémoire :</p>
+                <ul>`;
+            
+            publications.forEach(pub => {
+                html += `<li>Publication ${pub.letter} (index: ${pub.index})</li>`;
+            });
+            
+            html += `</ul>
+                <p>Publication actuelle: ${app.currentPublicationFrame?.letter || 'Aucune'}</p>
+            </div>`;
+            
+            return html;
+        }
+        
+        function checkCSSStyles() {
+            const frames = document.querySelectorAll('.publication-frame');
+            if (frames.length === 0) {
+                return `<div class="debug-section warning">
+                    <h3>⚠️ Styles CSS</h3>
+                    <p>Aucune publication trouvée pour vérifier les styles.</p>
+                </div>`;
+            }
+            
+            let html = `<div class="debug-section info">
+                <h3>🎨 Styles CSS</h3>`;
+            
+            frames.forEach((frame, index) => {
+                const letter = frame.querySelector('.publication-letter')?.textContent || index;
+                const computedStyle = window.getComputedStyle(frame);
+                const display = computedStyle.display;
+                const visibility = computedStyle.visibility;
+                const opacity = computedStyle.opacity;
+                const height = computedStyle.height;
+                
+                html += `<p><strong>Publication ${letter}:</strong> 
+                    display: ${display}, 
+                    visibility: ${visibility}, 
+                    opacity: ${opacity}, 
+                    height: ${height}
+                </p>`;
+            });
+            
+            html += '</div>';
+            return html;
+        }
+        
+        async function checkServerData() {
+            try {
+                // Essayer de récupérer les données du serveur
+                const galleryId = localStorage.getItem('publicationOrganizer_lastGalleryId');
+                if (!galleryId) {
+                    return `<div class="debug-section warning">
+                        <h3>⚠️ Données Serveur</h3>
+                        <p>Aucune galerie sélectionnée dans localStorage.</p>
+                    </div>`;
+                }
+                
+                const response = await fetch(`/api/galleries/${galleryId}`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+                
+                const data = await response.json();
+                const publications = data.publications || [];
+                
+                let html = `<div class="debug-section success">
+                    <h3>✅ Données Serveur</h3>
+                    <p>Galerie ID: ${galleryId}</p>
+                    <p>${publications.length} publication(s) sur le serveur :</p>
+                    <ul>`;
+                
+                publications.forEach(pub => {
+                    html += `<li>Publication ${pub.letter} (index: ${pub.index}, images: ${pub.images?.length || 0})</li>`;
+                });
+                
+                html += '</ul></div>';
+                return html;
+                
+            } catch (error) {
+                return `<div class="debug-section error">
+                    <h3>❌ Données Serveur</h3>
+                    <p>Erreur lors de la récupération : ${error.message}</p>
+                </div>`;
+            }
+        }
+        
+        function clearResults() {
+            document.getElementById('results').innerHTML = '';
+        }
+    </script>
+</body>
+</html>

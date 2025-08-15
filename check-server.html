@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Server Status Check</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 40px; }
+        .status { padding: 10px; margin: 10px 0; border-radius: 5px; }
+        .success { background: #d4edda; color: #155724; border: 1px solid #c3e6cb; }
+        .error { background: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
+        .warning { background: #fff3cd; color: #856404; border: 1px solid #ffeaa7; }
+    </style>
+</head>
+<body>
+    <h1>Server Status Check</h1>
+    <div id="results"></div>
+    
+    <script>
+        async function checkEndpoints() {
+            const results = document.getElementById('results');
+            const endpoints = [
+                '/api/galleries',
+                '/lib/hashtag-thesaurus.json'
+            ];
+            
+            for (const endpoint of endpoints) {
+                try {
+                    const response = await fetch(endpoint);
+                    const status = response.ok ? 'success' : 'error';
+                    const message = response.ok 
+                        ? `✅ ${endpoint} - OK (${response.status})`
+                        : `❌ ${endpoint} - Error (${response.status})`;
+                    
+                    results.innerHTML += `<div class="status ${status}">${message}</div>`;
+                } catch (error) {
+                    results.innerHTML += `<div class="status error">❌ ${endpoint} - Network Error: ${error.message}</div>`;
+                }
+            }
+            
+            // Check if server is likely not running
+            const hasNetworkErrors = results.innerHTML.includes('Network Error');
+            if (hasNetworkErrors) {
+                results.innerHTML += `<div class="status warning">
+                    <strong>⚠️ Server appears to be offline</strong><br>
+                    Please start your server and refresh this page.
+                </div>`;
+            }
+        }
+        
+        checkEndpoints();
+    </script>
+</body>
+</html>

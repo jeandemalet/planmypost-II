@@ -21,18 +21,35 @@ exports.createPublication = async (req, res) => {
         }
 
         const existingPublications = await Publication.find({ galleryId: galleryId }).select('index letter').sort({ index: 1 });
+        
+        // ======================= LOG À AJOUTER (1/3) =======================
+        console.log(`[DEBUG] createPublication: Galerie ${galleryId}. Publications existantes trouvées:`, existingPublications.map(p => p.letter).join(', ') || 'Aucune');
+        // =====================================================================
+        
         const existingIndices = new Set(existingPublications.map(p => p.index));
         
+        // CORRECTION : Trouver le PREMIER index libre (combler les trous)
         let nextAvailableIndex = 0;
-        while (existingIndices.has(nextAvailableIndex) && nextAvailableIndex < 26) {
+        while (existingIndices.has(nextAvailableIndex)) {
+            // Cette boucle s'arrêtera au premier "trou"
+            // Si A(0), B(1), D(3) existent, elle s'arrêtera à nextAvailableIndex = 2 (C)
             nextAvailableIndex++;
+            if (nextAvailableIndex >= 26) break; // Sécurité pour éviter une boucle infinie
         }
+
+        // ======================= LOG À AJOUTER (2/3) =======================
+        console.log(`[DEBUG] createPublication: Prochain index disponible calculé: ${nextAvailableIndex}`);
+        // =====================================================================
 
         if (nextAvailableIndex >= 26) {
             return res.status(400).json({ message: 'Maximum number of Publications (A-Z) reached for this gallery.' });
         }
         
         const letter = String.fromCharCode('A'.charCodeAt(0) + nextAvailableIndex);
+
+        // ======================= LOG À AJOUTER (3/3) =======================
+        console.log(`[DEBUG] createPublication: Création de la Publication avec la lettre: ${letter}`);
+        // =====================================================================
 
         const alreadyExists = existingPublications.find(p => p.letter === letter);
         if (alreadyExists) {
@@ -50,10 +67,12 @@ exports.createPublication = async (req, res) => {
         });
         await newPublication.save();
 
-        let galleryNextHintIndex = 0;
+        // Mettre à jour l'indice de la galerie pour la prochaine suggestion
         const currentIndicesAfterCreation = new Set([...existingIndices, nextAvailableIndex]);
-        while(currentIndicesAfterCreation.has(galleryNextHintIndex) && galleryNextHintIndex < 26) {
+        let galleryNextHintIndex = 0;
+        while (currentIndicesAfterCreation.has(galleryNextHintIndex)) {
             galleryNextHintIndex++;
+            if (galleryNextHintIndex >= 26) break; // Sécurité
         }
         
         gallery.nextJourIndex = galleryNextHintIndex;
@@ -166,9 +185,11 @@ exports.deletePublication = async (req, res) => {
         if (gallery) {
             const remainingPublications = await Publication.find({ galleryId: galleryId }).select('index').sort({ index: 1 });
             const remainingIndices = new Set(remainingPublications.map(p => p.index));
+            // CORRECTION : Trouver le PREMIER index libre après suppression
             let nextIndex = 0;
-            while (remainingIndices.has(nextIndex) && nextIndex < 26) {
+            while (remainingIndices.has(nextIndex)) {
                 nextIndex++;
+                if (nextIndex >= 26) break; // Sécurité
             }
             gallery.nextJourIndex = nextIndex;
             await gallery.save();

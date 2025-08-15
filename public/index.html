@@ -117,6 +117,8 @@
                     </select>
                 </div>
                 
+
+                
                 <div id="currentGalleryUploadProgressContainer" class="upload-progress-area" style="display:none; flex-grow:1; margin: 0 10px; max-width: 300px;">
                     <span id="currentGalleryUploadProgressText" class="upload-progress-text-label"></span>
                     <div class="upload-progress-bar-outer" style="height:12px;">
@@ -156,10 +158,11 @@
                 <!-- COLONNE DE GAUCHE : LISTE DES PUBLICATIONS -->
                 <div id="croppingPublicationListPanel">
                     <h4>Publications de la Galerie</h4>
-                    <button id="toggleCroppingViewBtn" class="secondary-action" style="width: 100%; margin-bottom: 10px;">
-                        <img src="/assets/tri.png" alt="Tout voir" class="btn-icon"> 
-                        <span id="toggleCroppingViewBtnText">Tout voir</span>
-                    </button>
+                    <!-- NOUVEAU SÉLECTEUR DE VUE À DEUX BOUTONS -->
+                    <div id="viewModeSwitch" class="view-mode-switch">
+                        <button id="switchToGroupedViewBtn" class="active">Vue d'ensemble</button>
+                        <button id="switchToEditorViewBtn">Recadrage Individuel</button>
+                    </div>
                     <ul id="croppingPublicationList">
                     </ul>
                 </div>
@@ -379,11 +382,11 @@
                             </div>
                             <div class="option-group">
                                 <input type="radio" id="autoScheduleInterlaced" name="autoScheduleMode" value="interlaced">
-                                <label for="autoScheduleInterlaced" title="Place les publications en alternant les galeries, tout en respectant l'ordre chronologique de chaque galerie."><img src="/assets/aléatoire interlacé.png" alt="Icone aléatoire interlacé" class="schedule-icon"/> Chronologique Interlacé</label>
+                                <label for="autoScheduleInterlaced" title="Place les publications en alternant les galeries, tout en respectant l'ordre chronologique de chaque galerie."><img src="/assets/aleatoire-interlace.png" alt="Icone aléatoire interlacé" class="schedule-icon"/> Chronologique Interlacé</label>
                             </div>
                             <div class="option-group">
                                 <input type="radio" id="autoScheduleRandom" name="autoScheduleMode" value="random">
-                                <label for="autoScheduleRandom" title="Place les publications de manière aléatoire sur les dates disponibles."><img src="/assets/aléatoire (2).png" alt="Icone aléatoire" class="schedule-icon"/> Aléatoire</label>
+                                <label for="autoScheduleRandom" title="Place les publications de manière aléatoire sur les dates disponibles."><img src="/assets/aleatoire-2.png" alt="Icone aléatoire" class="schedule-icon"/> Aléatoire</label>
                             </div>
                         </div>
                         <div class="auto-schedule-settings">

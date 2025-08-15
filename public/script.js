@@ -807,7 +807,9 @@ class AutoCropper {
     }
 
     _onScopeChange() {
-        const selectedScope = document.querySelector('input[name="crop_scope"]:checked').value;
+        // CORRECTION : Utilisation sécurisée avec vérification null
+        const scopeElement = document.querySelector('input[name="crop_scope"]:checked');
+        const selectedScope = scopeElement ? scopeElement.value : 'all';
 
         if (selectedScope === 'selection') {
             this.jourSelectionContainer.style.display = 'block';
@@ -943,7 +945,9 @@ class AutoCropper {
     }
 
     async run() {
-        const scope = document.querySelector('input[name="crop_scope"]:checked').value;
+        // CORRECTION : Utilisation sécurisée avec vérification null
+        const scopeElement = document.querySelector('input[name="crop_scope"]:checked');
+        const scope = scopeElement ? scopeElement.value : 'all';
         let publicationsToProcess = [];
 
         if (scope === 'all') {
@@ -1140,9 +1144,12 @@ class CroppingPage {
         this.croppingManager = new CroppingManager(this.organizerApp, this);
         this.autoCropper = new AutoCropper(this.organizerApp, this);
 
-        this.toggleViewBtn = document.getElementById('toggleCroppingViewBtn');
-        this.toggleViewBtnText = document.getElementById('toggleCroppingViewBtnText');
+        // --- MODIFICATION ICI ---
+        // Nouveaux boutons pour la vue
+        this.switchToGroupedViewBtn = document.getElementById('switchToGroupedViewBtn');
+        this.switchToEditorViewBtn = document.getElementById('switchToEditorViewBtn');
         this.allPhotosGroupedViewContainer = document.getElementById('allPhotosGroupedViewContainer');
+        // --- FIN MODIFICATION ---
 
         // --- MODIFICATIONS ---
         this.autoCropSidebar = document.getElementById('autoCropSidebar');
@@ -1154,7 +1161,16 @@ class CroppingPage {
 
     _initListeners() {
         this.jourListElement.addEventListener('click', (e) => this.onJourClick(e));
-        this.toggleViewBtn.addEventListener('click', () => this.toggleAllPhotosView());
+        
+        // --- MODIFICATION ICI ---
+        // Nouveaux événements pour les boutons de vue
+        if (this.switchToGroupedViewBtn) {
+            this.switchToGroupedViewBtn.addEventListener('click', () => this.toggleAllPhotosView(true));
+        }
+        if (this.switchToEditorViewBtn) {
+            this.switchToEditorViewBtn.addEventListener('click', () => this.toggleAllPhotosView(false));
+        }
+        // --- FIN MODIFICATION ---
     }
 
     show() {
@@ -1230,22 +1246,26 @@ class CroppingPage {
             this.currentSelectedPublicationFrame = null;
             this.populateJourList();
             this.renderAllPhotosGroupedView();
-            this.toggleViewBtnText.textContent = 'Retour au recadrage';
-            this.toggleViewBtn.style.backgroundColor = '#5a6268';
-            this.toggleViewBtn.style.borderColor = '#545b62';
             this.editorTitleElement.textContent = 'Toutes les photos par publication';
             this.editorPanelElement.style.display = 'none';
             this.editorPlaceholderElement.style.display = 'none';
             this.allPhotosGroupedViewContainer.style.display = 'block';
             this.autoCropSidebar.style.display = 'block';
 
+            // --- AJOUT ICI ---
+            if (this.switchToGroupedViewBtn) this.switchToGroupedViewBtn.classList.add('active');
+            if (this.switchToEditorViewBtn) this.switchToEditorViewBtn.classList.remove('active');
+            // --- FIN AJOUT ---
+
         } else {
             this.allPhotosGroupedViewContainer.style.display = 'none';
             this.allPhotosGroupedViewContainer.innerHTML = '';
-            this.toggleViewBtnText.textContent = 'Tout voir';
-            this.toggleViewBtn.style.backgroundColor = '';
-            this.toggleViewBtn.style.borderColor = '';
             this.autoCropSidebar.style.display = 'none';
+
+            // --- AJOUT ICI ---
+            if (this.switchToGroupedViewBtn) this.switchToGroupedViewBtn.classList.remove('active');
+            if (this.switchToEditorViewBtn) this.switchToEditorViewBtn.classList.add('active');
+            // --- FIN AJOUT ---
 
             const firstPublication = this.organizerApp.publicationFrames[0];
             if (firstPublication) {
@@ -1531,14 +1551,16 @@ class CroppingManager {
     }
 
     _handleResize() {
-        // [LOG] Log pour tracer le redimensionnement du canvas
-        console.log('[CroppingManager] _handleResize() appelé.');
-
         // Vérification de la taille du conteneur pour éviter le layout thrashing
         const container = this.canvasElement.parentElement;
         // On vérifie la largeur ET la hauteur pour être certain que l'élément est bien rendu
         if (!container || container.clientHeight < 100 || container.clientWidth < 100) {
-            console.warn(`[CroppingManager] _handleResize() stoppé car le conteneur est trop petit ou non visible. Hauteur: ${container ? container.clientHeight : 'null'}px, Largeur: ${container ? container.clientWidth : 'null'}px.`);
+            // Retry après un court délai si le conteneur n'est pas encore prêt
+            setTimeout(() => {
+                if (container && container.clientHeight >= 100 && container.clientWidth >= 100) {
+                    this._handleResize();
+                }
+            }, 100);
             return;
         }
 
@@ -3649,6 +3671,17 @@ class PublicationOrganizer {
                 this.activateTab(tab.dataset.tab);
             });
         });
+
+        // Bouton de nettoyage manuel des publications vides
+        const cleanupBtn = document.getElementById('cleanupEmptyPublicationsBtn');
+        if (cleanupBtn) {
+            cleanupBtn.addEventListener('click', () => {
+                if (confirm("Voulez-vous vraiment supprimer toutes les publications vides (sauf la première) ?")) {
+                    this.removeEmptyPublications();
+                    alert('Nettoyage terminé.');
+                }
+            });
+        }
     }
 
     _populateSharedJourList(listElement, activeJourId, listType, showCheckboxes = false) {
@@ -3857,7 +3890,7 @@ class PublicationOrganizer {
 
         // Détecter si on quitte l'onglet "currentGallery" (tri) pour supprimer les publications vides
         if (currentActiveTab && currentActiveTab.id === 'currentGallery' && tabId !== 'currentGallery') {
-            this.removeEmptyPublications();
+            // this.removeEmptyPublications(); // DÉSACTIVÉ : Causait une désynchronisation en supprimant les publications réparées
         }
 
         // L'ancienne logique spécifique à 'currentGallery' est maintenant redondante et a été supprimée.
@@ -3966,8 +3999,12 @@ class PublicationOrganizer {
                 this.showGalleryPreview(galleries[0]._id, galleries[0].name);
             }
         } catch (error) {
-            console.error("Erreur lors du chargement de la liste des galeries:", error);
-            this.galleriesListElement.innerHTML = `<li>Erreur de chargement: ${error.message}</li>`;
+            console.warn("Erreur lors du chargement de la liste des galeries:", error.message);
+            if (error.message.includes('NetworkError') || error.message.includes('Failed to fetch')) {
+                this.galleriesListElement.innerHTML = `<li>⚠️ Serveur non disponible. Vérifiez que le serveur est démarré.</li>`;
+            } else {
+                this.galleriesListElement.innerHTML = `<li>Erreur de chargement: ${error.message}</li>`;
+            }
             this.clearGalleryPreview();
         }
     }
@@ -4300,12 +4337,19 @@ class PublicationOrganizer {
         loadingOverlay.style.display = 'flex';
         loadingOverlay.querySelector('p').textContent = 'Chargement de la galerie...';
 
-        // Flag pour éviter les mises à publication redondantes pendant le chargement
+        // CORRECTION 2: Réinitialisation complète et groupée de l'état
         this.isLoadingGallery = true;
+        this.gridItems = [];
+        this.gridItemsDict = {};
+        this.publicationFrames = [];
+        this.imageGridElement.innerHTML = '';
+        this.publicationFramesContainer.innerHTML = '';
+        this.currentPublicationFrame = null;
 
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}`);
             if (!response.ok) {
+                // ... (gestion des erreurs de fetch)
                 if (response.status === 404) {
                     alert("La galerie demandée n'a pas été trouvée.");
                     localStorage.removeItem('publicationOrganizer_lastGalleryId');
@@ -4319,112 +4363,101 @@ class PublicationOrganizer {
                 return;
             }
             const data = await response.json();
-            this.gridItems = [];
-            this.gridItemsDict = {};
-            this.imageGridElement.innerHTML = '';
-            this.publicationFrames = [];
-            this.publicationFramesContainer.innerHTML = '';
-            this.currentPublicationFrame = null;
-            const galleryState = data.galleryState || {};
-            this.galleryCache[this.currentGalleryId] = galleryState.name || 'Galerie sans nom';
-            document.getElementById('currentGalleryNameDisplay').textContent = `Galerie : ${this.getCurrentGalleryName()}`;
-            this.currentThumbSize = galleryState.currentThumbSize || { width: 150, height: 150 };
-            
-            // Forcer le tri par défaut "Nom (A-Z)" à chaque chargement de galerie,
-            // ignorant l'option qui était sauvegardée.
-            const defaultSortOption = 'name_asc';
-            this.sortOptionsSelect.value = defaultSortOption;
-            this.nextPublicationIndex = galleryState.nextJourIndex || 0;
-            // Pour l'onglet Tri : charger TOUTES les images sans pagination
-            if (data.images) {
-                let imagesToLoad = [];
-                if (Array.isArray(data.images)) {
-                    // Ancien format (rétrocompatibilité)
-                    imagesToLoad = data.images;
-                } else if (data.images.docs && Array.isArray(data.images.docs)) {
-                    // Nouveau format paginé : on prend seulement les docs, pas de pagination ici
-                    imagesToLoad = data.images.docs;
-                }
 
-                if (imagesToLoad.length > 0) {
-                    this.addImagesToGrid(imagesToLoad);
-                    this.sortGridItemsAndReflow();
-                }
-            }
-            if (data.publications && data.publications.length > 0) {
-                data.publications.sort((a, b) => a.index - b.index).forEach(publicationData => {
-                    const newPublicationFrame = new PublicationFrameBackend(this, publicationData);
-                    this.publicationFramesContainer.appendChild(newPublicationFrame.element);
-                    this.publicationFrames.push(newPublicationFrame);
-                });
-                this.recalculateNextPublicationIndex();
+            // CORRECTION 1: Utiliser data.jours au lieu de data.publications
+            let loadedPublications = (data.jours || []).sort((a, b) => a.index - b.index);
+                
+            // LOG 1: Voir les données brutes des publications reçues du serveur
+            console.log('[LOG 1] Données brutes des publications reçues du serveur:', JSON.parse(JSON.stringify(loadedPublications)));
 
-                // Sélectionner automatiquement le publication A par défaut s'il existe
-                if (!this.currentPublicationFrame) {
-                    const publicationA = this.publicationFrames.find(jf => jf.letter === 'A');
-                    if (publicationA) {
-                        this.setCurrentPublicationFrame(publicationA);
+            // CORRECTION 3: Logique de réparation simplifiée et robuste
+            const highestIndex = loadedPublications.length > 0 ? loadedPublications[loadedPublications.length - 1].index : -1;
+            console.log(`[LOG 2] Analyse de la séquence. Index Max trouvé: ${highestIndex}. La séquence sera vérifiée de 0 à ${highestIndex}.`);
+                
+            const repairedPublications = [];
+
+            if (highestIndex > -1) {
+                // Boucle de réparation
+                for (let i = 0; i <= highestIndex; i++) {
+                    let publicationForIndex = loadedPublications.find(p => p.index === i);
+
+                    if (publicationForIndex) {
+                        console.log(`[LOG 3A - index ${i}] OK. Publication ${publicationForIndex.letter} trouvée. Ajout à la liste finale.`);
+                        repairedPublications.push(publicationForIndex);
                     } else {
-                        // Si pas de publication A, prendre le premier publication disponible
-                        const firstPublication = this.publicationFrames.sort((a, b) => a.letter.localeCompare(b.letter))[0];
-                        if (firstPublication) {
-                            this.setCurrentPublicationFrame(firstPublication);
+                        console.warn(`[LOG 3B - index ${i}] MANQUANT. Tentative de création...`);
+                        try {
+                            const createResponse = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/publications`, { method: 'POST' });
+                            if (createResponse.ok) {
+                                const newPubData = await createResponse.json();
+                                console.log(`[LOG 3C - index ${i}] ✅ SUCCÈS. Publication ${newPubData.letter} (index ${newPubData.index}) recréée.`);
+                                repairedPublications.push(newPubData);
+                            } else {
+                                console.error(`[LOG 3D - index ${i}] ❌ ÉCHEC de la création. Le serveur a répondu ${createResponse.status}.`);
+                            }
+                        } catch (error) {
+                             console.error(`[LOG 3E - index ${i}] ❌ ERREUR API lors de la recréation:`, error);
                         }
                     }
                 }
             }
-
-            // AJOUT : Si, après avoir chargé la galerie, il n'y a aucune publication,
-            // nous en créons une par défaut pour garantir que l'utilisateur puisse commencer à travailler.
-            if (this.publicationFrames.length === 0) {
-                await this.addPublicationFrame();
+                
+            // Si la galerie était/est complètement vide, on crée 'A'
+            if (repairedPublications.length === 0) {
+                console.log("[INFO] La galerie était/est vide. Création de 'A' par défaut.");
+                const createResponse = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/publications`, { method: 'POST' });
+                if (createResponse.ok) {
+                    repairedPublications.push(await createResponse.json());
+                }
             }
 
-            // ▼▼▼ AJOUT : Chargement de la description commune ▼▼▼
-            if (this.descriptionManager) {
-                this.descriptionManager.setCommonDescription(data.galleryState.commonDescriptionText || '');
+            console.log('[LOG 4] Publications FINALES après réparation complète:', repairedPublications.map(p => ({ letter: p.letter, index: p.index })));
+
+            // Construction de l'interface à partir de la liste finale et propre
+            repairedPublications.forEach(publicationData => {
+                const newPublicationFrame = new PublicationFrameBackend(this, publicationData);
+                this.publicationFramesContainer.appendChild(newPublicationFrame.element);
+                this.publicationFrames.push(newPublicationFrame);
+            });
+
+            console.log('[LOG 5] Contenu de this.publicationFrames (objets UI) avant sélection:', this.publicationFrames.map(p => ({ letter: p.letter, index: p.index })));
+
+            // Sélectionner la Publication A par défaut
+            const publicationA = this.publicationFrames.find(p => p.index === 0);
+            if (publicationA) {
+                console.log("[LOG 6] ✅ Publication A trouvée et sélectionnée.");
+                this.setCurrentPublicationFrame(publicationA);
+            } else {
+                console.error("[LOG 6] ❌ ERREUR CRITIQUE: La Publication A est toujours manquante !");
+                if (this.publicationFrames.length > 0) {
+                    const firstAvailable = this.publicationFrames[0];
+                    console.warn(`[LOG 6] FALLBACK: Sélection de la première publication disponible: ${firstAvailable.letter} (index ${firstAvailable.index})`);
+                    this.setCurrentPublicationFrame(firstAvailable);
+                }
             }
-            // ▲▲▲ FIN DE L'AJOUT ▲▲▲
-
-            this.scheduleContext = {
-                schedule: data.schedule || {},
-                allUserPublications: data.scheduleContext.allUserPublications || []
-            };
-
-            // ▼▼▼ AJOUT DE LA SECTION CORRIGÉE ▼▼▼
-            // Maintenant que TOUS les Publications sont initialisés et dans app.publicationFrames,
-            // on peut lancer la mise à publication de l'UI du calendrier en toute sécurité.
-            if (this.calendarPage) {
-                // S'assure que tous les publications de la galerie actuelle sont bien dans le contexte global
-                this.publicationFrames.forEach(jf => this.ensureJourInAllUserPublications(jf));
-                // Construit l'affichage du calendrier ET de la liste des publications non planifiés
-                this.calendarPage.buildCalendarUI();
-            }
-            // ▲▲▲ FIN DE LA SECTION AJOUTÉE ▲▲▲
-
-            // Désactiver le flag de chargement avant les mises à publication finales
+                
+            // ... (suite de la fonction loadState pour charger les images, le calendrier, etc.)
+            const galleryState = data.galleryState || {};
+            this.currentThumbSize = galleryState.currentThumbSize || { width: 150, height: 150 };
+            this.sortOptionsSelect.value = 'name_asc';
+            if (data.images) { this.addImagesToGrid(data.images); this.sortGridItemsAndReflow(); }
+            if (this.descriptionManager) { this.descriptionManager.setCommonDescription(galleryState.commonDescriptionText || ''); }
+            this.scheduleContext = { schedule: data.schedule || {}, allUserPublications: data.scheduleContext.allUserPublications || [] };
+            if (this.calendarPage) { this.publicationFrames.forEach(jf => this.ensureJourInAllUserPublications(jf)); this.calendarPage.buildCalendarUI(); }
             this.isLoadingGallery = false;
-
             this.updateGridUsage();
             this.updateStatsLabel();
             this.updateAddPhotosPlaceholderVisibility();
             this.updateGridItemStyles();
             this.updateUIToNoGalleryState();
+            if (this.croppingPage && this.croppingPage.autoCropper) { this.croppingPage.autoCropper.refreshJourSelection(); }
+            this.activateTab(galleryState.activeTab || 'currentGallery');
 
-            // Rafraîchir la sélection des publications dans l'AutoCropper
-            if (this.croppingPage && this.croppingPage.autoCropper) {
-                this.croppingPage.autoCropper.refreshJourSelection();
-            }
-
-            const activeTab = galleryState.activeTab || 'currentGallery';
-            this.activateTab(activeTab);
         } catch (error) {
             console.error("Erreur critique lors du chargement de l'état de la galerie:", error);
             loadingOverlay.querySelector('p').innerHTML = `Erreur de chargement: ${error.message}<br/>Veuillez rafraîchir.`;
         } finally {
-            // S'assurer que le flag est désactivé même en cas d'erreur
             this.isLoadingGallery = false;
-
             if (loadingOverlay.style.display === 'flex') {
                 loadingOverlay.style.display = 'none';
             }
@@ -4953,6 +4986,12 @@ class PublicationOrganizer {
         if (!this.currentGalleryId) { alert("Aucune galerie active."); return; }
         this.recalculateNextPublicationIndex();
         if (this.nextPublicationIndex >= 26) { alert("Maximum de Publications (A-Z) atteint."); return; }
+        
+        // ======================= LOG À AJOUTER (DÉBUT) =======================
+        console.log('[DEBUG] addPublicationFrame: DÉBUT - Publications actuelles:', this.publicationFrames.map(p => ({ letter: p.letter, index: p.index })));
+        console.log('[DEBUG] addPublicationFrame: Bouton désactivé, envoi de la requête...');
+        // =====================================================================
+        
         this.addPublicationFrameBtn.disabled = true;
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/publications`, {
@@ -4971,6 +5010,11 @@ class PublicationOrganizer {
                 throw new Error(userMessage);
             }
             const newJourData = await response.json();
+            
+            // ======================= LOG À AJOUTER (2/2) =======================
+            console.log('[DEBUG] addPublicationFrame: Réponse du serveur, publication créée:', { letter: newJourData.letter, index: newJourData.index });
+            // =====================================================================
+            
             const newPublicationFrame = new PublicationFrameBackend(this, newJourData);
             this.publicationFramesContainer.appendChild(newPublicationFrame.element);
             this.publicationFrames.push(newPublicationFrame);
@@ -5052,35 +5096,32 @@ class PublicationOrganizer {
 
     // Nouvelle fonction pour supprimer automatiquement les publications vides
     async removeEmptyPublications() {
-        // On identifie d'abord les publications qui sont candidates à la suppression
-        let publicationsToDelete = this.publicationFrames.filter(publicationFrame =>
-            !publicationFrame.imagesData || publicationFrame.imagesData.length === 0
+        // CORRECTION : On cible pour suppression uniquement les publications vides QUI NE SONT PAS la publication 'A'.
+        // La publication A, même vide, est conservée comme point d'ancrage.
+        const publicationsToDelete = this.publicationFrames.filter(publicationFrame =>
+            (publicationFrame.index !== 0) && // Ne pas toucher à l'index 0 (Publication A)
+            (!publicationFrame.imagesData || publicationFrame.imagesData.length === 0)
         );
 
-        // RÈGLE CRUCIALE : Si toutes les publications sont vides, on doit en garder au moins une.
-        if (publicationsToDelete.length === this.publicationFrames.length && this.publicationFrames.length > 0) {
-            // On trie pour trouver celle avec le plus petit index (ex: 'A' avant 'B')
-            publicationsToDelete.sort((a, b) => a.index - b.index);
-            // On la retire de la liste des publications à supprimer pour la conserver
-            publicationsToDelete.shift();
+        // Si la seule publication restante est la 'A' et qu'elle est vide, on ne fait rien.
+        if (publicationsToDelete.length === 0) {
+            return;
         }
-
-        if (publicationsToDelete.length === 0) return;
 
         console.log(`[removeEmptyPublications] Suppression automatique de ${publicationsToDelete.length} publication(s) vide(s):`,
             publicationsToDelete.map(j => j.letter).join(', '));
 
-        // Supprimer chaque publication vide sans demander confirmation
+        // Le reste de la logique de suppression continue, mais uniquement sur la liste filtrée.
         for (const publicationFrame of publicationsToDelete) {
             const index = this.publicationFrames.indexOf(publicationFrame);
             if (index > -1) {
                 await publicationFrame.destroy();
                 this.publicationFrames.splice(index, 1);
 
-                // Si le publication supprimé était le publication actuel, sélectionner un autre jour
                 if (this.currentPublicationFrame === publicationFrame) {
-                    this.setCurrentPublicationFrame(this.publicationFrames[index] || this.publicationFrames[index - 1] ||
-                        (this.publicationFrames.length > 0 ? this.publicationFrames[0] : null));
+                    // Si on supprime la publication active, on se replace sur la 'A' par défaut.
+                    const publicationA = this.publicationFrames.find(p => p.index === 0);
+                    this.setCurrentPublicationFrame(publicationA || (this.publicationFrames.length > 0 ? this.publicationFrames[0] : null));
                 }
 
                 // Nettoyer le calendrier si nécessaire
@@ -5099,7 +5140,7 @@ class PublicationOrganizer {
             }
         }
 
-        // Mettre à publication l'interface après suppression
+        // Mise à jour de l'interface après suppression
         if (publicationsToDelete.length > 0) {
             this.recalculateNextPublicationIndex();
             this.updateGridUsage();
@@ -5323,8 +5364,9 @@ class HashtagManager {
             this.thesaurus = await response.json();
             console.log('📚 Dictionnaire de hashtags chargé.');
         } catch (error) {
-            console.error('Impossible de charger le dictionnaire de hashtags:', error);
-            this.thesaurus = {}; // Fallback en cas d'erreur
+            console.warn('Impossible de charger le dictionnaire de hashtags:', error.message);
+            // Fallback silencieux - pas d'erreur critique
+            this.thesaurus = {}; 
         }
     }
 
