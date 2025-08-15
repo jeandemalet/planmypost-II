@@ -1,0 +1,126 @@
+{
+  "tabs": {
+    "galleries": "Galleries",
+    "currentGallery": "Sorting",
+    "cropping": "Cropping",
+    "description": "Description",
+    "calendar": "Calendar"
+  },
+  "buttons": {
+    "add": "Add",
+    "addNewGallery": "New Gallery",
+    "addPhotos": "Add photos",
+    "settings": "Settings",
+    "profile": "Profile",
+    "logout": "Log out",
+    "confirm": "OK",
+    "cancel": "X",
+    "today": "Today",
+    "runAutoSchedule": "Run Scheduling",
+    "reorganizeAll": "Reorganize All",
+    "downloadAll": "Download All",
+    "generateHashtags": "🤖 Generate Hashtags",
+    "runAutomation": "Run automation",
+    "addNewPublication": "Add Publication"
+  },
+  "labels": {
+    "sortBy": "Sort by...",
+    "sortOptions": {
+      "name_asc": "Name (A-Z)",
+      "name_desc": "Name (Z-A)",
+      "date_desc": "Date Taken (Newest)",
+      "date_asc": "Date Taken (Oldest)"
+    },
+    "galleryStats": "{{count}} photo in the gallery",
+    "galleryStats_plural": "{{count}} photos in the gallery",
+    "noGalleryLoaded": "No gallery loaded",
+    "publication": "Publication {{letter}}",
+    "unscheduledPublications": "Unscheduled Publications",
+    "autoCropping": "Auto-cropping",
+    "verticalPhotos": "Vertical photos",
+    "horizontalPhotos": "Horizontal photos",
+    "publicationsOfGallery": "Gallery Publications",
+    "overviewMode": "Overview",
+    "individualCropping": "Individual Cropping",
+    "autoScheduling": "Auto Scheduling",
+    "chronological": "Chronological",
+    "interlaced": "Chronological Interlaced",
+    "random": "Random",
+    "publish": "Publish",
+    "every": "every",
+    "days": "day(s)"
+  },
+  "placeholders": {
+    "newGalleryName": "Name of the new gallery",
+    "selectGalleryToPreview": "Select a gallery to preview or load it.",
+    "addPhotosToStart": "Add photos to get started",
+    "selectPublicationToCrop": "Select a publication to crop",
+    "selectPublicationToDescribe": "Select a publication to edit its description",
+    "editorPlaceholder": "Write your description here...",
+    "noPublicationSelected": "No publication selected.",
+    "croppingEditorPlaceholder": "No publication selected."
+  },
+  "tooltips": {
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "previousImage": "Previous image",
+    "nextImage": "Next image",
+    "flipHorizontal": "Flip Horizontally",
+    "addWhiteBars": "Add white bars (3:4 format)",
+    "splitImage": "Split image for carousel",
+    "deleteImage": "Delete and go to next",
+    "finishCropping": "Finish and apply crops"
+  },
+  "settings": {
+    "title": "Settings",
+    "clearCache": "Clear application cache",
+    "switchTo": "Switch to French",
+    "accountAndHelp": "Account & Help",
+    "myProfile": "My Profile",
+    "documentation": "Documentation & Help",
+    "about": "About Publication Organizer"
+  },
+  "messages": {
+    "loading": "Loading...",
+    "loadingApp": "Initializing application...",
+    "loadingGallery": "Loading gallery...",
+    "confirmClearCache": "Are you sure you want to clear the cache? Your local preferences will be reset and the page will reload.",
+    "aboutText": "Publication Organizer v1.0.0\nAn app to simplify your creative workflow.",
+    "maxPublicationsReached": "Maximum number of publications reached (26).",
+    "connectedAs": "Connected as...",
+    "gridStats": "Grid: {{grid}} | Publications: {{publications}}",
+    "preview": "Preview",
+    "selectPublications": "Select publications:",
+    "selectAll": "All",
+    "selectNone": "None",
+    "cropAll": "Crop all",
+    "cropSelection": "Selection"
+  },
+  "cropping": {
+    "aspectRatios": {
+      "3:4": "3:4 (Vertical)",
+      "1:1": "1:1 (Square)",
+      "16:9": "16:9 (Landscape)",
+      "3:2": "3:2 (Landscape)",
+      "free": "Free"
+    },
+    "treatments": {
+      "auto": "Auto crop",
+      "whitebars": "White bars",
+      "none": "Do nothing"
+    }
+  },
+  "shortcuts": {
+    "photographer": "📸 Photographer",
+    "designer_m": "🧵 Designer",
+    "designer_f": "🧵 Designer",
+    "assistant_m": "✨ Assistant",
+    "assistant_f": "✨ Assistant",
+    "makeup_m": "💄 Makeup Artist",
+    "makeup_f": "💄 Makeup Artist",
+    "hairdresser_m": "✂️ Hairdresser",
+    "hairdresser_f": "✂️ Hairdresser",
+    "subject": "💃 Subject(s)",
+    "location": "📍 Location"
+  }
+}

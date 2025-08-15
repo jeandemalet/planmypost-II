@@ -387,9 +387,6 @@ button.small-cancel-btn:hover {
     position: relative;
     z-index: 3;
 }
-
-
-
 /* Style des boutons de confirmation/annulation */
 .small-confirm-btn, .small-cancel-btn {
     border-radius: 4px;
@@ -2040,14 +2037,7 @@ button.small-cancel-btn:hover {
     box-sizing: border-box;
 }
 
-.publication-group-container {
-    background-color: #f8f9fa;
-    border: 1px solid #dee2e6;
-    border-radius: 8px;
-    padding: 15px;
-    margin-bottom: 20px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
-}
+
 
 .publication-group-header {
     font-size: 1.2em;
@@ -3069,4 +3059,490 @@ button.small-cancel-btn:hover {
     color: #007bff;
     font-weight: 700;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+/* 
+=== CORRECTION DÉPASSEMENT CONTENEUR RECADRAGE === */
+.cropper-main-area {
+    display: flex;
+    flex-grow: 1;
+    gap: 15px;
+    overflow: hidden;
+    margin-bottom: 15px;
+    align-items: stretch;
+    min-height: 0; /* Correction pour éviter le dépassement du conteneur */
+}
+
+.cropper-canvas-container {
+    flex-grow: 1;
+    flex-shrink: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: 1 / 1;
+    max-height: calc(100vh - 300px);
+    min-width: 0;
+}
+
+#croppingThumbnailStrip {
+    height: 120px; /* Hauteur fixe du ruban de photos */
+    overflow-x: auto;
+    overflow-y: hidden;
+    border: 1px solid #ddd;
+    background-color: #f9f9f9;
+    border-radius: 6px;
+    padding: 10px;
+}
+
+
+.cropping-publication-ribbon {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 15px;
+    min-height: 140px; /* Hauteur minimale pour la zone de dépôt */
+    background-color: #e9ecef;
+    border: 2px dashed #ced4da; /* Bordure en pointillés pour indiquer la zone de dépôt */
+    border-radius: 8px;
+    align-content: flex-start;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.cropping-publication-ribbon.drag-over {
+    background-color: #e3f2fd;
+    border-color: #007bff;
+}
+
+.publication-group-empty-text {
+    width: 100%;
+    text-align: center;
+    align-self: center;
+    color: #6c757d;
+    font-style: italic;
+    font-size: 1.1em;
+    margin: 0;
+}
+
+/* Vignettes d'images plus grandes pour la vue de recadrage */
+.cropping-publication-item {
+    width: 120px; /* Taille augmentée */
+    height: 120px; /* Taille augmentée */
+    cursor: grab;
+    position: relative;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-color: #ffffff;
+    border: 1px solid #adb5bd;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.07);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.cropping-publication-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+}
+
+.cropping-publication-item:active {
+    cursor: grabbing;
+}
+
+/* Bouton de suppression adapté à la nouvelle taille */
+.cropping-publication-item .delete-btn {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 24px;
+    height: 24px;
+    line-height: 22px;
+    font-size: 18px;
+    background-color: rgba(220, 53, 69, 0.85);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s, background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.cropping-publication-item:hover .delete-btn {
+    opacity: 1;
+}
+
+.cropping-publication-item .delete-btn:hover {
+    background-color: #dc3545;
+}
+
+/* Placeholder pour la réorganisation */
+.cropping-publication-ribbon .publication-image-placeholder {
+    width: 120px;
+    height: 120px;
+    background-color: rgba(0, 123, 255, 0.15);
+    border: 2px dashed #007bff;
+    border-radius: 6px;
+}
+
+/* Styles pour les boutons de changement de vue */
+.view-mode-switch {
+    display: flex;
+    gap: 5px;
+    margin-bottom: 15px;
+    background-color: #f8f9fa;
+    padding: 5px;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+}
+
+.view-mode-switch button {
+    flex: 1;
+    padding: 8px 12px;
+    border: none;
+    background-color: transparent;
+    color: #6c757d;
+    border-radius: 4px;
+    font-size: 0.9em;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.view-mode-switch button.active {
+    background-color: #007bff;
+    color: white;
+    box-shadow: 0 2px 4px rgba(0,123,255,0.25);
+}
+
+.view-mode-switch button:hover:not(.active) {
+    background-color: #e9ecef;
+    color: #495057;
+}
+
+/* Styles pour le conteneur de la vue groupée */
+#allPhotosGroupedViewContainer {
+    padding: 20px;
+    background-color: #f8f9fa;
+    border-radius: 8px;
+    border: 1px solid #dee2e6;
+    max-height: calc(100vh - 300px);
+    overflow-y: auto;
+}
+
+/* Animation pour les éléments en cours de glissement */
+.cropping-publication-item.dragging-publication-item {
+    opacity: 0.5;
+    transform: rotate(5deg);
+}/* S
+tyles supplémentaires pour l'intégration de la vue groupée */
+
+/* Amélioration du conteneur principal de recadrage */
+.cropping-layout {
+    display: flex;
+    gap: 15px;
+    height: calc(100vh - 150px);
+}
+
+#croppingPublicationListPanel {
+    width: 280px;
+    min-width: 250px;
+    border-right: 1px solid #ddd;
+    padding-right: 15px;
+    overflow-y: auto;
+}
+
+#croppingEditorContainer {
+    flex-grow: 1;
+    padding-left: 15px;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+}
+
+/* Amélioration du titre de l'éditeur */
+#croppingEditorTitle {
+    margin: 0 0 15px 0;
+    font-size: 1.3em;
+    color: #343a40;
+    font-weight: 600;
+}
+
+/* Styles pour les messages d'information */
+.sidebar-info {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 6px;
+    padding: 15px;
+    color: #6c757d;
+    font-style: italic;
+    text-align: center;
+}
+
+/* Animation pour les transitions entre vues */
+#allPhotosGroupedViewContainer,
+#croppingEditorPanel {
+    transition: opacity 0.3s ease-in-out;
+}
+
+/* Amélioration de la barre latérale de recadrage automatique */
+#autoCropSidebar {
+    width: 300px;
+    min-width: 280px;
+    padding-left: 15px;
+    border-left: 1px solid #ddd;
+}
+
+/* Responsive design pour les petits écrans */
+@media (max-width: 1200px) {
+    .cropping-publication-item {
+        width: 100px;
+        height: 100px;
+    }
+    
+    .cropping-publication-ribbon {
+        min-height: 120px;
+    }
+    
+    #autoCropSidebar {
+        width: 250px;
+        min-width: 220px;
+    }
+}
+
+@media (max-width: 900px) {
+    .cropping-layout {
+        flex-direction: column;
+        height: auto;
+    }
+    
+    #croppingPublicationListPanel,
+    #autoCropSidebar {
+        width: 100%;
+        border: none;
+        padding: 0;
+        margin-bottom: 15px;
+    }
+    
+    #croppingEditorContainer {
+        padding: 0;
+    }
+}/*
+ Affichage du nom de galerie - Style unifié */
+.gallery-title-display {
+    font-weight: bold;
+    font-size: 1.2em;      /* Taille de police harmonisée */
+    margin-right: 15px;    /* Un peu plus d'espace */
+    color: #343a40;        /* Une couleur de texte un peu plus douce */
+    flex-shrink: 0;        /* Empêche le nom de se compresser */
+    white-space: nowrap;   /* Empêche le nom de passer à la ligne */
+    overflow: hidden;      /* Cache le texte qui dépasse */
+    text-overflow: ellipsis; /* Ajoute "..." si le nom est trop long */
+    max-width: 300px;      /* Limite la largeur maximale pour les noms très longs */
+}
+/*
+ --- STYLES POUR LE MENU PARAMÈTRES --- */
+.settings-container {
+    position: relative;
+    display: inline-block;
+}
+
+/* Styles génériques pour les menus déroulants */
+.dropdown-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    background-color: #ffffff;
+    min-width: 240px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    z-index: 1001;
+    border-radius: 8px;
+    padding: 8px 0;
+    border: 1px solid #e9ecef;
+}
+
+.dropdown-menu a {
+    color: #212529;
+    padding: 10px 16px;
+    text-decoration: none;
+    display: block;
+    font-size: 0.9em;
+    transition: background-color 0.2s ease;
+}
+
+.dropdown-menu a:hover {
+    background-color: #f8f9fa;
+}
+
+.dropdown-menu .disabled {
+    color: #adb5bd;
+    pointer-events: none;
+    background-color: transparent;
+}
+
+.dropdown-divider {
+    height: 1px;
+    margin: 8px 0;
+    overflow: hidden;
+    background-color: #e9ecef;
+}
+
+.dropdown-header {
+    padding: 10px 16px;
+    font-size: 0.8em;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* La classe .show sera ajoutée par JS pour afficher le menu */
+.dropdown-menu.show {
+    display: block;
+    animation: fadeInDown 0.2s ease-out;
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Amélioration de l'espacement des conteneurs de profil et paramètres */
+.profile-container,
+.settings-container {
+    margin-left: 8px;
+}
+
+.profile-container:first-child,
+.settings-container:first-child {
+    margin-left: 0;
+}/* =
+=========================================================
+   STYLES ISOLÉS POUR LES RUBANS D'ÉDITION EN VUE GROUPÉE
+   ========================================================== */
+
+.cropping-publication-ribbon {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px; /* Un peu plus d'espace */
+    padding: 15px;
+    min-height: 150px; /* Hauteur minimale pour la zone de dépôt */
+    background-color: #f0f2f5;
+    border: 2px dashed #d1d5db;
+    border-radius: 8px;
+    align-content: flex-start;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+/* Style de survol de la zone de dépôt, conservé comme demandé */
+.cropping-publication-ribbon.drag-over {
+    background-color: #e3f2fd;
+    border-color: #2196f3;
+}
+
+.publication-group-empty-text {
+    width: 100%;
+    text-align: center;
+    align-self: center;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Vignettes d'images plus grandes et isolées pour la vue de recadrage */
+.cropping-publication-item {
+    width: 120px;
+    height: 120px;
+    cursor: grab;
+    position: relative;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-color: #ffffff;
+    border: 1px solid #adb5bd;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.07);
+    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out; /* Effet de transition doux */
+}
+
+/* Effet au survol : léger agrandissement sans rotation */
+.cropping-publication-item:hover {
+    transform: scale(1.04); /* Pas de rotation */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    z-index: 10;
+}
+
+.cropping-publication-item:active {
+    cursor: grabbing;
+}
+
+/* Style pour l'élément en cours de déplacement */
+.cropping-publication-item.dragging-publication-item {
+    opacity: 0.5;
+    transform: scale(1.05); /* Agrandissement pendant le glisser */
+    box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+}
+
+/* Bouton de suppression adapté */
+.cropping-publication-item .delete-btn {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 24px;
+    height: 24px;
+    line-height: 22px;
+    font-size: 18px;
+    background-color: rgba(220, 53, 69, 0.85);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    opacity: 0;
+    transition: opacity 0.2s, background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.cropping-publication-item:hover .delete-btn {
+    opacity: 1;
+}
+
+.cropping-publication-item .delete-btn:hover {
+    background-color: #dc3545;
+}
+
+/* Placeholder pour la réorganisation, adapté à la nouvelle taille */
+.cropping-publication-ribbon .publication-image-placeholder {
+    width: 120px;
+    height: 120px;
+    background-color: rgba(33, 150, 243, 0.15);
+    border: 2px dashed #2196f3;
+    border-radius: 6px;
+}
+
+/* Styles pour les conteneurs de groupe */
+.publication-group-container {
+    margin-bottom: 25px;
+    background-color: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.publication-group-header {
+    margin: 0 0 15px 0;
+    font-size: 1.2em;
+    font-weight: 600;
+    color: #343a40;
+    border-bottom: 1px solid #e9ecef;
+    padding-bottom: 8px;
 }

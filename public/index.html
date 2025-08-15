@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="fr">
+<html lang="fr" id="htmlRoot">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -13,7 +13,7 @@
 </head>
 <body>
     <div id="loadingOverlay" style="position: fixed; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(255,255,255,0.8); z-index: 2000; display: flex; justify-content: center; align-items: center; text-align: center;">
-        <p style="font-size: 1.5em; color: #333;">Initialisation de l'application...</p>
+        <p style="font-size: 1.5em; color: #333;" data-i18n="messages.loadingApp">Initialisation de l'application...</p>
     </div>
 
     <div class="app-container">
@@ -23,26 +23,45 @@
             </div>
 
             <div class="tabs">
-                <button class="tab-button" data-tab="galleries"><img src="/assets/gallery.png" alt="Galeries" class="tab-icon"> Galeries</button>
-                <button class="tab-button active" data-tab="currentGallery"><img src="/assets/tri.png" alt="Tri" class="tab-icon"> Tri</button>
-                <button class="tab-button" data-tab="cropping"><img src="/assets/crop.png" alt="Recadrage" class="tab-icon"> Recadrage</button>
-                <button class="tab-button" data-tab="description"><img src="/assets/description.png" alt="Description" class="tab-icon"> Description</button>
-                <button class="tab-button" data-tab="calendar"><img src="/assets/calendar.png" alt="Calendrier" class="tab-icon"> Calendrier</button>
+                <button class="tab-button" data-tab="galleries" data-i18n="tabs.galleries"><img src="/assets/gallery.png" alt="Galeries" class="tab-icon"> Galeries</button>
+                <button class="tab-button active" data-tab="currentGallery" data-i18n="tabs.currentGallery"><img src="/assets/tri.png" alt="Tri" class="tab-icon"> Tri</button>
+                <button class="tab-button" data-tab="cropping" data-i18n="tabs.cropping"><img src="/assets/crop.png" alt="Recadrage" class="tab-icon"> Recadrage</button>
+                <button class="tab-button" data-tab="description" data-i18n="tabs.description"><img src="/assets/description.png" alt="Description" class="tab-icon"> Description</button>
+                <button class="tab-button" data-tab="calendar" data-i18n="tabs.calendar"><img src="/assets/calendar.png" alt="Calendrier" class="tab-icon"> Calendrier</button>
             </div>
 
             <nav id="userActionsPlaceholder">
                 <div class="profile-container">
-                    <button class="icon-button" id="profileButton" aria-label="Profil">
+                    <button class="icon-button" id="profileButton" aria-label="Profil" data-i18n-title="buttons.profile">
                         <img src="/assets/profile.png" alt="Profil" class="profile-action-icon">
                     </button>
                     <div id="profileDropdown" class="dropdown-menu">
-                        <div id="userInfo">Connecté en tant que...</div>
-                        <a href="#" id="logoutLink">Déconnexion</a>
+                        <div id="userInfo" data-i18n="messages.connectedAs">Connecté en tant que...</div>
+                        <a href="#" id="logoutLink" data-i18n="buttons.logout">Déconnexion</a>
                     </div>
                 </div>
-                <button class="icon-button" aria-label="Paramètres">
-                    <img src="/assets/settings.png" alt="Paramètres" class="profile-action-icon">
-                </button>
+                <div class="settings-container">
+                    <button class="icon-button" id="settingsButton" aria-label="Paramètres" data-i18n-title="buttons.settings">
+                        <img src="/assets/settings.png" alt="Paramètres" class="profile-action-icon">
+                    </button>
+                    <div id="settingsDropdown" class="dropdown-menu">
+                        <!-- Section Langue -->
+                        <a href="#" id="switchLangBtn" data-i18n="settings.switchTo">Passer en Anglais</a>
+                        
+                        <div class="dropdown-divider"></div>
+                        
+                        <!-- Section Données -->
+                        <a href="#" id="clearCacheBtn" data-i18n="settings.clearCache">Vider le cache de l'application</a>
+                        
+                        <div class="dropdown-divider"></div>
+                        
+                        <!-- Section Compte & Aide -->
+                        <div class="dropdown-header" data-i18n="settings.accountAndHelp">Compte & Aide</div>
+                        <a href="#" class="disabled" data-i18n="settings.myProfile">Mon Profil</a>
+                        <a href="https://github.com/votre-nom/publication-organizer/blob/main/README.md" target="_blank" data-i18n="settings.documentation">Documentation & Aide</a>
+                        <a href="#" id="aboutBtn" data-i18n="settings.about">À propos de Publication Organizer</a>
+                    </div>
+                </div>
             </nav>
         </header>
 
@@ -51,34 +70,34 @@
                 <div id="galleriesListContainer">
                     <ul id="galleriesList"></ul>
                     <div class="gallery-management-controls">
-                        <button id="createNewGalleryBtn" class="add-btn-green">
+                        <button id="createNewGalleryBtn" class="add-btn-green" data-i18n="buttons.addNewGallery">
                             <img src="/assets/add-button.png" alt="" class="btn-icon"> Nouvelle Galerie
                         </button>
                         <!-- Formulaire de création déplacé dans la liste des galeries -->
                         <form id="newGalleryForm" style="display:none;">
-                            <input type="text" id="newGalleryNameInput" placeholder="Nom de la nouvelle galerie">
-                            <button type="submit" id="confirmNewGalleryBtn" class="small-confirm-btn">OK</button>
-                            <button type="button" id="cancelNewGalleryBtn" class="small-cancel-btn">X</button>
+                            <input type="text" id="newGalleryNameInput" placeholder="Nom de la nouvelle galerie" data-i18n-placeholder="placeholders.newGalleryName">
+                            <button type="submit" id="confirmNewGalleryBtn" class="small-confirm-btn" data-i18n="buttons.confirm">OK</button>
+                            <button type="button" id="cancelNewGalleryBtn" class="small-cancel-btn" data-i18n="buttons.cancel">X</button>
                         </form>
                     </div>
                 </div>
                 <div id="galleryPreviewArea">
                     <!-- NOUVELLE BARRE DE CONTRÔLE POUR L'APERÇU -->
                     <div id="galleryPreviewControlsBar" class="controls-bar" style="display:none;">
-                        <span id="galleryPreviewNameDisplay" style="margin-right: 10px; font-weight: bold; font-size: 1.2em;"></span>
+                        <span id="galleryPreviewNameDisplay" class="gallery-title-display"></span>
                         <div class="sort-controls">
                             <select id="galleryPreviewSortOptions">
-                                <option value="" disabled>Trier par...</option>
-                                <option value="name_asc" selected>Nom (A-Z)</option>
-                                <option value="name_desc">Nom (Z-A)</option>
-                                <option value="date_desc">Date Prise (Plus Récente)</option>
-                                <option value="date_asc">Date Prise (Plus Ancienne)</option>
+                                <option value="" disabled data-i18n="labels.sortBy">Trier par...</option>
+                                <option value="name_asc" selected data-i18n="labels.sortOptions.name_asc">Nom (A-Z)</option>
+                                <option value="name_desc" data-i18n="labels.sortOptions.name_desc">Nom (Z-A)</option>
+                                <option value="date_desc" data-i18n="labels.sortOptions.date_desc">Date Prise (Plus Récente)</option>
+                                <option value="date_asc" data-i18n="labels.sortOptions.date_asc">Date Prise (Plus Ancienne)</option>
                             </select>
                         </div>
                         <div id="galleryStatsArea" style="flex: 1; text-align: center; margin: 0 15px;">
                             <span id="galleryStatsLabelText">0 photo dans la galerie</span>
                         </div>
-                        <button id="galleryPreviewAddNewImagesBtn" class="add-btn-green">
+                        <button id="galleryPreviewAddNewImagesBtn" class="add-btn-green" data-i18n="buttons.add">
                             <img src="/assets/add-button.png" alt="" class="btn-icon"> Ajouter
                         </button>
                     </div>
@@ -90,30 +109,30 @@
                     </div>
 
                     <div id="galleryPreviewGrid"></div>
-                     <p id="galleryPreviewPlaceholder">Sélectionnez une galerie pour voir un aperçu ou la charger.</p>
+                     <p id="galleryPreviewPlaceholder" data-i18n="placeholders.selectGalleryToPreview">Sélectionnez une galerie pour voir un aperçu ou la charger.</p>
                 </div>
             </div>
         </div>
 
         <div id="currentGallery" class="tab-content">
             <div class="controls-bar">
-                <span id="currentGalleryNameDisplay" style="margin-right: 10px; font-weight: bold;"></span>
-                <button id="addNewImagesBtn" class="add-btn-green">
+                <span id="currentGalleryNameDisplay" class="gallery-title-display"></span>
+                <button id="addNewImagesBtn" class="add-btn-green" data-i18n="buttons.add">
                     <img src="/assets/add-button.png" alt="" class="btn-icon"> Ajouter
                 </button>
                 <input type="file" id="imageSelector" multiple accept="image/*" style="display: none;">
                 
                 <div class="zoom-controls">
-                    <button id="zoomOutBtn" class="zoom-btn-round">-</button>
-                    <button id="zoomInBtn" class="zoom-btn-round">+</button>
+                    <button id="zoomOutBtn" class="zoom-btn-round" data-i18n-title="tooltips.zoomOut">-</button>
+                    <button id="zoomInBtn" class="zoom-btn-round" data-i18n-title="tooltips.zoomIn">+</button>
                 </div>
                 <div class="sort-controls">
-                    <select id="sortOptions">
-                        <option value="" disabled>Trier par...</option>
-                        <option value="name_asc" selected>Nom (A-Z)</option>
-                        <option value="name_desc">Nom (Z-A)</option>
-                        <option value="date_desc">Date Prise (Plus Récente)</option>
-                        <option value="date_asc">Date Prise (Plus Ancienne)</option>
+                    <select id="sortOptions" data-i18n-title="labels.sortBy">
+                        <option value="" disabled data-i18n="labels.sortBy">Trier par...</option>
+                        <option value="name_asc" selected data-i18n="labels.sortOptions.name_asc">Nom (A-Z)</option>
+                        <option value="name_desc" data-i18n="labels.sortOptions.name_desc">Nom (Z-A)</option>
+                        <option value="date_desc" data-i18n="labels.sortOptions.date_desc">Date Prise (Plus Récente)</option>
+                        <option value="date_asc" data-i18n="labels.sortOptions.date_asc">Date Prise (Plus Ancienne)</option>
                     </select>
                 </div>
                 
@@ -133,7 +152,7 @@
 
             <div class="main-editor-layout">
                 <div id="imageGridContainer">
-                    <button id="addPhotosPlaceholderBtn" class="add-photos-placeholder">
+                    <button id="addPhotosPlaceholderBtn" class="add-photos-placeholder" data-i18n="gallery.addPhotos">
                         <img src="/assets/add-button.png" alt="" class="btn-icon"> <span class="btn-text">Ajouter des photos</span>
                     </button>
                     <div id="imageGrid"></div>
@@ -142,7 +161,7 @@
                     <!-- Le titre <h3>Publications</h3> a été supprimé -->
                     <div id="publicationFramesContainer"></div>
                     <div class="publication-frames-actions">
-                        <button id="addPublicationFrameBtn">
+                        <button id="addPublicationFrameBtn" data-i18n="buttons.add">
                              <img src="assets/add-button.png" alt="" class="btn-icon"> Ajouter Publication
                         </button>
                     </div>
@@ -157,11 +176,11 @@
             <div class="cropping-layout">
                 <!-- COLONNE DE GAUCHE : LISTE DES PUBLICATIONS -->
                 <div id="croppingPublicationListPanel">
-                    <h4>Publications de la Galerie</h4>
+                    <h4 data-i18n="labels.publicationsOfGallery">Publications de la Galerie</h4>
                     <!-- NOUVEAU SÉLECTEUR DE VUE À DEUX BOUTONS -->
                     <div id="viewModeSwitch" class="view-mode-switch">
-                        <button id="switchToGroupedViewBtn" class="active">Vue d'ensemble</button>
-                        <button id="switchToEditorViewBtn">Recadrage Individuel</button>
+                        <button id="switchToGroupedViewBtn" class="active" data-i18n="labels.overviewMode">Vue d'ensemble</button>
+                        <button id="switchToEditorViewBtn" data-i18n="labels.individualCropping">Recadrage Individuel</button>
                     </div>
                     <ul id="croppingPublicationList">
                     </ul>
@@ -169,7 +188,7 @@
 
                 <!-- COLONNE CENTRALE : CONTENU PRINCIPAL (VUE D'ENSEMBLE OU ÉDITEUR) -->
                 <div id="croppingEditorContainer">
-                    <h3 id="croppingEditorTitle">Sélectionnez une publication à recadrer</h3>
+                    <h3 id="croppingEditorTitle" data-i18n="placeholders.selectPublicationToCrop">Sélectionnez une publication à recadrer</h3>
                     
                     <div id="allPhotosGroupedViewContainer" style="display: none;">
                         <!-- Le contenu de la vue d'ensemble sera injecté ici par JS -->
@@ -191,20 +210,20 @@
                             </div>
                         </div>
                         <div class="cropper-controls">
-                            <button id="cropPrevImageBtn" title="Image précédente"><img src="assets/previous.png" alt="Précédent"></button>
-                            <button id="cropNextImageBtn" title="Image suivante"><img src="assets/next.png" alt="Suivant"></button>
-                            <button id="cropFlipBtn" title="Retourner Horizontalement"><img src="assets/turn-around.png" alt="Retourner"></button>
+                            <button id="cropPrevImageBtn" title="Image précédente" data-i18n-title="tooltips.previousImage"><img src="assets/previous.png" alt="Précédent"></button>
+                            <button id="cropNextImageBtn" title="Image suivante" data-i18n-title="tooltips.nextImage"><img src="assets/next.png" alt="Suivant"></button>
+                            <button id="cropFlipBtn" title="Retourner Horizontalement" data-i18n-title="tooltips.flipHorizontal"><img src="assets/turn-around.png" alt="Retourner"></button>
                             <select id="cropAspectRatio">
-                                <option value="3:4">3:4 (Vertical)</option>
-                                <option value="1:1">1:1 (Carré)</option>
-                                <option value="16:9">16:9 (Paysage)</option>
-                                <option value="3:2">3:2 (Paysage)</option>
-                                <option value="free">Libre</option>
+                                <option value="3:4" data-i18n="cropping.aspectRatios.3:4">3:4 (Vertical)</option>
+                                <option value="1:1" data-i18n="cropping.aspectRatios.1:1">1:1 (Carré)</option>
+                                <option value="16:9" data-i18n="cropping.aspectRatios.16:9">16:9 (Paysage)</option>
+                                <option value="3:2" data-i18n="cropping.aspectRatios.3:2">3:2 (Paysage)</option>
+                                <option value="free" data-i18n="cropping.aspectRatios.free">Libre</option>
                             </select>
-                            <button id="cropAddWhiteBarsBtn" title="Ajouter des barres blanches (format 3:4)"><img src="assets/barres-blanches.png" alt="Barres Blanches"></button>
-                            <button id="cropSplitLineBtn" title="Diviser l'image pour un carrousel"><img src="assets/split.png" alt="Split"></button>
-                            <button id="cropDeleteBtn" title="Supprimer et passer à la suivante"><img src="assets/bin.png" alt="Supprimer"></button>
-                            <button id="cropFinishBtn" class="primary-action" title="Terminer et appliquer les recadrages"><img src="assets/confirm.png" alt="Terminer et Appliquer"></button>
+                            <button id="cropAddWhiteBarsBtn" title="Ajouter des barres blanches (format 3:4)" data-i18n-title="tooltips.addWhiteBars"><img src="assets/barres-blanches.png" alt="Barres Blanches"></button>
+                            <button id="cropSplitLineBtn" title="Diviser l'image pour un carrousel" data-i18n-title="tooltips.splitImage"><img src="assets/split.png" alt="Split"></button>
+                            <button id="cropDeleteBtn" title="Supprimer et passer à la suivante" data-i18n-title="tooltips.deleteImage"><img src="assets/bin.png" alt="Supprimer"></button>
+                            <button id="cropFinishBtn" class="primary-action" title="Terminer et appliquer les recadrages" data-i18n-title="tooltips.finishCropping"><img src="assets/confirm.png" alt="Terminer et Appliquer"></button>
                             <div id="cropperInfoLabel"></div>
                         </div>
                         <div id="croppingThumbnailStrip" class="cropping-thumbnail-strip"></div>
@@ -217,61 +236,61 @@
                     <!-- ...VERS ICI. -->
                     <div class="auto-crop-frame">
                         <fieldset>
-                            <legend>Recadrage automatique</legend>
+                            <legend data-i18n="labels.autoCropping">Recadrage automatique</legend>
                             
                             <div class="auto-crop-setting">
-                                <span class="setting-label">Photos verticales</span>
+                                <span class="setting-label" data-i18n="labels.verticalPhotos">Photos verticales</span>
                                 <div class="setting-options">
                                     <input type="radio" id="v-auto" name="vertical_treatment" value="auto">
                                     <label for="v-auto" class="auto-crop-button">
                                         <img src="assets/AI.png" alt="Icône Recadrage IA" class="auto-crop-icon">
-                                        <span class="auto-crop-label-text">Recadrage auto</span>
+                                        <span class="auto-crop-label-text" data-i18n="cropping.treatments.auto">Recadrage auto</span>
                                     </label>
                                     
                                     <input type="radio" id="v-bars" name="vertical_treatment" value="whitebars">
                                     <label for="v-bars" class="auto-crop-button">
                                         <img src="assets/barres-blanches.png" alt="Icône Barres Blanches" class="auto-crop-icon">
-                                        <span class="auto-crop-label-text">Barres blanches</span>
+                                        <span class="auto-crop-label-text" data-i18n="cropping.treatments.whitebars">Barres blanches</span>
                                     </label>
                                     
                                     <input type="radio" id="v-none" name="vertical_treatment" value="none" checked>
                                     <label for="v-none" class="auto-crop-button">
                                         <img src="assets/nerienfaire.png" alt="Icône Ne rien faire" class="auto-crop-icon">
-                                        <span class="auto-crop-label-text">Ne rien faire</span>
+                                        <span class="auto-crop-label-text" data-i18n="cropping.treatments.none">Ne rien faire</span>
                                     </label>
                                 </div>
                             </div>
             
                             <div class="auto-crop-setting">
-                                 <span class="setting-label">Photos horizontales</span>
+                                 <span class="setting-label" data-i18n="labels.horizontalPhotos">Photos horizontales</span>
                                  <div class="setting-options">
                                     <input type="radio" id="h-bars" name="horizontal_treatment" value="whitebars" checked>
                                     <label for="h-bars" class="auto-crop-button">
                                         <img src="assets/barres-blanches.png" alt="Icône Barres Blanches" class="auto-crop-icon">
-                                        <span class="auto-crop-label-text">Barres blanches</span>
+                                        <span class="auto-crop-label-text" data-i18n="cropping.treatments.whitebars">Barres blanches</span>
                                     </label>
                                     
                                     <input type="radio" id="h-none" name="horizontal_treatment" value="none">
                                     <label for="h-none" class="auto-crop-button">
                                         <img src="assets/nerienfaire.png" alt="Icône Ne rien faire" class="auto-crop-icon">
-                                        <span class="auto-crop-label-text">Ne rien faire</span>
+                                        <span class="auto-crop-label-text" data-i18n="cropping.treatments.none">Ne rien faire</span>
                                     </label>
                                  </div>
                             </div>
                             <div class="auto-crop-scope-switch">
                                 <input type="radio" id="cropScopeAll" name="crop_scope" value="all" checked>
-                                <label for="cropScopeAll">Tout recadrer</label>
+                                <label for="cropScopeAll" data-i18n="messages.cropAll">Tout recadrer</label>
                                 
                                 <input type="radio" id="cropScopeDay" name="crop_scope" value="selection">
-                                <label for="cropScopeDay">Sélection</label>
+                                <label for="cropScopeDay" data-i18n="messages.cropSelection">Sélection</label>
                             </div>
                             
                             <div id="publicationSelectionContainer" class="publication-selection-container" style="display: none;">
                                 <div class="publication-selection-header">
-                                    <span class="selection-title">Sélectionner les publications :</span>
+                                    <span class="selection-title" data-i18n="messages.selectPublications">Sélectionner les publications :</span>
                                     <div class="selection-actions">
-                                        <button type="button" id="selectAllPublicationsBtn" class="selection-btn">Tout</button>
-                                        <button type="button" id="deselectAllPublicationsBtn" class="selection-btn">Aucun</button>
+                                        <button type="button" id="selectAllPublicationsBtn" class="selection-btn" data-i18n="messages.selectAll">Tout</button>
+                                        <button type="button" id="deselectAllPublicationsBtn" class="selection-btn" data-i18n="messages.selectNone">Aucun</button>
                                     </div>
                                 </div>
                                 <div id="publicationCheckboxList" class="publication-checkbox-list">
@@ -279,7 +298,7 @@
                                 </div>
                             </div>
                             <div class="auto-crop-actions">
-                                <button id="runAutoCropBtn" class="primary-action" title="Lancer le recadrage automatique">
+                                <button id="runAutoCropBtn" class="primary-action" title="Lancer le recadrage automatique" data-i18n="buttons.runAutomation">
                                     Lancer l'automatisation
                                 </button>
                             </div>
@@ -302,51 +321,51 @@
                 <!-- Nouveau conteneur pour l'éditeur et la colonne de raccourcis -->
                 <div class="description-editor-area">
                     <div id="descriptionEditorPanel">
-                        <h3 id="descriptionEditorTitle">Sélectionnez une publication pour éditer sa description</h3>
+                        <h3 id="descriptionEditorTitle" data-i18n="placeholders.selectPublicationToDescribe">Sélectionnez une publication pour éditer sa description</h3>
                         <div id="descriptionEditorContent" style="display: none;">
                             <div id="descriptionImagesPreview" class="images-preview-banner"></div>
                             <div class="description-fields">
                                 <label for="descriptionEditor">Texte de la publication:</label>
                                 <div id="descriptionEditor" contenteditable="true" class="custom-editor"
-                                     role="textbox" aria-multiline="true" data-placeholder="Écrivez votre description ici..."></div>
+                                     role="textbox" aria-multiline="true" data-placeholder="Écrivez votre description ici..." data-i18n-placeholder="placeholders.editorPlaceholder"></div>
                             </div>
                         </div>
-                        <p id="descriptionEditorPlaceholder">Aucune publication sélectionnée.</p>
+                        <p id="descriptionEditorPlaceholder" data-i18n="placeholders.noPublicationSelected">Aucune publication sélectionnée.</p>
                     </div>
                     
                     <!-- Le bloc de raccourcis est maintenant ici, à côté de l'éditeur -->
                     <div id="descriptionShortcuts" class="description-shortcuts">
                         <div class="shortcut-item">
-                            <button data-snippet="📸 Photographe : ">📸 Photographe</button>
+                            <button data-snippet="📸 Photographe : " data-i18n="shortcuts.photographer">📸 Photographe</button>
                         </div>
                         <div class="shortcut-item is-pair">
-                            <button data-snippet="🧵 Couturier : ">🧵 Couturier</button>
-                            <button data-snippet="🧵 Couturière : ">🧵 Couturière</button>
+                            <button data-snippet="🧵 Couturier : " data-i18n="shortcuts.designer_m">🧵 Couturier</button>
+                            <button data-snippet="🧵 Couturière : " data-i18n="shortcuts.designer_f">🧵 Couturière</button>
                         </div>
                         <div class="shortcut-item is-pair">
-                            <button data-snippet="✨ Assistant : ">✨ Assistant</button>
-                            <button data-snippet="✨ Assistante : ">✨ Assistante</button>
-                        </div>
-                        
-                        <div class="shortcut-item is-pair">
-                            <button data-snippet="💄 Maquilleur : ">💄 Maquilleur</button>
-                            <button data-snippet="💄 Maquilleuse : ">💄 Maquilleuse</button>
+                            <button data-snippet="✨ Assistant : " data-i18n="shortcuts.assistant_m">✨ Assistant</button>
+                            <button data-snippet="✨ Assistante : " data-i18n="shortcuts.assistant_f">✨ Assistante</button>
                         </div>
                         
                         <div class="shortcut-item is-pair">
-                            <button data-snippet="✂️ Coiffeur : ">✂️ Coiffeur</button>
-                            <button data-snippet="✂️ Coiffeuse : ">✂️ Coiffeuse</button>
+                            <button data-snippet="💄 Maquilleur : " data-i18n="shortcuts.makeup_m">💄 Maquilleur</button>
+                            <button data-snippet="💄 Maquilleuse : " data-i18n="shortcuts.makeup_f">💄 Maquilleuse</button>
+                        </div>
+                        
+                        <div class="shortcut-item is-pair">
+                            <button data-snippet="✂️ Coiffeur : " data-i18n="shortcuts.hairdresser_m">✂️ Coiffeur</button>
+                            <button data-snippet="✂️ Coiffeuse : " data-i18n="shortcuts.hairdresser_f">✂️ Coiffeuse</button>
                         </div>
                         <div class="shortcut-item">
-                            <button data-snippet="💃 Sujet(s) : ">💃 Sujet(s)</button>
+                            <button data-snippet="💃 Sujet(s) : " data-i18n="shortcuts.subject">💃 Sujet(s)</button>
                         </div>
                         
                         <div class="shortcut-item">
-                            <button data-snippet="📍 Lieu : ">📍 Lieu</button>
+                            <button data-snippet="📍 Lieu : " data-i18n="shortcuts.location">📍 Lieu</button>
                         </div>
                         <div class="shortcut-item-separator"></div>
                         <div class="shortcut-item">
-                           <button id="generateHashtagsBtn" class="action-button">🤖 Générer les Hashtags</button>
+                           <button id="generateHashtagsBtn" class="action-button" data-i18n="buttons.generateHashtags">🤖 Générer les Hashtags</button>
                         </div>
                     </div>
                 </div>
@@ -368,50 +387,50 @@
                             </ul>
                             <span id="yearLabel">2025</span>
                         </div>
-                        <button id="todayBtn">Aujourd'hui</button>
+                        <button id="todayBtn" data-i18n="buttons.today">Aujourd'hui</button>
                     </div>
                     <div id="calendarGrid"></div>
                 </div>
                 <div id="calendar-sidebar">
                     <div class="sidebar-section auto-schedule-box">
-                        <h4>Planification Automatique</h4>
+                        <h4 data-i18n="labels.autoScheduling">Planification Automatique</h4>
                         <div class="auto-schedule-options">
                             <div class="option-group">
                                 <input type="radio" id="autoScheduleChrono" name="autoScheduleMode" value="chrono" checked>
-                                <label for="autoScheduleChrono" title="Place les publications les unes après les autres, dans l'ordre (Publication A, Publication B, Publication C...)."><img src="/assets/chronologique.png" alt="Icone chronologique" class="schedule-icon"/> Chronologique</label>
+                                <label for="autoScheduleChrono" title="Place les publications les unes après les autres, dans l'ordre (Publication A, Publication B, Publication C...)."><img src="/assets/chronologique.png" alt="Icone chronologique" class="schedule-icon"/> <span data-i18n="labels.chronological">Chronologique</span></label>
                             </div>
                             <div class="option-group">
                                 <input type="radio" id="autoScheduleInterlaced" name="autoScheduleMode" value="interlaced">
-                                <label for="autoScheduleInterlaced" title="Place les publications en alternant les galeries, tout en respectant l'ordre chronologique de chaque galerie."><img src="/assets/aleatoire-interlace.png" alt="Icone aléatoire interlacé" class="schedule-icon"/> Chronologique Interlacé</label>
+                                <label for="autoScheduleInterlaced" title="Place les publications en alternant les galeries, tout en respectant l'ordre chronologique de chaque galerie."><img src="/assets/aleatoire-interlace.png" alt="Icone aléatoire interlacé" class="schedule-icon"/> <span data-i18n="labels.interlaced">Chronologique Interlacé</span></label>
                             </div>
                             <div class="option-group">
                                 <input type="radio" id="autoScheduleRandom" name="autoScheduleMode" value="random">
-                                <label for="autoScheduleRandom" title="Place les publications de manière aléatoire sur les dates disponibles."><img src="/assets/aleatoire-2.png" alt="Icone aléatoire" class="schedule-icon"/> Aléatoire</label>
+                                <label for="autoScheduleRandom" title="Place les publications de manière aléatoire sur les dates disponibles."><img src="/assets/aleatoire-2.png" alt="Icone aléatoire" class="schedule-icon"/> <span data-i18n="labels.random">Aléatoire</span></label>
                             </div>
                         </div>
                         <div class="auto-schedule-settings">
                             <div class="setting-group">
-                                <label for="autoSchedulePerDay">Publier</label>
+                                <label for="autoSchedulePerDay" data-i18n="labels.publish">Publier</label>
                                 <input type="number" id="autoSchedulePerDay" value="1" min="1">
-                                <span>tous les</span>
+                                <span data-i18n="labels.every">tous les</span>
                                 <input type="number" id="autoScheduleEveryXDays" value="1" min="1">
-                                <span>jour(s)</span>
+                                <span data-i18n="labels.days">jour(s)</span>
                             </div>
                         </div>
-                        <button id="runAutoScheduleBtn" class="primary-action icon-only" title="Lancer la Planification"><img src="/assets/play.png" alt="Lancer la Planification" class="btn-icon"></button>
+                        <button id="runAutoScheduleBtn" class="primary-action icon-only" title="Lancer la Planification" data-i18n-title="buttons.runAutoSchedule"><img src="/assets/play.png" alt="Lancer la Planification" class="btn-icon"></button>
                         <p id="auto-schedule-info" class="sidebar-info"></p>
                     </div>
                     <div id="unscheduledPublicationsContainer" class="sidebar-section">
-                        <h4>Publications à Planifier</h4>
+                        <h4 data-i18n="labels.unscheduledPublications">Publications à Planifier</h4>
                         <div id="unscheduledPublicationsList">
                         </div>
-                        <button id="reorganizeAllBtn" class="secondary-action" style="margin-top: 10px;">Tout Réorganiser</button>
-                        <button id="downloadAllScheduledBtn" class="primary-action" style="margin-top: 5px;">Tout Télécharger</button>
+                        <button id="reorganizeAllBtn" class="secondary-action" style="margin-top: 10px;" data-i18n="buttons.reorganizeAll">Tout Réorganiser</button>
+                        <button id="downloadAllScheduledBtn" class="primary-action" style="margin-top: 5px;" data-i18n="buttons.downloadAll">Tout Télécharger</button>
                     </div>
                 </div>
             </div>
             <div id="calendarContextPreviewModal" class="modal-preview">
-                <h4 id="calendarContextTitle">Aperçu</h4>
+                <h4 id="calendarContextTitle" data-i18n="messages.preview">Aperçu</h4>
                 <div id="calendarContextImages"></div>
             </div>
         </div>
