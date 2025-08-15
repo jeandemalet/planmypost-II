@@ -15,6 +15,30 @@ const compression = require('compression'); // <-- NOUVEAU: Importation de la co
 const jwt = require('jsonwebtoken'); // Ajouté pour la logique de redirection
 const authMiddleware = require('./middleware/auth'); // Import du middleware d'authentification
 
+// ======================= BLOC DE SÉCURITÉ POUR INTERCEPTER LES CRASHES =======================
+// Ce bloc doit être placé tout en haut pour intercepter toutes les erreurs fatales.
+
+process.on('uncaughtException', (error, origin) => {
+    console.error('🚨 ERREUR FATALE INTERCEPTÉE (UNCAUGHT EXCEPTION) ! Le serveur va s\'arrêter.');
+    console.error('📍 Erreur:', error);
+    console.error('📍 Stack trace:', error.stack);
+    console.error('📍 Origine:', origin);
+    console.error('📍 Timestamp:', new Date().toISOString());
+    // Dans un environnement de production, vous devriez enregistrer l'erreur et redémarrer le processus.
+    process.exit(1); // Arrêt forcé mais propre
+});
+
+process.on('unhandledRejection', (reason, promise) => {
+    console.error('🚨 PROMESSE NON GÉRÉE (UNHANDLED REJECTION) !');
+    console.error('📍 Raison:', reason);
+    console.error('📍 Stack trace:', reason?.stack);
+    console.error('📍 Promesse:', promise);
+    console.error('📍 Timestamp:', new Date().toISOString());
+    // Vous pouvez également choisir d'arrêter le serveur ici si c'est une erreur critique.
+});
+
+// ======================= FIN DU BLOC DE SÉCURITÉ =======================
+
 
 
 const app = express();
