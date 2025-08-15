@@ -3545,4 +3545,106 @@ tyles supplémentaires pour l'intégration de la vue groupée */
     color: #343a40;
     border-bottom: 1px solid #e9ecef;
     padding-bottom: 8px;
+}/* Placeho
+lder pour la vue de recadrage (grande taille) */
+.cropping-publication-item-placeholder {
+    width: 120px;
+    height: 120px;
+    background-color: rgba(33, 150, 243, 0.15);
+    border: 2px dashed #2196f3;
+    border-radius: 6px;
+    flex-shrink: 0;
+}/* ---
+ STYLES POUR LE SOUS-MENU DE LANGUES --- */
+.dropdown-submenu-container {
+    position: relative;
+}
+
+.dropdown-submenu-container > a {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.submenu-arrow {
+    font-size: 0.7em;
+    transform: rotate(90deg);
+    transition: transform 0.2s ease;
+}
+
+.dropdown-submenu {
+    display: none;
+    position: absolute;
+    top: -8px; /* Aligne avec le haut du menu parent */
+    right: 100%; /* Se déploie à gauche */
+    background-color: #ffffff;
+    min-width: 160px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    z-index: 1002;
+    border-radius: 8px;
+    padding: 8px 0;
+    border: 1px solid #e9ecef;
+    margin-right: 5px;
+}
+
+.dropdown-submenu-container:hover .dropdown-submenu {
+    display: block;
+    animation: fadeInLeft 0.2s ease-out;
+}
+
+.dropdown-submenu-container:hover .submenu-arrow {
+    transform: rotate(90deg) scale(1.1);
+}
+
+.dropdown-submenu a {
+    color: #212529;
+    padding: 8px 16px;
+    text-decoration: none;
+    display: block;
+    font-size: 0.9em;
+    transition: background-color 0.2s ease;
+    border-radius: 4px;
+    margin: 2px 8px;
+}
+
+.dropdown-submenu a:hover {
+    background-color: #f8f9fa;
+}
+
+.dropdown-submenu a.active-lang {
+    font-weight: bold;
+    background-color: #e3f2fd;
+    color: #1976d2;
+}
+
+@keyframes fadeInLeft {
+    from {
+        opacity: 0;
+        transform: translateX(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(0);
+    }
+}
+
+/* Amélioration pour mobile */
+@media (max-width: 768px) {
+    .dropdown-submenu {
+        right: auto;
+        left: 100%;
+        margin-right: 0;
+        margin-left: 5px;
+    }
+    
+    @keyframes fadeInLeft {
+        from {
+            opacity: 0;
+            transform: translateX(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
 }

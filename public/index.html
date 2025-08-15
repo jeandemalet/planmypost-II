@@ -46,7 +46,15 @@
                     </button>
                     <div id="settingsDropdown" class="dropdown-menu">
                         <!-- Section Langue -->
-                        <a href="#" id="switchLangBtn" data-i18n="settings.switchTo">Passer en Anglais</a>
+                        <div class="dropdown-submenu-container">
+                            <a href="#" id="languageSelectBtn">
+                                <span data-i18n="settings.language">Langue</span>: <span id="currentLangDisplay">Français</span>
+                                <span class="submenu-arrow">▶</span>
+                            </a>
+                            <div class="dropdown-submenu" id="languageOptions">
+                                <!-- Les options de langue seront insérées ici par JavaScript -->
+                            </div>
+                        </div>
                         
                         <div class="dropdown-divider"></div>
                         

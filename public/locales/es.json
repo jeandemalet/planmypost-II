@@ -1,0 +1,126 @@
+{
+  "tabs": {
+    "galleries": "Galerías",
+    "currentGallery": "Clasificación",
+    "cropping": "Recorte",
+    "description": "Descripción",
+    "calendar": "Calendario"
+  },
+  "buttons": {
+    "add": "Añadir",
+    "addNewGallery": "Nueva Galería",
+    "addPhotos": "Añadir fotos",
+    "settings": "Configuración",
+    "profile": "Perfil",
+    "logout": "Cerrar sesión",
+    "confirm": "OK",
+    "cancel": "X",
+    "today": "Hoy",
+    "runAutoSchedule": "Ejecutar Planificación",
+    "reorganizeAll": "Reorganizar Todo",
+    "downloadAll": "Descargar Todo",
+    "generateHashtags": "🤖 Generar Hashtags",
+    "runAutomation": "Ejecutar automatización",
+    "addNewPublication": "Añadir Publicación"
+  },
+  "labels": {
+    "sortBy": "Ordenar por...",
+    "sortOptions": {
+      "name_asc": "Nombre (A-Z)",
+      "name_desc": "Nombre (Z-A)",
+      "date_desc": "Fecha (Más reciente)",
+      "date_asc": "Fecha (Más antigua)"
+    },
+    "galleryStats": "{{count}} foto en la galería",
+    "galleryStats_plural": "{{count}} fotos en la galería",
+    "noGalleryLoaded": "Ninguna galería cargada",
+    "publication": "Publicación {{letter}}",
+    "unscheduledPublications": "Publicaciones sin Planificar",
+    "autoCropping": "Recorte automático",
+    "verticalPhotos": "Fotos verticales",
+    "horizontalPhotos": "Fotos horizontales",
+    "publicationsOfGallery": "Publicaciones de la Galería",
+    "overviewMode": "Vista general",
+    "individualCropping": "Recorte Individual",
+    "autoScheduling": "Planificación Automática",
+    "chronological": "Cronológico",
+    "interlaced": "Cronológico Entrelazado",
+    "random": "Aleatorio",
+    "publish": "Publicar",
+    "every": "cada",
+    "days": "día(s)"
+  },
+  "placeholders": {
+    "newGalleryName": "Nombre de la nueva galería",
+    "selectGalleryToPreview": "Selecciona una galería para previsualizar o cargarla.",
+    "addPhotosToStart": "Añade fotos para empezar",
+    "selectPublicationToCrop": "Selecciona una publicación para recortar",
+    "selectPublicationToDescribe": "Selecciona una publicación para editar su descripción",
+    "editorPlaceholder": "Escribe tu descripción aquí...",
+    "noPublicationSelected": "Ninguna publicación seleccionada.",
+    "croppingEditorPlaceholder": "Ninguna publicación seleccionada."
+  },
+  "tooltips": {
+    "zoomIn": "Aumentar zoom",
+    "zoomOut": "Reducir zoom",
+    "previousImage": "Imagen anterior",
+    "nextImage": "Imagen siguiente",
+    "flipHorizontal": "Voltear Horizontalmente",
+    "addWhiteBars": "Añadir barras blancas (formato 3:4)",
+    "splitImage": "Dividir imagen para carrusel",
+    "deleteImage": "Eliminar y pasar a la siguiente",
+    "finishCropping": "Terminar y aplicar recortes"
+  },
+  "settings": {
+    "title": "Configuración",
+    "language": "Idioma",
+    "clearCache": "Limpiar caché de la aplicación",
+    "accountAndHelp": "Cuenta y Ayuda",
+    "myProfile": "Mi Perfil",
+    "documentation": "Documentación y Ayuda",
+    "about": "Acerca de Publication Organizer"
+  },
+  "messages": {
+    "loading": "Cargando...",
+    "loadingApp": "Inicializando la aplicación...",
+    "loadingGallery": "Cargando la galería...",
+    "confirmClearCache": "¿Estás seguro de que quieres limpiar la caché? Tus preferencias locales se restablecerán y la página se recargará.",
+    "aboutText": "Publication Organizer v1.0.0\nUna aplicación para simplificar tu flujo de trabajo creativo.",
+    "maxPublicationsReached": "Número máximo de publicaciones alcanzado (26).",
+    "connectedAs": "Conectado como...",
+    "gridStats": "Cuadrícula: {{grid}} | Publicaciones: {{publications}}",
+    "preview": "Vista previa",
+    "selectPublications": "Seleccionar publicaciones:",
+    "selectAll": "Todo",
+    "selectNone": "Ninguno",
+    "cropAll": "Recortar todo",
+    "cropSelection": "Selección"
+  },
+  "cropping": {
+    "aspectRatios": {
+      "3:4": "3:4 (Vertical)",
+      "1:1": "1:1 (Cuadrado)",
+      "16:9": "16:9 (Paisaje)",
+      "3:2": "3:2 (Paisaje)",
+      "free": "Libre"
+    },
+    "treatments": {
+      "auto": "Recorte automático",
+      "whitebars": "Barras blancas",
+      "none": "No hacer nada"
+    }
+  },
+  "shortcuts": {
+    "photographer": "📸 Fotógrafo",
+    "designer_m": "🧵 Diseñador",
+    "designer_f": "🧵 Diseñadora",
+    "assistant_m": "✨ Asistente",
+    "assistant_f": "✨ Asistente",
+    "makeup_m": "💄 Maquillador",
+    "makeup_f": "💄 Maquilladora",
+    "hairdresser_m": "✂️ Peluquero",
+    "hairdresser_f": "✂️ Peluquera",
+    "subject": "💃 Sujeto(s)",
+    "location": "📍 Ubicación"
+  }
+}

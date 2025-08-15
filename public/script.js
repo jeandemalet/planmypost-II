@@ -97,11 +97,45 @@ class I18nManager {
         htmlRoot.setAttribute('lang', lang);
         
         await this.translateUI();
+        
+        // Mettre à jour le menu de langues
+        if (typeof initializeLanguageMenu === 'function') {
+            initializeLanguageMenu();
+        }
     }
 }
 
 // Initialisez-le au niveau global
 const i18n = new I18nManager('fr');
+
+// Langues disponibles
+const AVAILABLE_LANGUAGES = {
+    'fr': 'Français',
+    'en': 'English',
+    'es': 'Español',
+    'de': 'Deutsch',
+    'it': 'Italiano',
+    'pt': 'Português',
+    'ja': '日本語'
+};
+
+// Fonction pour initialiser le menu de langues
+function initializeLanguageMenu() {
+    const languageOptionsContainer = document.getElementById('languageOptions');
+    const currentLangDisplay = document.getElementById('currentLangDisplay');
+    
+    if (languageOptionsContainer && currentLangDisplay) {
+        // Mettre à jour l'affichage de la langue actuelle
+        currentLangDisplay.textContent = AVAILABLE_LANGUAGES[i18n.currentLang];
+        
+        // Mettre à jour la classe active
+        const activeLink = languageOptionsContainer.querySelector(`[data-lang="${i18n.currentLang}"]`);
+        if (activeLink) {
+            languageOptionsContainer.querySelector('.active-lang')?.classList.remove('active-lang');
+            activeLink.classList.add('active-lang');
+        }
+    }
+}
 
 class Utils {
     static async loadImage(urlOrFile) {
@@ -430,8 +464,7 @@ class PublicationFrameBackend {
 
         this.debouncedSave = Utils.debounce(() => this.save(), 1500);
 
-        this.placeholderElement = document.createElement('div');
-        this.placeholderElement.className = 'publication-image-placeholder';
+        // Placeholder supprimé - sera créé dynamiquement selon le contexte
 
         this.canvasWrapper.addEventListener('dragover', (e) => this.onDragOver(e));
         this.canvasWrapper.addEventListener('dragleave', (e) => this.onDragLeave(e));
@@ -454,11 +487,21 @@ class PublicationFrameBackend {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'move';
         this.canvasWrapper.classList.add('drag-over');
+
+        // Création dynamique du placeholder avec la bonne taille
+        const placeholder = document.createElement('div');
+        placeholder.className = 'publication-image-placeholder'; // <- La classe pour la petite taille (Tri)
+
         const afterElement = this.getDragAfterElement(this.canvasWrapper, e.clientX);
+
+        // Supprimer l'ancien placeholder s'il existe
+        const oldPlaceholder = this.canvasWrapper.querySelector('.publication-image-placeholder');
+        if (oldPlaceholder) oldPlaceholder.remove();
+
         if (afterElement == null) {
-            this.canvasWrapper.appendChild(this.placeholderElement);
+            this.canvasWrapper.appendChild(placeholder);
         } else {
-            this.canvasWrapper.insertBefore(this.placeholderElement, afterElement);
+            this.canvasWrapper.insertBefore(placeholder, afterElement);
         }
     }
 
@@ -476,8 +519,9 @@ class PublicationFrameBackend {
     onDragLeave(e) {
         if (!this.canvasWrapper.contains(e.relatedTarget)) {
             this.canvasWrapper.classList.remove('drag-over');
-            if (this.placeholderElement.parentNode) {
-                this.placeholderElement.parentNode.removeChild(this.placeholderElement);
+            const placeholder = this.canvasWrapper.querySelector('.publication-image-placeholder');
+            if (placeholder) {
+                placeholder.remove();
             }
         }
     }
@@ -486,9 +530,8 @@ class PublicationFrameBackend {
         e.preventDefault();
         const targetRibbon = e.currentTarget; // Le ruban où l'élément est déposé
         targetRibbon.classList.remove('drag-over');
-        if (this.placeholderElement.parentNode) {
-            this.placeholderElement.parentNode.removeChild(this.placeholderElement);
-        }
+        const placeholder = targetRibbon.querySelector('.publication-image-placeholder, .cropping-publication-item-placeholder');
+        if (placeholder) placeholder.remove();
 
         const jsonData = e.dataTransfer.getData("application/json");
         if (!jsonData) return;
@@ -5083,6 +5126,9 @@ async function startApp() {
     // ▼▼▼ TRADUIRE L'UI AU DÉMARRAGE ▼▼▼
     await i18n.translateUI();
     
+    // Initialiser le menu de langues
+    initializeLanguageMenu();
+    
     try {
         if (!app) {
             app = new PublicationOrganizer();
@@ -5119,7 +5165,12 @@ function setupGlobalEventListeners() {
     // ▼▼▼ AJOUT DE LA LOGIQUE POUR LE MENU PARAMÈTRES ▼▼▼
     const settingsButton = document.getElementById('settingsButton');
     const settingsDropdown = document.getElementById('settingsDropdown');
-    const switchLangBtn = document.getElementById('switchLangBtn');
+    
+    // Nouveaux éléments pour le menu de langues
+    const languageSelectBtn = document.getElementById('languageSelectBtn');
+    const languageOptionsContainer = document.getElementById('languageOptions');
+    const currentLangDisplay = document.getElementById('currentLangDisplay');
+    
     const clearCacheBtn = document.getElementById('clearCacheBtn');
     const aboutBtn = document.getElementById('aboutBtn');
     
@@ -5141,15 +5192,40 @@ function setupGlobalEventListeners() {
         });
     }
     
-    if (switchLangBtn) {
-        switchLangBtn.addEventListener('click', (e) => {
+    // --- LOGIQUE DU MENU DE LANGUES ---
+    if (languageOptionsContainer && currentLangDisplay) {
+        // 1. Peupler le menu déroulant des langues
+        languageOptionsContainer.innerHTML = '';
+        for (const [code, name] of Object.entries(AVAILABLE_LANGUAGES)) {
+            const langLink = document.createElement('a');
+            langLink.href = '#';
+            langLink.textContent = name;
+            langLink.dataset.lang = code;
+            if (code === i18n.currentLang) {
+                langLink.classList.add('active-lang');
+            }
+            languageOptionsContainer.appendChild(langLink);
+        }
+        
+        // 2. Mettre à jour l'affichage de la langue actuelle
+        currentLangDisplay.textContent = AVAILABLE_LANGUAGES[i18n.currentLang];
+        
+        // 3. Gérer le clic pour changer de langue (avec délégation d'événement)
+        languageOptionsContainer.addEventListener('click', (e) => {
             e.preventDefault();
-            const newLang = i18n.currentLang === 'fr' ? 'en' : 'fr';
-            i18n.setLanguage(newLang).then(() => {
-                // Mettre à jour le texte du bouton après le changement de langue
-                switchLangBtn.textContent = i18n.t('settings.switchTo');
-            });
-            settingsDropdown.classList.remove('show');
+            const target = e.target.closest('a[data-lang]');
+            if (target) {
+                const newLang = target.dataset.lang;
+                i18n.setLanguage(newLang).then(() => {
+                    // Mettre à jour l'UI après le changement
+                    currentLangDisplay.textContent = AVAILABLE_LANGUAGES[newLang];
+                    
+                    // Mettre à jour la classe 'active' dans le sous-menu
+                    languageOptionsContainer.querySelector('.active-lang')?.classList.remove('active-lang');
+                    target.classList.add('active-lang');
+                });
+                settingsDropdown.classList.remove('show');
+            }
         });
     }
     
@@ -5415,21 +5491,29 @@ class CroppingPage {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'move';
                 ribbonDiv.classList.add('drag-over');
-                // On appelle la méthode générique en lui passant le bon conteneur (ribbonDiv)
+
+                // Création d'un placeholder dynamique avec la bonne taille
+                const placeholder = document.createElement('div');
+                placeholder.className = 'cropping-publication-item-placeholder'; // <- Classe pour la GRANDE taille
+
                 const afterElement = publicationFrame.getDragAfterElement(ribbonDiv, e.clientX);
-                const placeholder = publicationFrame.placeholderElement;
-                    
-                // On ajoute le style spécifique au placeholder pour cet onglet
-                placeholder.style.width = '120px';
-                placeholder.style.height = '120px';
-                    
+
+                const oldPlaceholder = ribbonDiv.querySelector('.cropping-publication-item-placeholder');
+                if (oldPlaceholder) oldPlaceholder.remove();
+
                 if (afterElement == null) {
                     ribbonDiv.appendChild(placeholder);
                 } else {
                     ribbonDiv.insertBefore(placeholder, afterElement);
                 }
             });
-            ribbonDiv.addEventListener('dragleave', (e) => publicationFrame.onDragLeave(e));
+            ribbonDiv.addEventListener('dragleave', (e) => {
+                if (!ribbonDiv.contains(e.relatedTarget)) {
+                    ribbonDiv.classList.remove('drag-over');
+                    const placeholder = ribbonDiv.querySelector('.cropping-publication-item-placeholder');
+                    if (placeholder) placeholder.remove();
+                }
+            });
             ribbonDiv.addEventListener('drop', (e) => {
                 publicationFrame.onDrop(e);
                 // Plus besoin de setTimeout car refreshPublicationViews gère tout

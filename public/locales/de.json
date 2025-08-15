@@ -1,0 +1,126 @@
+{
+  "tabs": {
+    "galleries": "Galerien",
+    "currentGallery": "Sortierung",
+    "cropping": "Zuschneiden",
+    "description": "Beschreibung",
+    "calendar": "Kalender"
+  },
+  "buttons": {
+    "add": "Hinzufügen",
+    "addNewGallery": "Neue Galerie",
+    "addPhotos": "Fotos hinzufügen",
+    "settings": "Einstellungen",
+    "profile": "Profil",
+    "logout": "Abmelden",
+    "confirm": "OK",
+    "cancel": "X",
+    "today": "Heute",
+    "runAutoSchedule": "Planung ausführen",
+    "reorganizeAll": "Alles neu ordnen",
+    "downloadAll": "Alles herunterladen",
+    "generateHashtags": "🤖 Hashtags generieren",
+    "runAutomation": "Automatisierung ausführen",
+    "addNewPublication": "Publikation hinzufügen"
+  },
+  "labels": {
+    "sortBy": "Sortieren nach...",
+    "sortOptions": {
+      "name_asc": "Name (A-Z)",
+      "name_desc": "Name (Z-A)",
+      "date_desc": "Datum (Neueste)",
+      "date_asc": "Datum (Älteste)"
+    },
+    "galleryStats": "{{count}} Foto in der Galerie",
+    "galleryStats_plural": "{{count}} Fotos in der Galerie",
+    "noGalleryLoaded": "Keine Galerie geladen",
+    "publication": "Publikation {{letter}}",
+    "unscheduledPublications": "Ungeplante Publikationen",
+    "autoCropping": "Automatisches Zuschneiden",
+    "verticalPhotos": "Vertikale Fotos",
+    "horizontalPhotos": "Horizontale Fotos",
+    "publicationsOfGallery": "Galerie-Publikationen",
+    "overviewMode": "Übersicht",
+    "individualCropping": "Individuelles Zuschneiden",
+    "autoScheduling": "Automatische Planung",
+    "chronological": "Chronologisch",
+    "interlaced": "Chronologisch verschachtelt",
+    "random": "Zufällig",
+    "publish": "Veröffentlichen",
+    "every": "alle",
+    "days": "Tag(e)"
+  },
+  "placeholders": {
+    "newGalleryName": "Name der neuen Galerie",
+    "selectGalleryToPreview": "Wählen Sie eine Galerie zur Vorschau oder zum Laden aus.",
+    "addPhotosToStart": "Fotos hinzufügen, um zu beginnen",
+    "selectPublicationToCrop": "Wählen Sie eine Publikation zum Zuschneiden aus",
+    "selectPublicationToDescribe": "Wählen Sie eine Publikation zur Beschreibung aus",
+    "editorPlaceholder": "Schreiben Sie hier Ihre Beschreibung...",
+    "noPublicationSelected": "Keine Publikation ausgewählt.",
+    "croppingEditorPlaceholder": "Keine Publikation ausgewählt."
+  },
+  "tooltips": {
+    "zoomIn": "Vergrößern",
+    "zoomOut": "Verkleinern",
+    "previousImage": "Vorheriges Bild",
+    "nextImage": "Nächstes Bild",
+    "flipHorizontal": "Horizontal spiegeln",
+    "addWhiteBars": "Weiße Balken hinzufügen (3:4 Format)",
+    "splitImage": "Bild für Karussell teilen",
+    "deleteImage": "Löschen und zum nächsten",
+    "finishCropping": "Fertigstellen und Zuschnitte anwenden"
+  },
+  "settings": {
+    "title": "Einstellungen",
+    "language": "Sprache",
+    "clearCache": "Anwendungs-Cache leeren",
+    "accountAndHelp": "Konto & Hilfe",
+    "myProfile": "Mein Profil",
+    "documentation": "Dokumentation & Hilfe",
+    "about": "Über Publication Organizer"
+  },
+  "messages": {
+    "loading": "Laden...",
+    "loadingApp": "Anwendung wird initialisiert...",
+    "loadingGallery": "Galerie wird geladen...",
+    "confirmClearCache": "Sind Sie sicher, dass Sie den Cache leeren möchten? Ihre lokalen Einstellungen werden zurückgesetzt und die Seite wird neu geladen.",
+    "aboutText": "Publication Organizer v1.0.0\nEine Anwendung zur Vereinfachung Ihres kreativen Workflows.",
+    "maxPublicationsReached": "Maximale Anzahl von Publikationen erreicht (26).",
+    "connectedAs": "Verbunden als...",
+    "gridStats": "Raster: {{grid}} | Publikationen: {{publications}}",
+    "preview": "Vorschau",
+    "selectPublications": "Publikationen auswählen:",
+    "selectAll": "Alle",
+    "selectNone": "Keine",
+    "cropAll": "Alle zuschneiden",
+    "cropSelection": "Auswahl"
+  },
+  "cropping": {
+    "aspectRatios": {
+      "3:4": "3:4 (Vertikal)",
+      "1:1": "1:1 (Quadrat)",
+      "16:9": "16:9 (Landschaft)",
+      "3:2": "3:2 (Landschaft)",
+      "free": "Frei"
+    },
+    "treatments": {
+      "auto": "Auto-Zuschnitt",
+      "whitebars": "Weiße Balken",
+      "none": "Nichts tun"
+    }
+  },
+  "shortcuts": {
+    "photographer": "📸 Fotograf",
+    "designer_m": "🧵 Designer",
+    "designer_f": "🧵 Designerin",
+    "assistant_m": "✨ Assistent",
+    "assistant_f": "✨ Assistentin",
+    "makeup_m": "💄 Maskenbildner",
+    "makeup_f": "💄 Maskenbildnerin",
+    "hairdresser_m": "✂️ Friseur",
+    "hairdresser_f": "✂️ Friseurin",
+    "subject": "💃 Motiv(e)",
+    "location": "📍 Ort"
+  }
+}

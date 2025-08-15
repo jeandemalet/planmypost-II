@@ -1,0 +1,126 @@
+{
+  "tabs": {
+    "galleries": "ギャラリー",
+    "currentGallery": "並び替え",
+    "cropping": "トリミング",
+    "description": "説明",
+    "calendar": "カレンダー"
+  },
+  "buttons": {
+    "add": "追加",
+    "addNewGallery": "新しいギャラリー",
+    "addPhotos": "写真を追加",
+    "settings": "設定",
+    "profile": "プロフィール",
+    "logout": "ログアウト",
+    "confirm": "OK",
+    "cancel": "X",
+    "today": "今日",
+    "runAutoSchedule": "スケジュール実行",
+    "reorganizeAll": "すべて再整理",
+    "downloadAll": "すべてダウンロード",
+    "generateHashtags": "🤖 ハッシュタグ生成",
+    "runAutomation": "自動化実行",
+    "addNewPublication": "投稿を追加"
+  },
+  "labels": {
+    "sortBy": "並び替え...",
+    "sortOptions": {
+      "name_asc": "名前 (A-Z)",
+      "name_desc": "名前 (Z-A)",
+      "date_desc": "日付 (新しい順)",
+      "date_asc": "日付 (古い順)"
+    },
+    "galleryStats": "ギャラリーに{{count}}枚の写真",
+    "galleryStats_plural": "ギャラリーに{{count}}枚の写真",
+    "noGalleryLoaded": "ギャラリーが読み込まれていません",
+    "publication": "投稿 {{letter}}",
+    "unscheduledPublications": "未スケジュール投稿",
+    "autoCropping": "自動トリミング",
+    "verticalPhotos": "縦写真",
+    "horizontalPhotos": "横写真",
+    "publicationsOfGallery": "ギャラリーの投稿",
+    "overviewMode": "概要",
+    "individualCropping": "個別トリミング",
+    "autoScheduling": "自動スケジューリング",
+    "chronological": "時系列",
+    "interlaced": "時系列インターリーブ",
+    "random": "ランダム",
+    "publish": "投稿",
+    "every": "毎",
+    "days": "日"
+  },
+  "placeholders": {
+    "newGalleryName": "新しいギャラリーの名前",
+    "selectGalleryToPreview": "プレビューまたは読み込むギャラリーを選択してください。",
+    "addPhotosToStart": "写真を追加して開始",
+    "selectPublicationToCrop": "トリミングする投稿を選択",
+    "selectPublicationToDescribe": "説明を編集する投稿を選択",
+    "editorPlaceholder": "ここに説明を書いてください...",
+    "noPublicationSelected": "投稿が選択されていません。",
+    "croppingEditorPlaceholder": "投稿が選択されていません。"
+  },
+  "tooltips": {
+    "zoomIn": "拡大",
+    "zoomOut": "縮小",
+    "previousImage": "前の画像",
+    "nextImage": "次の画像",
+    "flipHorizontal": "水平反転",
+    "addWhiteBars": "白いバーを追加 (3:4フォーマット)",
+    "splitImage": "カルーセル用に画像を分割",
+    "deleteImage": "削除して次へ",
+    "finishCropping": "完了してトリミングを適用"
+  },
+  "settings": {
+    "title": "設定",
+    "language": "言語",
+    "clearCache": "アプリケーションキャッシュをクリア",
+    "accountAndHelp": "アカウントとヘルプ",
+    "myProfile": "マイプロフィール",
+    "documentation": "ドキュメントとヘルプ",
+    "about": "Publication Organizerについて"
+  },
+  "messages": {
+    "loading": "読み込み中...",
+    "loadingApp": "アプリケーションを初期化中...",
+    "loadingGallery": "ギャラリーを読み込み中...",
+    "confirmClearCache": "キャッシュをクリアしてもよろしいですか？ローカル設定がリセットされ、ページが再読み込みされます。",
+    "aboutText": "Publication Organizer v1.0.0\nクリエイティブワークフローを簡素化するアプリケーション。",
+    "maxPublicationsReached": "投稿の最大数に達しました (26)。",
+    "connectedAs": "接続中...",
+    "gridStats": "グリッド: {{grid}} | 投稿: {{publications}}",
+    "preview": "プレビュー",
+    "selectPublications": "投稿を選択:",
+    "selectAll": "すべて",
+    "selectNone": "なし",
+    "cropAll": "すべてトリミング",
+    "cropSelection": "選択"
+  },
+  "cropping": {
+    "aspectRatios": {
+      "3:4": "3:4 (縦)",
+      "1:1": "1:1 (正方形)",
+      "16:9": "16:9 (横)",
+      "3:2": "3:2 (横)",
+      "free": "自由"
+    },
+    "treatments": {
+      "auto": "自動トリミング",
+      "whitebars": "白いバー",
+      "none": "何もしない"
+    }
+  },
+  "shortcuts": {
+    "photographer": "📸 写真家",
+    "designer_m": "🧵 デザイナー",
+    "designer_f": "🧵 デザイナー",
+    "assistant_m": "✨ アシスタント",
+    "assistant_f": "✨ アシスタント",
+    "makeup_m": "💄 メイクアップアーティスト",
+    "makeup_f": "💄 メイクアップアーティスト",
+    "hairdresser_m": "✂️ ヘアスタイリスト",
+    "hairdresser_f": "✂️ ヘアスタイリスト",
+    "subject": "💃 被写体",
+    "location": "📍 場所"
+  }
+}
