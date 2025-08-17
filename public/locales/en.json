@@ -23,6 +23,15 @@
     "runAutomation": "Run automation",
     "addNewPublication": "Add Publication"
   },
+  "gallery": {
+    "createNew": "Create new gallery",
+    "editGallery": "Edit gallery",
+    "deleteGallery": "Delete gallery",
+    "galleryName": "Gallery name",
+    "galleryDescription": "Gallery description",
+    "emptyGallery": "This gallery is empty",
+    "addPhotos": "Add photos"
+  },
   "labels": {
     "sortBy": "Sort by...",
     "sortOptions": {
@@ -73,6 +82,7 @@
   },
   "settings": {
     "title": "Settings",
+    "language": "Language",
     "clearCache": "Clear application cache",
     "switchTo": "Switch to French",
     "accountAndHelp": "Account & Help",

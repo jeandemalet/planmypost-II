@@ -110,6 +110,15 @@
       "none": "Nichts tun"
     }
   },
+  "gallery": {
+    "createNew": "Neue Galerie erstellen",
+    "editGallery": "Galerie bearbeiten",
+    "deleteGallery": "Galerie löschen",
+    "galleryName": "Galeriename",
+    "galleryDescription": "Galeriebeschreibung",
+    "emptyGallery": "Diese Galerie ist leer",
+    "addPhotos": "Fotos hinzufügen"
+  },
   "shortcuts": {
     "photographer": "📸 Fotograf",
     "designer_m": "🧵 Designer",

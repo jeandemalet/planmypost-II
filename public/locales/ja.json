@@ -110,6 +110,15 @@
       "none": "何もしない"
     }
   },
+  "gallery": {
+    "createNew": "新しいギャラリーを作成",
+    "editGallery": "ギャラリーを編集",
+    "deleteGallery": "ギャラリーを削除",
+    "galleryName": "ギャラリー名",
+    "galleryDescription": "ギャラリーの説明",
+    "emptyGallery": "このギャラリーは空です",
+    "addPhotos": "写真を追加"
+  },
   "shortcuts": {
     "photographer": "📸 写真家",
     "designer_m": "🧵 デザイナー",

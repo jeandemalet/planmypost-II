@@ -23,6 +23,15 @@
     "runAutomation": "Lancer l'automatisation",
     "addNewPublication": "Ajouter Publication"
   },
+  "gallery": {
+    "createNew": "Créer une nouvelle galerie",
+    "editGallery": "Modifier la galerie",
+    "deleteGallery": "Supprimer la galerie",
+    "galleryName": "Nom de la galerie",
+    "galleryDescription": "Description de la galerie",
+    "emptyGallery": "Cette galerie est vide",
+    "addPhotos": "Ajouter des photos"
+  },
   "labels": {
     "sortBy": "Trier par...",
     "sortOptions": {
@@ -73,6 +82,7 @@
   },
   "settings": {
     "title": "Paramètres",
+    "language": "Langue",
     "clearCache": "Vider le cache de l'application",
     "switchTo": "Passer en Anglais",
     "accountAndHelp": "Compte & Aide",

@@ -110,6 +110,15 @@
       "none": "Non fare nulla"
     }
   },
+  "gallery": {
+    "createNew": "Crea nuova galleria",
+    "editGallery": "Modifica galleria",
+    "deleteGallery": "Elimina galleria",
+    "galleryName": "Nome della galleria",
+    "galleryDescription": "Descrizione della galleria",
+    "emptyGallery": "Questa galleria è vuota",
+    "addPhotos": "Aggiungi foto"
+  },
   "shortcuts": {
     "photographer": "📸 Fotografo",
     "designer_m": "🧵 Stilista",

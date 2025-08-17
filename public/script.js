@@ -995,7 +995,7 @@ class AutoCropper {
             imageCount.textContent = publicationFrame.imagesData.length;
 
             label.appendChild(colorIndicator);
-            label.appendChild(jourName);
+            label.appendChild(publicationName);
             label.appendChild(imageCount);
 
             item.appendChild(checkbox);
@@ -1611,7 +1611,6 @@ class CroppingManager {
             this.currentImageIndex = startIndex;
             this.modifiedDataMap = {};
             this.saveMode = 'crop';
-            this.croppingPage.showEditor();
             this.setCanvasDimensions();
             this.isDragging = false;
             this.dragMode = null;
@@ -3464,9 +3463,15 @@ class PublicationOrganizer {
                     if (publicationA) this.setCurrentPublicationFrame(publicationA);
                 }
             } else if (tabId === 'cropping') {
-                if (this.currentGalleryId && this.croppingPage) {
-                    // Initialiser la vue groupée par défaut
-                    this.croppingPage.switchToGroupedView();
+                if (this.currentGalleryId) {
+                    // Double protection : requestAnimationFrame + vérification que les styles sont appliqués
+                    requestAnimationFrame(() => {
+                        this.croppingPage.show();
+                        // Attendre un peu plus si nécessaire pour que les styles CSS soient complètement appliqués
+                        setTimeout(() => {
+                            this.croppingPage.croppingManager.refreshLayout();
+                        }, 10);
+                    });
                 }
             } else if (tabId === 'description') {
                 if (!this.descriptionManager) this.descriptionManager = new DescriptionManager(this);
@@ -5407,104 +5412,193 @@ class HashtagManager {
 // CLASSE POUR LA GESTION DE L'ONGLET RECADRAGE INTERACTIF
 // ========================================================
 
+// REMPLACEZ VOTRE CLASSE CroppingPage EXISTANTE PAR CELLE-CI  
 class CroppingPage {
     constructor(organizerApp) {
         this.organizerApp = organizerApp;
+        
+        // Références aux éléments DOM
+        this.jourListElement = document.getElementById('croppingPublicationList');
+        this.editorContainerElement = document.getElementById('croppingEditorContainer');
+        this.editorPanelElement = document.getElementById('croppingEditorPanel');
+        this.editorPlaceholderElement = document.getElementById('croppingEditorPlaceholder');
+        this.editorTitleElement = document.getElementById('croppingEditorTitle');
+        this.thumbnailStripElement = document.getElementById('croppingThumbnailStrip');
+        
+        // Nouveaux éléments pour la gestion des vues
+        this.switchToGroupedViewBtn = document.getElementById('switchToGroupedViewBtn');
+        this.switchToEditorViewBtn = document.getElementById('switchToEditorViewBtn');
         this.allPhotosGroupedViewContainer = document.getElementById('allPhotosGroupedViewContainer');
+        this.autoCropSidebar = document.getElementById('autoCropSidebar');
         
-        // Initialisation des événements pour les boutons de vue
-        this.initViewModeButtons();
+        // Initialisation des gestionnaires
+        this.croppingManager = new CroppingManager(this.organizerApp, this);
+        this.autoCropper = new AutoCropper(this.organizerApp, this);
+        
+        // État interne
+        this.currentSelectedPublicationFrame = null;
+        this.isGroupedViewActive = true; // La vue groupée est active par défaut
+        
+        this._initListeners();
     }
     
-    initViewModeButtons() {
-        const groupedViewBtn = document.getElementById('switchToGroupedViewBtn');
-        const editorViewBtn = document.getElementById('switchToEditorViewBtn');
+    _initListeners() {
+        // Clic sur un élément de la liste des publications
+        this.jourListElement.addEventListener('click', (e) => {
+            const li = e.target.closest('li');
+            if (!li || !li.dataset.publicationId) return;
+            const publicationFrame = this.organizerApp.publicationFrames.find(jf => jf.id === li.dataset.publicationId);
+            if (publicationFrame) {
+                // Si on clique sur une publication, on passe en mode éditeur pour celle-ci
+                this.switchToEditorView(publicationFrame);
+            }
+        });
         
-        if (groupedViewBtn) {
-            groupedViewBtn.addEventListener('click', () => {
-                this.switchToGroupedView();
-            });
-        }
-        
-        if (editorViewBtn) {
-            editorViewBtn.addEventListener('click', () => {
-                this.switchToEditorView();
-            });
-        }
+        // Clic sur les boutons de changement de vue
+        this.switchToGroupedViewBtn.addEventListener('click', () => this.switchToGroupedView());
+        this.switchToEditorViewBtn.addEventListener('click', () => {
+            // Si aucune publication n'est sélectionnée, on prend la première
+            const targetPublication = this.currentSelectedPublicationFrame || this.organizerApp.publicationFrames[0];
+            if (targetPublication) {
+                this.switchToEditorView(targetPublication);
+            } else {
+                alert("Veuillez d'abord créer une publication dans l'onglet 'Tri'.");
+            }
+        });
     }
     
-    switchToGroupedView() {
-        // Mise à jour des boutons
-        document.getElementById('switchToGroupedViewBtn').classList.add('active');
-        document.getElementById('switchToEditorViewBtn').classList.remove('active');
-        
-        // Affichage des conteneurs
-        this.allPhotosGroupedViewContainer.style.display = 'block';
-        document.getElementById('croppingEditorPanel').style.display = 'none';
-        document.getElementById('croppingEditorPlaceholder').style.display = 'none';
-        
-        // Rendu de la vue groupée interactive
-        this.renderAllPhotosGroupedView();
-    }
-    
-    switchToEditorView() {
-        // Mise à jour des boutons
-        document.getElementById('switchToGroupedViewBtn').classList.remove('active');
-        document.getElementById('switchToEditorViewBtn').classList.add('active');
-        
-        // Affichage des conteneurs
-        this.allPhotosGroupedViewContainer.style.display = 'none';
-        document.getElementById('croppingEditorPanel').style.display = 'block';
-        document.getElementById('croppingEditorPlaceholder').style.display = 'block';
-    }
-
+    // Affiche l'onglet (appelé lors du changement de tab)
     show() {
-        // Refresh the cropping page view when shown
+        if (!this.organizerApp.currentGalleryId) {
+            this.jourListElement.innerHTML = '<li>Chargez une galerie pour commencer.</li>';
+            this.clearEditor();
+            return;
+        }
+        this.populateJourList();
+        // Affiche la vue groupée par défaut à chaque fois qu'on active l'onglet
+        this.switchToGroupedView();
+    }
+    
+    // Met à jour la liste des publications à gauche
+    populateJourList() {
+        const activeId = this.isGroupedViewActive ? null : (this.currentSelectedPublicationFrame ? this.currentSelectedPublicationFrame.id : null);
+        this.organizerApp._populateSharedJourList(this.jourListElement, activeId, 'cropping');
+    }
+    
+    // Passe à la VUE GROUPÉE
+    async switchToGroupedView() {
+        this.isGroupedViewActive = true;
+        
+        // Si on quitte l'éditeur, on s'assure de sauvegarder les changements en cours
+        if (this.croppingManager && this.croppingManager.currentImageIndex > -1 && !this.croppingManager.ignoreSaveForThisImage) {
+            await this.croppingManager.finishAndApply();
+        }
+        
+        this.currentSelectedPublicationFrame = null;
+        this.populateJourList();
+        
+        // Mise à jour des boutons et des panneaux
+        this.switchToGroupedViewBtn.classList.add('active');
+        this.switchToEditorViewBtn.classList.remove('active');
+        this.allPhotosGroupedViewContainer.style.display = 'block';
+        this.autoCropSidebar.style.display = 'block';
+        this.editorPanelElement.style.display = 'none';
+        this.editorPlaceholderElement.style.display = 'none';
+        this.editorTitleElement.textContent = "Vue d'ensemble des publications";
+        
         this.renderAllPhotosGroupedView();
     }
-
+    
+    // Passe à la VUE ÉDITEUR pour une publication spécifique
+    switchToEditorView(publicationFrame, imageIndex = 0) {
+        this.isGroupedViewActive = false;
+        this.currentSelectedPublicationFrame = publicationFrame;
+        this.populateJourList();
+        
+        // Mise à jour des boutons et des panneaux
+        this.switchToGroupedViewBtn.classList.remove('active');
+        this.switchToEditorViewBtn.classList.add('active');
+        this.allPhotosGroupedViewContainer.style.display = 'none';
+        this.autoCropSidebar.style.display = 'none';
+        
+        if (publicationFrame && publicationFrame.imagesData.length > 0) {
+            this.editorPanelElement.style.display = 'flex';
+            this.editorPlaceholderElement.style.display = 'none';
+            this.editorTitleElement.textContent = `Recadrage pour Publication ${publicationFrame.letter}`;
+            // Lancement du recadrage
+            this.startCroppingForJour(publicationFrame, imageIndex);
+        } else {
+            this.clearEditor();
+            this.editorTitleElement.textContent = `Publication ${publicationFrame.letter}`;
+            this.editorPlaceholderElement.textContent = `Cette publication est vide. Ajoutez des images depuis l'onglet "Tri".`;
+        }
+    }
+    
+    // Logique pour lancer le recadrage manuel
+    async startCroppingForJour(publicationFrame, startIndex = 0) {
+        const imageInfosForCropper = publicationFrame.imagesData.map(imgDataInPublication => {
+            const currentGridItem = this.organizerApp.gridItemsDict[imgDataInPublication.imageId];
+            if (!currentGridItem) return null;
+            const originalImageId = currentGridItem.parentImageId || currentGridItem.id;
+            const originalGridItem = this.organizerApp.gridItemsDict[originalImageId];
+            if (!originalGridItem) return null;
+            return {
+                pathForCropper: currentGridItem.id, // ID unique pour le cropper
+                dataURL: imgDataInPublication.dataURL,
+                originalReferenceId: originalImageId,
+                baseImageToCropFromDataURL: originalGridItem.imagePath,
+                currentImageId: currentGridItem.id
+            };
+        }).filter(info => info !== null);
+        
+        if (imageInfosForCropper.length === 0) {
+            this.clearEditor();
+            return;
+        }
+        
+        await this.croppingManager.startCropping(imageInfosForCropper, publicationFrame, startIndex);
+        this._populateThumbnailStrip(publicationFrame);
+        this._updateThumbnailStripHighlight(this.croppingManager.currentImageIndex);
+    }
+    
+    // La vue groupée reste interactive
     renderAllPhotosGroupedView() {
         const container = this.allPhotosGroupedViewContainer;
         container.innerHTML = '';
         const app = this.organizerApp;
-
+        
         if (!app.publicationFrames || app.publicationFrames.length === 0) {
-            container.innerHTML = '<p class="sidebar-info" style="text-align: center; padding: 20px;">Créez des publications dans l\'onglet "Tri" pour les voir ici.</p>';
+            container.innerHTML = '<p class="sidebar-info">Créez des publications dans l\'onglet "Tri".</p>';
             return;
         }
-
-        app.publicationFrames.forEach(publicationFrame => {
+        
+        app.publicationFrames.forEach((publicationFrame, pubIndex) => {
             const groupDiv = document.createElement('div');
             groupDiv.className = 'publication-group-container';
-
+            
             const header = document.createElement('h4');
             header.className = 'publication-group-header';
             header.textContent = `Publication ${publicationFrame.letter}`;
             groupDiv.appendChild(header);
-
+            
             const ribbonDiv = document.createElement('div');
             ribbonDiv.className = 'cropping-publication-ribbon';
             ribbonDiv.dataset.publicationId = publicationFrame.id;
-
-            // **Logique de Dépôt (Drop) Indépendante**
+            
+            // Écouteurs pour le survol
             ribbonDiv.addEventListener('dragover', (e) => {
                 e.preventDefault();
                 e.dataTransfer.dropEffect = 'move';
                 ribbonDiv.classList.add('drag-over');
-
-                // Création d'un placeholder dynamique avec la bonne taille
                 const placeholder = document.createElement('div');
-                placeholder.className = 'cropping-publication-item-placeholder'; // <- Classe pour la GRANDE taille
-
+                placeholder.className = 'cropping-publication-item-placeholder';
                 const afterElement = publicationFrame.getDragAfterElement(ribbonDiv, e.clientX);
-
                 const oldPlaceholder = ribbonDiv.querySelector('.cropping-publication-item-placeholder');
                 if (oldPlaceholder) oldPlaceholder.remove();
-
-                if (afterElement == null) {
-                    ribbonDiv.appendChild(placeholder);
-                } else {
+                if (afterElement) {
                     ribbonDiv.insertBefore(placeholder, afterElement);
+                } else {
+                    ribbonDiv.appendChild(placeholder);
                 }
             });
             ribbonDiv.addEventListener('dragleave', (e) => {
@@ -5514,55 +5608,66 @@ class CroppingPage {
                     if (placeholder) placeholder.remove();
                 }
             });
-            ribbonDiv.addEventListener('drop', (e) => {
-                publicationFrame.onDrop(e);
-                // Plus besoin de setTimeout car refreshPublicationViews gère tout
-            });
-
+            // Écouteur pour le dépôt
+            ribbonDiv.addEventListener('drop', (e) => publicationFrame.onDrop(e));
+            
             if (publicationFrame.imagesData.length === 0) {
                 ribbonDiv.innerHTML = '<p class="publication-group-empty-text">Cette publication est vide.</p>';
             } else {
-                publicationFrame.imagesData.forEach(imgData => {
-                    // **Création d'un élément DOM SÉPARÉ et plus grand**
-                    const itemElement = document.createElement('div');
-                    itemElement.className = 'cropping-publication-item'; // Classe CSS spécifique pour le recadrage
-                    itemElement.style.backgroundImage = `url(${imgData.dataURL})`;
-                    itemElement.draggable = true;
-                    itemElement.dataset.imageId = imgData.imageId;
-
-                    // **Logique de Glisser (Drag) Indépendante**
-                    itemElement.addEventListener('dragstart', (e) => {
-                        e.target.classList.add('dragging-publication-item');
-                        e.dataTransfer.setData("application/json", JSON.stringify({
-                            sourceType: 'publication',
-                            sourcePublicationId: publicationFrame.id,
-                            imageId: imgData.imageId,
-                        }));
-                        e.dataTransfer.effectAllowed = "move";
+                publicationFrame.imagesData.forEach((imgData, imgIndex) => {
+                    const itemElement = publicationFrame.createPublicationItemElement(imgData);
+                    itemElement.classList.remove('publication-image-item'); // Enlève la classe de "Tri"
+                    itemElement.classList.add('cropping-publication-item'); // Ajoute la classe de "Recadrage"
+                    
+                    // NOUVEAU : Clic pour passer en mode édition sur cette image
+                    itemElement.addEventListener('click', () => {
+                        this.switchToEditorView(publicationFrame, imgIndex);
                     });
-
-                    itemElement.addEventListener('dragend', (e) => {
-                        e.target.classList.remove('dragging-publication-item');
-                        // La synchronisation se fait maintenant via le `drop` sur le ruban de destination
-                    });
-
-                    // **Bouton de suppression avec rafraîchissement local**
-                    const deleteBtn = document.createElement('span');
-                    deleteBtn.className = 'delete-btn';
-                    deleteBtn.innerHTML = '×';
-                    deleteBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        publicationFrame.removeImageById(imgData.imageId);
-                        this.renderAllPhotosGroupedView(); // Rafraîchit cette vue
-                    };
-                    itemElement.appendChild(deleteBtn);
-
+                    
                     ribbonDiv.appendChild(itemElement);
                 });
             }
-                    
             groupDiv.appendChild(ribbonDiv);
             container.appendChild(groupDiv);
         });
+    }
+    
+    // Bande de vignettes pour le recadrage manuel
+    _populateThumbnailStrip(publicationFrame) {
+        this.thumbnailStripElement.innerHTML = '';
+        publicationFrame.imagesData.forEach((imgData, index) => {
+            const thumbDiv = document.createElement('div');
+            thumbDiv.className = 'crop-strip-thumb';
+            thumbDiv.style.backgroundImage = `url(${imgData.dataURL})`;
+            thumbDiv.dataset.index = index;
+            thumbDiv.addEventListener('click', () => {
+                this.croppingManager.goToImage(index);
+            });
+            this.thumbnailStripElement.appendChild(thumbDiv);
+        });
+    }
+    
+    // Met en surbrillance la vignette active
+    _updateThumbnailStripHighlight(activeIndex) {
+        const thumbs = this.thumbnailStripElement.querySelectorAll('.crop-strip-thumb');
+        thumbs.forEach((thumb, index) => {
+            thumb.classList.toggle('active-crop-thumb', index === activeIndex);
+            if (index === activeIndex) {
+                thumb.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+            }
+        });
+    }
+    
+    // Nettoie l'éditeur
+    clearEditor() {
+        this.editorPanelElement.style.display = 'none';
+        this.editorPlaceholderElement.style.display = 'block';
+        this.editorPlaceholderElement.textContent = "Sélectionnez une publication pour la recadrer.";
+        this.editorTitleElement.textContent = "Recadrage";
+        this.thumbnailStripElement.innerHTML = '';
+        if (this.currentSelectedPublicationFrame) {
+            this.currentSelectedPublicationFrame = null;
+            this.populateJourList();
+        }
     }
 }
