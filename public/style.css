@@ -3554,8 +3554,9 @@ lder pour la vue de recadrage (grande taille) */
     border: 2px dashed #2196f3;
     border-radius: 6px;
     flex-shrink: 0;
-}/* ---
- STYLES POUR LE SOUS-MENU DE LANGUES --- */
+}
+
+/* --- STYLES POUR LE SOUS-MENU DE LANGUES --- */
 .dropdown-submenu-container {
     position: relative;
 }

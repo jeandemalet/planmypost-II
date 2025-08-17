@@ -3032,30 +3032,49 @@ class CalendarPage {
         // --- FIN DE LA NOUVELLE LOGIQUE ---
     }
 
-    // ▼▼▼ REMPLACEZ COMPLÈTEMENT VOTRE ANCIENNE FONCTION loadCalendarThumb PAR CELLE-CI ▼▼▼
+    // NOUVELLE VERSION CORRIGÉE de loadCalendarThumb
     async loadCalendarThumb(thumbElement, jourLetter, galleryIdForJour) {
+        // --- LOGIQUE HYBRIDE ---
+
+        // 1. SI la publication appartient à la GALERIE ACTUELLEMENT CHARGÉE
+        if (galleryIdForJour === this.organizerApp.currentGalleryId) {
+            // On utilise les données "en direct" de l'application, qui sont toujours à jour.
+            const publicationFrame = this.organizerApp.publicationFrames.find(pf => pf.letter === jourLetter);
+
+            if (publicationFrame && publicationFrame.imagesData.length > 0) {
+                // On prend la première image de la publication, c'est la source la plus fiable.
+                const firstImage = publicationFrame.imagesData[0];
+                thumbElement.style.backgroundImage = `url(${firstImage.dataURL})`;
+                thumbElement.textContent = "";
+            } else {
+                // La publication est vide, c'est normal de ne pas avoir de vignette.
+                thumbElement.style.backgroundImage = 'none';
+                thumbElement.textContent = "N/A";
+            }
+            return;
+        }
+
+        // 2. SINON (pour toutes les autres galeries)
+        // On utilise les données "snapshot" chargées initialement.
         const allUserPublications = this.organizerApp.scheduleContext.allUserPublications;
         if (!allUserPublications) {
             thumbElement.textContent = "?";
             return;
         }
 
-        // On cherche le publication correspondant dans la liste de TOUS les publications de l'utilisateur
         const publicationData = allUserPublications.find(j => j.letter === jourLetter && j.galleryId === galleryIdForJour);
 
         if (publicationData && publicationData.firstImageThumbnail) {
-            // On a trouvé le publication et il a une miniature !
             const thumbFilename = Utils.getFilenameFromURL(publicationData.firstImageThumbnail);
             const thumbUrl = `${BASE_API_URL}/api/uploads/${publicationData.galleryId}/${thumbFilename}`;
             thumbElement.style.backgroundImage = `url(${thumbUrl})`;
-            thumbElement.textContent = ""; // On s'assure de vider le texte
+            thumbElement.textContent = "";
         } else {
-            // Le publication est vide ou n'a pas été trouvé (sécurité)
+            // La publication (d'une autre galerie) est vide ou introuvable.
             thumbElement.style.backgroundImage = 'none';
             thumbElement.textContent = "N/A";
         }
     }
-    // ▲▲▲ FIN DU REMPLACEMENT ▲▲▲
 
     _onDragStart(event, dragPayload, itemElement) {
         this.dragData = dragPayload;
@@ -3335,6 +3354,7 @@ class CalendarPage {
 class PublicationOrganizer {
     constructor() {
         this.currentGalleryId = null;
+        this.displayedGalleryId = null; // Galerie actuellement affichée dans les onglets principaux
         this.currentThumbSize = { width: 200, height: 200 };
         this.minThumbSize = { width: 50, height: 50 };
         this.maxThumbSize = { width: 300, height: 300 };
@@ -3441,6 +3461,18 @@ class PublicationOrganizer {
         if (currentActiveTab && currentActiveTab.id === 'description' && tabId !== 'description' && this.descriptionManager) {
             await this.descriptionManager.saveOnTabExit();
         }
+
+        // --- NOUVELLE LOGIQUE DE CHARGEMENT INTELLIGENT ---
+        // Si on va vers un onglet principal ET que la galerie sélectionnée 
+        // n'est pas celle qui est déjà affichée...
+        const mainTabs = ['currentGallery', 'cropping', 'description', 'calendar'];
+        if (mainTabs.includes(tabId) && this.currentGalleryId !== this.displayedGalleryId) {
+            // ... alors on lance le chargement complet des données avant de continuer.
+            await this.loadState();
+            // Pas besoin d'aller plus loin, car loadState() rappelle déjà activateTab à la fin.
+            return;
+        }
+        // --- FIN DE LA NOUVELLE LOGIQUE ---
 
         // Gestion des onglets
         this.tabs.forEach(t => t.classList.remove('active'));
@@ -3594,6 +3626,9 @@ class PublicationOrganizer {
                 }
             });
         }
+
+        // NOUVEAU : Déclencher le nettoyage automatique à la fermeture de la page
+        window.addEventListener('beforeunload', () => this.cleanupAndResequenceOnExit());
     }
 
     _populateSharedJourList(listElement, activeJourId, listType, showCheckboxes = false) {
@@ -3814,7 +3849,17 @@ class PublicationOrganizer {
                     nameSpan.appendChild(countSpan);
                 }
                 nameSpan.onclick = () => {
+                    // 1. Mettre à jour la galerie active "en attente"
+                    this.currentGalleryId = gallery._id;
+                    localStorage.setItem('publicationOrganizer_lastGalleryId', this.currentGalleryId);
+
+                    // 2. Simplement rafraîchir l'aperçu
                     this.showGalleryPreview(gallery._id, gallery.name);
+
+                    // 3. Mettre à jour le nom dans la barre de l'onglet "Tri" pour la cohérence
+                    if (this.currentGalleryNameDisplay) {
+                        this.currentGalleryNameDisplay.textContent = this.getCurrentGalleryName();
+                    }
                 };
                 const actionsDiv = document.createElement('div');
                 actionsDiv.className = 'gallery-actions';
@@ -3881,7 +3926,8 @@ class PublicationOrganizer {
             // NOUVEAU : Récupère la valeur de tri et l'ajoute à l'URL
             const sortValue = document.getElementById('galleryPreviewSortOptions').value;
             // Note: L'endpoint API doit être capable de gérer ce paramètre de tri
-            const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryId}/images?sort=${sortValue}&limit=50`);
+            // --- MODIFICATION PRINCIPALE : Le "&limit=50" a été supprimé ---
+            const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryId}/images?sort=${sortValue}`);
             
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
             
@@ -3920,13 +3966,8 @@ class PublicationOrganizer {
                     this.galleryPreviewGridElement.appendChild(itemDiv);
                 });
 
-                if (imagesResult.total > imagesToDisplay.length) {
-                    const paginationInfo = document.createElement('div');
-                    paginationInfo.className = 'gallery-preview-pagination-info';
-                    paginationInfo.style.cssText = `text-align: center; padding: 10px; font-size: 0.9em; color: #666; border-top: 1px solid #eee; margin-top: 10px; grid-column: 1 / -1;`;
-                    paginationInfo.textContent = `Affichage de ${imagesToDisplay.length} sur ${imagesResult.total} images`;
-                    this.galleryPreviewGridElement.appendChild(paginationInfo);
-                }
+                // --- SUPPRESSION : Le texte de pagination n'est plus nécessaire ---
+                // (Toutes les images sont maintenant affichées)
             } else {
                 // Afficher un simple message informatif au lieu d'un bouton redondant
                 const emptyMessage = document.createElement('p');
@@ -4297,6 +4338,7 @@ class PublicationOrganizer {
             this.updateUIToNoGalleryState();
             if (this.croppingPage && this.croppingPage.autoCropper) { this.croppingPage.autoCropper.refreshJourSelection(); }
             this.activateTab(galleryState.activeTab || 'currentGallery');
+            this.displayedGalleryId = this.currentGalleryId; // Marquer cette galerie comme affichée
 
         } catch (error) {
             console.error("Erreur critique lors du chargement de l'état de la galerie:", error);
@@ -5004,6 +5046,29 @@ class PublicationOrganizer {
             if (this.croppingPage && this.croppingPage.autoCropper) {
                 this.croppingPage.autoCropper.refreshJourSelection();
             }
+        }
+    }
+
+    /**
+     * Déclenche le processus de nettoyage et de ré-indexation côté serveur
+     * avant que l'utilisateur ne quitte la page.
+     */
+    cleanupAndResequenceOnExit() {
+        if (!this.currentGalleryId) {
+            return;
+        }
+
+        // L'URL de notre nouvelle route POST
+        const url = `${BASE_API_URL}/api/galleries/${this.currentGalleryId}/publications/cleanup`;
+
+        // On utilise sendBeacon sans corps de requête. La simple notification suffit.
+        // Le serveur a toutes les informations dont il a besoin avec le galleryId dans l'URL.
+        if (navigator.sendBeacon) {
+            console.log('[Cleanup] Notification de nettoyage envoyée au serveur...');
+            navigator.sendBeacon(url);
+        } else {
+            // Fallback pour les très vieux navigateurs (rarement nécessaire)
+            fetch(url, { method: 'POST', keepalive: true }).catch(() => {});
         }
     }
 

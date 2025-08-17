@@ -285,3 +285,73 @@ exports.exportPublicationImagesAsZip = async (req, res) => {
         }
     }
 };
+/*
+*
+ * Ré-indexe les publications d'une galerie.
+ * Supprime les publications vides et compacte la séquence des publications restantes.
+ */
+exports.cleanupAndResequence = async (req, res) => {
+    const { galleryId } = req.params;
+
+    try {
+        // 1. Récupérer TOUTES les publications de la galerie, triées par leur index actuel.
+        const allPublications = await Publication.find({ galleryId }).sort({ index: 'asc' }).lean();
+
+        if (allPublications.length === 0) {
+            return res.status(200).json({ message: 'Aucune publication à nettoyer.' });
+        }
+
+        // 2. Séparer les publications pleines et vides.
+        const fullPublications = [];
+        const idsToDelete = [];
+        allPublications.forEach(pub => {
+            if (pub.images && pub.images.length > 0) {
+                fullPublications.push(pub);
+            } else {
+                idsToDelete.push(pub._id);
+            }
+        });
+
+        // 3. Préparer le plan de ré-indexation pour les publications pleines.
+        const operations = [];
+        let needsUpdate = false;
+        fullPublications.forEach((pub, newIndex) => {
+            const newLetter = String.fromCharCode('A'.charCodeAt(0) + newIndex);
+            // On ne met à jour que si c'est strictement nécessaire.
+            if (pub.letter !== newLetter || pub.index !== newIndex) {
+                needsUpdate = true;
+                operations.push({
+                    updateOne: {
+                        filter: { _id: pub._id },
+                        update: { $set: { letter: newLetter, index: newIndex } }
+                    }
+                });
+            }
+        });
+
+        // 4. Exécuter les opérations sur la base de données.
+        if (needsUpdate) {
+            await Publication.bulkWrite(operations, { ordered: false });
+        }
+
+        if (idsToDelete.length > 0) {
+            await Publication.deleteMany({ _id: { $in: idsToDelete } });
+        }
+
+        // 5. Mettre à jour l'index de la prochaine publication dans la galerie.
+        if (needsUpdate || idsToDelete.length > 0) {
+            const gallery = await Gallery.findById(galleryId);
+            if (gallery) {
+                gallery.nextJourIndex = fullPublications.length;
+                await gallery.save();
+            }
+        }
+
+        console.log(`[Cleanup] Nettoyage terminé pour la galerie ${galleryId}: ${operations.length} mises à jour, ${idsToDelete.length} suppressions`);
+        res.status(200).json({ message: 'Nettoyage et ré-indexation terminés.' });
+
+    } catch (error) {
+        console.error("Erreur lors du nettoyage et de la ré-indexation:", error);
+        res.status(500).json({ message: 'Erreur serveur lors du nettoyage.' });
+    }
+};

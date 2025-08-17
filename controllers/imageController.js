@@ -179,27 +179,38 @@ exports.uploadImages = async (req, res) => {
 
 exports.getImagesForGallery = async (req, res) => {
     const galleryId = req.params.galleryId;
+    
+    // Détecter si une pagination est demandée
+    const usePagination = req.query.limit || req.query.page;
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
+    const limit = parseInt(req.query.limit) || 50; // La limite par défaut s'applique uniquement si la pagination est utilisée
     const skip = (page - 1) * limit;
 
     try {
+        let query = Image.find({ galleryId: galleryId, isCroppedVersion: { $ne: true } })
+            .sort({ uploadDate: 1 })
+            .select('-__v -mimeType -size') // Exclure des champs inutiles
+            .lean(); // Utilisation de .lean() pour la performance
+
+        // Appliquer la pagination SEULEMENT si elle est demandée
+        if (usePagination) {
+            query = query.skip(skip).limit(limit);
+        }
+
         const [images, totalImages] = await Promise.all([
-            Image.find({ galleryId: galleryId, isCroppedVersion: { $ne: true } })
-                .sort({ uploadDate: 1 })
-                .skip(skip)
-                .limit(limit)
-                .select('-__v -mimeType -size') // Exclure des champs inutiles pour la grille
-                .lean(), // Utilisation de .lean() pour la performance
+            query.exec(), // Exécuter la requête (avec ou sans pagination)
             Image.countDocuments({ galleryId: galleryId, isCroppedVersion: { $ne: true } })
         ]);
 
         res.json({
             docs: images,
             total: totalImages,
-            page: page,
-            limit: limit,
-            totalPages: Math.ceil(totalImages / limit)
+            // Renvoyer les infos de pagination seulement si elles ont été utilisées
+            ...(usePagination && {
+                page: page,
+                limit: limit,
+                totalPages: Math.ceil(totalImages / limit)
+            })
         });
     } catch (error) {
         console.error("Error getting images for gallery:", error);
@@ -223,20 +234,28 @@ exports.serveImage = async (req, res) => {
 
         const imagePath = path.join(UPLOAD_DIR, cleanGalleryId, cleanImageName);
 
-        // Utiliser fs.access est déprécié, on essaie directement d'envoyer
         res.sendFile(imagePath, (err) => {
+            // CORRECTION : On ne tente d'envoyer une réponse d'erreur que si les
+            // en-têtes n'ont pas déjà été envoyés.
             if (err) {
-                if (err.code === "ENOENT") {
-                    console.error(`SERVE IMAGE FAILED: File not found at ${imagePath}`);
-                    res.status(404).send('Image not found.');
+                if (res.headersSent) {
+                    // Si la réponse a déjà commencé (cas d'une requête annulée),
+                    // on ne peut plus rien envoyer au client. On se contente de logger l'erreur.
+                    console.error(`[serveImage] Erreur lors de l'envoi du fichier après le début de la réponse (probablement une annulation du client): ${err.message}`);
                 } else {
-                    console.error(`Server error serving image ${imagePath}:`, err);
-                    res.status(500).send('Server error serving image.');
+                    // Si rien n'a été envoyé, on peut alors envoyer une réponse d'erreur propre.
+                    if (err.code === "ENOENT") {
+                        console.error(`[serveImage] Fichier non trouvé: ${imagePath}`);
+                        res.status(404).send('Image not found.');
+                    } else {
+                        console.error(`[serveImage] Erreur serveur lors de l'envoi de l'image ${imagePath}:`, err);
+                        res.status(500).send('Server error serving image.');
+                    }
                 }
             }
         });
     } catch (error) {
-        console.error("Unexpected error in serveImage:", error);
+        console.error("[serveImage] Erreur inattendue dans le bloc try/catch principal:", error);
         if (!res.headersSent) {
             res.status(500).send('Server error serving image.');
         }

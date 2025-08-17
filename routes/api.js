@@ -100,6 +100,9 @@ router.delete('/galleries/:galleryId/publications/:publicationId', authMiddlewar
 // NOUVELLE ROUTE CI-DESSOUS
 router.get('/galleries/:galleryId/publications/:publicationId/export', authMiddleware, publicationController.exportPublicationImagesAsZip);
 
+// NOUVELLE ROUTE POUR LE NETTOYAGE AUTOMATIQUE
+router.post('/galleries/:galleryId/publications/cleanup', authMiddleware, publicationController.cleanupAndResequence);
+
 // --- Routes Calendrier ---
 router.get('/galleries/:galleryId/schedule', authMiddleware, scheduleController.getScheduleForGallery);
 router.put('/galleries/:galleryId/schedule', authMiddleware, scheduleController.updateSchedule);
