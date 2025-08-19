@@ -148,11 +148,20 @@ exports.getGalleryDetails = async (req, res) => {
                                           .lean();
         const userGalleryIds = userGalleries.map(g => g._id);
 
+        const limit = 50; // Nombre d'images par page
+        
         // 2. OPTIMISATION: Lancer toutes les autres requêtes de données en parallèle
-        const [images, jours, scheduleEntries, allJoursForUser] = await Promise.all([
-            // Données spécifiques à la galerie actuelle (pour onglets Tri, Recadrage, etc.)
+        const [
+            imagesPage, // <-- Changement ici
+            jours, 
+            scheduleEntries, 
+            allJoursForUser,
+            totalImages // <-- Ajout ici
+        ] = await Promise.all([
+            // Ne charger que la première page d'images
             Image.find({ galleryId: galleryId })
                  .sort({ uploadDate: 1 })
+                 .limit(limit) // <-- AJOUT : Limiter à 50
                  .select('-__v -mimeType -size') // Exclure des champs inutiles pour la grille
                  .lean(),
             Publication.find({ galleryId: galleryId })
@@ -167,7 +176,9 @@ exports.getGalleryDetails = async (req, res) => {
             Publication.find({ galleryId: { $in: userGalleryIds } })
                 .populate({ path: 'images.imageId', select: 'thumbnailPath' })
                 .select('_id letter galleryId images')
-                .lean()
+                .lean(),
+            // Compter le nombre total d'images pour la pagination
+            Image.countDocuments({ galleryId: galleryId }) // <-- AJOUT
         ]);
 
         // Mise à jour de lastAccessed en arrière-plan (non bloquant)
@@ -202,11 +213,16 @@ exports.getGalleryDetails = async (req, res) => {
             };
         });
                 
-        // La pagination a été retirée de cette fonction car le frontend la gère maintenant séparément
-        // via la route /api/galleries/:galleryId/images. getGalleryDetails charge toutes les images pour l'onglet "Tri".
         res.json({
             galleryState: gallery,
-            images: images, // Renvoie le tableau complet
+            // NOUVEAU : Renvoyer un objet de pagination complet
+            images: {
+                docs: imagesPage,
+                total: totalImages,
+                limit: limit,
+                page: 1,
+                totalPages: Math.ceil(totalImages / limit)
+            },
             jours: jours,
             schedule: scheduleData,
             scheduleContext: {

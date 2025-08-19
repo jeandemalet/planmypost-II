@@ -160,7 +160,21 @@ exports.uploadImages = async (req, res) => {
         });
 
         // Attendre que TOUS les workers aient terminé
-        await Promise.all(processingPromises);
+        const processingResults = await Promise.all(processingPromises);
+
+        // NOUVEAU : Mettre à jour les documents avec les chemins WebP
+        processingResults.forEach(result => {
+            if (result.status === 'success') {
+                const docToUpdate = imageDocsToCreate.find(doc => path.join(UPLOAD_DIR, doc.path) === result.finalPath);
+                if (docToUpdate) {
+                    docToUpdate.webpPath = path.relative(UPLOAD_DIR, result.finalWebpPath);
+                    docToUpdate.thumbnailWebpPath = path.relative(UPLOAD_DIR, result.thumbWebpPath);
+                    // AJOUTEZ CES DEUX LIGNES
+                    docToUpdate.width = result.width;
+                    docToUpdate.height = result.height;
+                }
+            }
+        });
 
         // OPTIMISATION : Insérer tous les documents en une seule opération
         const insertedDocs = await Image.insertMany(imageDocsToCreate, { ordered: false });
@@ -179,28 +193,59 @@ exports.uploadImages = async (req, res) => {
 
 exports.getImagesForGallery = async (req, res) => {
     const galleryId = req.params.galleryId;
+    const sortOption = req.query.sort || 'uploadDate_asc';
     
     // Détecter si une pagination est demandée
     const usePagination = req.query.limit || req.query.page;
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50; // La limite par défaut s'applique uniquement si la pagination est utilisée
+    const limit = parseInt(req.query.limit) || 50;
     const skip = (page - 1) * limit;
 
     try {
-        let query = Image.find({ galleryId: galleryId, isCroppedVersion: { $ne: true } })
-            .sort({ uploadDate: 1 })
-            .select('-__v -mimeType -size') // Exclure des champs inutiles
-            .lean(); // Utilisation de .lean() pour la performance
+        let images;
 
-        // Appliquer la pagination SEULEMENT si elle est demandée
-        if (usePagination) {
-            query = query.skip(skip).limit(limit);
+        if (sortOption === 'ratio_asc' || sortOption === 'ratio_desc') {
+            const sortDirection = sortOption === 'ratio_asc' ? 1 : -1;
+            let pipeline = [
+                { $match: { galleryId: new mongoose.Types.ObjectId(galleryId), isCroppedVersion: { $ne: true } } },
+                {
+                    $addFields: {
+                        // Ajouter un champ ratio calculé, en gérant le cas où height est 0
+                        aspectRatio: {
+                            $cond: { if: { $gt: ['$height', 0] }, then: { $divide: ['$width', '$height'] }, else: 0 }
+                        }
+                    }
+                },
+                { $sort: { aspectRatio: sortDirection, uploadDate: 1 } }
+            ];
+
+            // Appliquer la pagination si demandée
+            if (usePagination) {
+                pipeline.push({ $skip: skip });
+                pipeline.push({ $limit: limit });
+            }
+
+            images = await Image.aggregate(pipeline);
+        } else {
+            // Logique de tri existante pour les autres options
+            let sort = { uploadDate: 1 }; // Fallback
+            if (sortOption === 'name_asc') sort = { originalFilename: 1 };
+            if (sortOption === 'name_desc') sort = { originalFilename: -1 };
+
+            let query = Image.find({ galleryId: galleryId, isCroppedVersion: { $ne: true } })
+                .sort(sort)
+                .select('-__v -mimeType -size')
+                .lean();
+
+            // Appliquer la pagination SEULEMENT si elle est demandée
+            if (usePagination) {
+                query = query.skip(skip).limit(limit);
+            }
+
+            images = await query.exec();
         }
 
-        const [images, totalImages] = await Promise.all([
-            query.exec(), // Exécuter la requête (avec ou sans pagination)
-            Image.countDocuments({ galleryId: galleryId, isCroppedVersion: { $ne: true } })
-        ]);
+        const totalImages = await Image.countDocuments({ galleryId: galleryId, isCroppedVersion: { $ne: true } });
 
         res.json({
             docs: images,
@@ -218,6 +263,7 @@ exports.getImagesForGallery = async (req, res) => {
     }
 };
 
+// NOUVELLE VERSION CORRIGÉE de serveImage()
 exports.serveImage = async (req, res) => {
     try {
         const imageNameParam = req.params.imageName;
@@ -228,32 +274,48 @@ exports.serveImage = async (req, res) => {
         const cleanGalleryId = path.basename(galleryIdParam);
 
         if (cleanImageName !== imageNameParam || cleanGalleryId !== galleryIdParam) {
-            console.warn(`Potential path traversal attempt blocked: ${galleryIdParam}/${imageNameParam}`);
+            console.warn(`Tentative potentielle de path traversal bloquée: ${galleryIdParam}/${imageNameParam}`);
             return res.status(400).send('Invalid path components.');
         }
 
-        const imagePath = path.join(UPLOAD_DIR, cleanGalleryId, cleanImageName);
+        const browserAcceptsWebp = req.headers.accept && req.headers.accept.includes('image/webp');
+        const baseImagePath = path.join(UPLOAD_DIR, cleanGalleryId, cleanImageName);
+        const webpPath = baseImagePath.replace(/\.(jpg|jpeg|png)$/i, '.webp');
 
-        res.sendFile(imagePath, (err) => {
-            // CORRECTION : On ne tente d'envoyer une réponse d'erreur que si les
-            // en-têtes n'ont pas déjà été envoyés.
-            if (err) {
-                if (res.headersSent) {
-                    // Si la réponse a déjà commencé (cas d'une requête annulée),
-                    // on ne peut plus rien envoyer au client. On se contente de logger l'erreur.
-                    console.error(`[serveImage] Erreur lors de l'envoi du fichier après le début de la réponse (probablement une annulation du client): ${err.message}`);
-                } else {
-                    // Si rien n'a été envoyé, on peut alors envoyer une réponse d'erreur propre.
-                    if (err.code === "ENOENT") {
-                        console.error(`[serveImage] Fichier non trouvé: ${imagePath}`);
+        // Fonction pour envoyer un fichier ou une erreur 404
+        const sendFileOr404 = (filePath) => {
+            res.sendFile(filePath, (err) => {
+                if (err) {
+                    if (res.headersSent) {
+                        console.error(`[serveImage] Erreur après le début de la réponse (probablement une annulation du client): ${err.message}`);
+                    } else if (err.code === "ENOENT") {
+                        console.error(`[serveImage] Fichier non trouvé (même en fallback): ${filePath}`);
                         res.status(404).send('Image not found.');
                     } else {
-                        console.error(`[serveImage] Erreur serveur lors de l'envoi de l'image ${imagePath}:`, err);
+                        console.error(`[serveImage] Erreur serveur lors de l'envoi de l'image ${filePath}:`, err);
                         res.status(500).send('Server error serving image.');
                     }
                 }
-            }
-        });
+            });
+        };
+
+        // Logique de service : Priorité au WebP
+        if (browserAcceptsWebp) {
+            // Vérifier si la version WebP existe
+            fse.pathExists(webpPath, (err, exists) => {
+                if (exists) {
+                    // Servir la version WebP si elle existe
+                    sendFileOr404(webpPath);
+                } else {
+                    // Sinon, servir la version originale (JPEG/PNG)
+                    sendFileOr404(baseImagePath);
+                }
+            });
+        } else {
+            // Le navigateur ne supporte pas le WebP, servir directement la version originale
+            sendFileOr404(baseImagePath);
+        }
+
     } catch (error) {
         console.error("[serveImage] Erreur inattendue dans le bloc try/catch principal:", error);
         if (!res.headersSent) {

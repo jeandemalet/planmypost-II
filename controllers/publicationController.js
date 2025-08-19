@@ -206,20 +206,18 @@ exports.exportPublicationImagesAsZip = async (req, res) => {
     const { galleryId, publicationId } = req.params;
 
     try {
-        // NOUVEAU : On récupère les informations de la publication ET de la galerie en parallèle
         const [publication, gallery] = await Promise.all([
             Publication.findById(publicationId).populate({
                 path: 'images.imageId',
                 model: 'Image'
             }),
-            Gallery.findById(galleryId).select('name').lean() // .lean() pour la performance
+            Gallery.findById(galleryId).select('name commonDescriptionText').lean() // Ajout de commonDescriptionText
         ]);
 
         if (!publication || publication.galleryId.toString() !== galleryId) {
             return res.status(404).send('Publication not found or does not belong to the specified gallery.');
         }
 
-        // NOUVEAU : Vérification pour la galerie
         if (!gallery) {
             return res.status(404).send('Gallery not found for this Publication.');
         }
@@ -246,14 +244,31 @@ exports.exportPublicationImagesAsZip = async (req, res) => {
             }
         });
 
-        // --- MODIFICATION 1 : NOM DU FICHIER ZIP ---
         const sanitizedGalleryName = gallery.name.replace(/[^a-zA-Z0-9_.\-]/g, '_');
         const zipFileName = `${sanitizedGalleryName} - Publication ${publication.letter} - Plan My Post.zip`;
         res.attachment(zipFileName);
-        // --- FIN MODIFICATION 1 ---
 
         archive.pipe(res);
 
+        // --- DÉBUT DE LA NOUVELLE LOGIQUE D'AJOUT DE LA DESCRIPTION ---
+
+        // 1. Préparer le contenu final de la description en remplaçant le placeholder.
+        let finalDescription = publication.descriptionText || '';
+        if (gallery.commonDescriptionText && finalDescription.includes('{{COMMON_TEXT}}')) {
+            finalDescription = finalDescription.replace(/\{\{COMMON_TEXT\}\}/g, gallery.commonDescriptionText);
+        }
+
+        // 2. Définir le nom du fichier texte.
+        const descriptionFileName = `${sanitizedGalleryName} - Publication ${publication.letter} - Description.txt`;
+                
+        // 3. Ajouter le fichier au ZIP (seulement si la description finale n'est pas vide).
+        if (finalDescription.trim() !== '') {
+            archive.append(finalDescription, { name: descriptionFileName });
+        }
+                
+        // --- FIN DE LA NOUVELLE LOGIQUE ---
+        
+        // Boucle pour ajouter les images (code existant, inchangé)
         for (let i = 0; i < publication.images.length; i++) {
             const imageEntry = publication.images[i];
             if (imageEntry.imageId && imageEntry.imageId.path) {
@@ -261,14 +276,9 @@ exports.exportPublicationImagesAsZip = async (req, res) => {
                 const filePath = path.join(UPLOAD_DIR, imageDoc.path);
 
                 if (fs.existsSync(filePath)) {
-                    // --- MODIFICATION 2 : NOM DES FICHIERS DANS LE ZIP ---
                     const position = String(i + 1).padStart(2, '0');
-                    // On extrait l'extension originale pour la conserver
                     const extension = path.extname(imageDoc.originalFilename) || '.jpg';
-                    
                     const filenameInZip = `${sanitizedGalleryName} - Publication ${publication.letter} - ${position} - Plan My Post${extension}`;
-                    // --- FIN MODIFICATION 2 ---
-
                     archive.file(filePath, { name: filenameInZip });
                 } else {
                     console.warn(`File not found, skipping: ${filePath}`);

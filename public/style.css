@@ -3545,8 +3545,9 @@ tyles supplémentaires pour l'intégration de la vue groupée */
     color: #343a40;
     border-bottom: 1px solid #e9ecef;
     padding-bottom: 8px;
-}/* Placeho
-lder pour la vue de recadrage (grande taille) */
+}
+
+/* Placeholder pour la vue de recadrage (grande taille) */
 .cropping-publication-item-placeholder {
     width: 120px;
     height: 120px;
@@ -3648,4 +3649,52 @@ lder pour la vue de recadrage (grande taille) */
             transform: translateX(0);
         }
     }
+}/* =
+========================================================= */
+/* --- OPTIMISATION UI : VUE D'ENSEMBLE RECADRAGE COMPACTE --- */
+/* ========================================================== */
+
+/* 1. Transformation du conteneur principal en une ligne flexible */
+.publication-group-container {
+    display: flex; /* Aligne le titre et le ruban horizontalement */
+    align-items: center; /* Centre verticalement le titre avec le ruban */
+    gap: 15px; /* Espace entre le titre et le ruban */
+    
+    /* Réduction drastique des marges et paddings */
+    margin-bottom: 10px; /* Moins d'espace entre chaque publication */
+    padding: 15px;
+}
+
+/* 2. Style du titre de la publication (maintenant à gauche) */
+.publication-group-header {
+    flex-shrink: 0; /* Empêche le titre de se rétrécir */
+    min-width: 150px; /* Largeur minimale pour la lisibilité */
+    text-align: center; /* Centre le texte dans son espace */
+    font-size: 1.1em;
+    font-weight: 600;
+    
+    /* Suppression des styles de "bloc" devenus inutiles */
+    margin: 0;
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+/* 3. Style du ruban d'images (prend l'espace restant) */
+.cropping-publication-ribbon {
+    flex-grow: 1; /* Fait en sorte que le ruban prenne tout l'espace restant */
+    min-height: 100px; /* Hauteur minimale réduite pour les publications vides */
+    padding: 10px; /* Padding interne réduit */
+}
+
+/* 4. Ajustement des vignettes pour la nouvelle taille du ruban */
+.cropping-publication-item {
+    width: 90px;
+    height: 90px;
+}
+
+/* 5. Ajustement du placeholder pour le drag & drop */
+.cropping-publication-ribbon .cropping-publication-item-placeholder,
+.cropping-publication-ribbon .publication-image-placeholder {
+    width: 90px;
+    height: 90px;
 }

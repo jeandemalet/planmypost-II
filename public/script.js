@@ -280,6 +280,7 @@ class GridItemBackend {
         this.element = document.createElement('div');
         this.element.className = 'grid-item';
         this.imgElement = document.createElement('img');
+        this.imgElement.loading = 'lazy';
 
         this.singleDayOverlay = document.createElement('span');
         this.singleDayOverlay.className = 'order-text';
@@ -564,6 +565,8 @@ class PublicationFrameBackend {
                         imageId: gridItem.id,
                         originalReferencePath: gridItem.parentImageId || gridItem.id,
                         dataURL: gridItem.thumbnailPath,
+                        mainImagePath: gridItem.imagePath,
+                        basename: gridItem.basename, // <-- AJOUT pour affichage du nom
                         isCropped: gridItem.isCroppedVersion
                     };
                 }
@@ -636,18 +639,27 @@ class PublicationFrameBackend {
     addImageFromBackendData(imageData, isGridItemInstance = false) {
         let galleryIdForURL = this.galleryId;
         let thumbFilename;
+        let mainImageFilename; // <-- AJOUT
+
         if (isGridItemInstance) {
             galleryIdForURL = imageData.galleryId;
             thumbFilename = Utils.getFilenameFromURL(imageData.thumbnailPath);
+            mainImageFilename = Utils.getFilenameFromURL(imageData.path); // <-- AJOUT
         } else {
+            // Le imageData vient directement du .populate() du backend
             thumbFilename = Utils.getFilenameFromURL(imageData.thumbnailPath);
+            mainImageFilename = Utils.getFilenameFromURL(imageData.path); // <-- AJOUT
         }
+
         const imageItemData = {
             imageId: imageData._id || imageData.id,
             originalReferencePath: imageData.parentImageId || (imageData._id || imageData.id),
             dataURL: `${BASE_API_URL}/api/uploads/${galleryIdForURL}/${thumbFilename}`,
+            mainImagePath: `${BASE_API_URL}/api/uploads/${galleryIdForURL}/${mainImageFilename}`,
+            basename: imageData.originalFilename || imageData.basename, // <-- AJOUT pour affichage du nom
             isCropped: imageData.isCroppedVersion || false,
         };
+
         this.imagesData.push(imageItemData);
         const newElement = this.createPublicationItemElement(imageItemData);
         this.canvasWrapper.appendChild(newElement);
@@ -1682,8 +1694,8 @@ class CroppingManager {
         }
 
         const imgInfo = this.imagesToCrop[this.currentImageIndex];
-        const originalGridItem = this.organizer.gridItemsDict[imgInfo.originalReferenceId];
-        const displayName = originalGridItem ? originalGridItem.basename : `Image ID ${imgInfo.originalReferenceId}`;
+        // MODIFICATION : Utiliser le basename transmis directement
+        const displayName = imgInfo.basename || `Image ${this.currentImageIndex + 1}`;
         this.infoLabel.textContent = `Chargement ${displayName}...`;
 
         try {
@@ -3000,7 +3012,14 @@ class CalendarPage {
                 if (publication.firstImageThumbnail) {
                     const thumbFilename = Utils.getFilenameFromURL(publication.firstImageThumbnail);
                     const thumbUrl = `${BASE_API_URL}/api/uploads/${publication.galleryId}/${thumbFilename}`;
-                    thumbDiv.style.backgroundImage = `url(${thumbUrl})`;
+                    
+                    const img = new Image();
+                    img.src = thumbUrl;
+                    img.loading = 'lazy';
+                    img.onload = () => {
+                        thumbDiv.style.backgroundImage = `url(${thumbUrl})`;
+                        thumbDiv.textContent = '';
+                    };
                 } else {
                     thumbDiv.textContent = '...';
                 }
@@ -3368,6 +3387,9 @@ class PublicationOrganizer {
         this.activeUploadXHR = null;
         this.activeCallingButton = null;
         this.isLoadingGallery = false;
+        this.isLoadingMoreImages = false; // Verrou pour éviter les chargements multiples
+        this.currentGridPage = 1;
+        this.totalGridPages = 1;
         this.scheduleContext = { schedule: {}, allUserPublications: [] };
         this.imageSelectorInput = document.getElementById('imageSelector');
         this.addNewImagesBtn = document.getElementById('addNewImagesBtn');
@@ -3623,6 +3645,18 @@ class PublicationOrganizer {
                 if (confirm("Voulez-vous vraiment supprimer toutes les publications vides (sauf la première) ?")) {
                     this.removeEmptyPublications();
                     alert('Nettoyage terminé.');
+                }
+            });
+        }
+
+        // AJOUT : Listener pour le scroll infini
+        const imageGridContainer = this.imageGridElement.parentElement;
+        if (imageGridContainer) {
+            imageGridContainer.addEventListener('scroll', () => {
+                const { scrollTop, scrollHeight, clientHeight } = imageGridContainer;
+                // Charger plus d'images quand l'utilisateur est à 300px du bas
+                if (scrollHeight - scrollTop - clientHeight < 300) {
+                    this.loadMoreImages();
                 }
             });
         }
@@ -3947,6 +3981,7 @@ class PublicationOrganizer {
                     itemDiv.style.width = `150px`;
                     itemDiv.style.height = `150px`;
                     const imgElement = document.createElement('img');
+                    imgElement.loading = 'lazy';
                     imgElement.src = `${BASE_API_URL}/api/uploads/${imgData.galleryId}/${Utils.getFilenameFromURL(imgData.thumbnailPath)}`;
                     imgElement.alt = imgData.originalFilename;
                     imgElement.style.objectFit = 'contain';
@@ -4326,7 +4361,12 @@ class PublicationOrganizer {
             
             this.currentThumbSize = galleryState.currentThumbSize || { width: 150, height: 150 };
             this.sortOptionsSelect.value = 'name_asc';
-            if (data.images) { this.addImagesToGrid(data.images); this.sortGridItemsAndReflow(); }
+            if (data.images && data.images.docs) {
+                this.addImagesToGrid(data.images.docs);
+                this.currentGridPage = data.images.page;
+                this.totalGridPages = data.images.totalPages;
+                this.sortGridItemsAndReflow();
+            }
             if (this.descriptionManager) { this.descriptionManager.setCommonDescription(galleryState.commonDescriptionText || ''); }
             this.scheduleContext = { schedule: data.schedule || {}, allUserPublications: data.scheduleContext.allUserPublications || [] };
             if (this.calendarPage) { this.publicationFrames.forEach(jf => this.ensureJourInAllUserPublications(jf)); this.calendarPage.buildCalendarUI(); }
@@ -4348,6 +4388,32 @@ class PublicationOrganizer {
             if (loadingOverlay.style.display === 'flex') {
                 loadingOverlay.style.display = 'none';
             }
+        }
+    }
+
+    async loadMoreImages() {
+        if (this.isLoadingMoreImages || this.currentGridPage >= this.totalGridPages) {
+            return; // Sortir si déjà en chargement ou si toutes les pages sont chargées
+        }
+
+        this.isLoadingMoreImages = true;
+        this.currentGridPage++;
+
+        try {
+            // Utiliser l'endpoint qui gère déjà la pagination
+            const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/images?page=${this.currentGridPage}&limit=50`);
+            if (!response.ok) {
+                throw new Error('Failed to fetch next page of images.');
+            }
+            const data = await response.json();
+            if (data.docs && data.docs.length > 0) {
+                this.addImagesToGrid(data.docs);
+            }
+        } catch (error) {
+            console.error('Error loading more images:', error);
+            this.currentGridPage--; // Revenir à la page précédente en cas d'erreur
+        } finally {
+            this.isLoadingMoreImages = false;
         }
     }
 
@@ -4633,32 +4699,66 @@ class PublicationOrganizer {
         if (!confirm(`Voulez-vous vraiment supprimer l'image "${imageNameForConfirm}" et toutes ses utilisations ?`)) {
             return;
         }
+
+        // --- MISE À JOUR OPTIMISTE ---
+        // 1. Sauvegarder l'état actuel pour pouvoir annuler si l'API échoue
+        const originalGridItems = [...this.gridItems];
+        const originalGridItemsDict = { ...this.gridItemsDict };
+        const originalPublicationFramesState = this.publicationFrames.map(pf => ({
+            id: pf.id,
+            imagesData: [...pf.imagesData]
+        }));
+        
+        // 2. Supprimer immédiatement les éléments de l'UI et des données locales
+        const tempDeletedIds = new Set([imageId]);
+        // Trouver les versions recadrées associées pour les supprimer aussi
+        const croppedVersions = this.gridItems.filter(item => item.parentImageId === imageId);
+        croppedVersions.forEach(item => tempDeletedIds.add(item.id));
+        
+        tempDeletedIds.forEach(idToDelete => {
+            const itemInGrid = this.gridItemsDict[idToDelete];
+            if (itemInGrid) {
+                itemInGrid.element.remove();
+                delete this.gridItemsDict[idToDelete];
+            }
+        });
+        this.gridItems = this.gridItems.filter(item => !tempDeletedIds.has(item.id));
+        this.publicationFrames.forEach(jf => {
+            jf.imagesData = jf.imagesData.filter(img => !tempDeletedIds.has(img.imageId));
+        });
+        
+        this.refreshPublicationViews(); // Rafraîchit les rubans
+        this.updateStatsLabel();
+        this.updateAddPhotosPlaceholderVisibility();
+        // --- FIN DE LA MISE À JOUR OPTIMISTE ---
+
         try {
+            // 3. Appeler l'API en arrière-plan
             const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/images/${imageId}`, {
                 method: 'DELETE'
             });
             if (!response.ok) {
                 const errorText = await response.text();
-                throw new Error(`Échec de la suppression de l'image: ${response.statusText} - ${errorText}`);
+                throw new Error(`Échec de la suppression : ${response.statusText} - ${errorText}`);
             }
-            const result = await response.json();
-            result.deletedImageIds.forEach(idToDelete => {
-                const itemInGrid = this.gridItemsDict[idToDelete];
-                if (itemInGrid) {
-                    itemInGrid.element.remove();
-                    this.gridItems = this.gridItems.filter(item => item.id !== idToDelete);
-                    delete this.gridItemsDict[idToDelete];
-                }
-                this.publicationFrames.forEach(jf => {
-                    jf.removeImageById(idToDelete);
-                });
-            });
-            this.updateGridUsage();
-            this.updateStatsLabel();
-            this.updateAddPhotosPlaceholderVisibility();
+            // Si succès, on ne fait rien, l'UI est déjà à jour.
         } catch (error) {
-            console.error("Error deleting image from grid:", error);
-            alert(`Erreur lors de la suppression de l'image : ${error.message}`);
+            console.error("Error deleting image, reverting UI:", error);
+            alert(`Erreur: Impossible de supprimer l'image. L'action a été annulée. Détails: ${error.message}`);
+            
+            // 4. ROLLBACK : Annuler les changements en cas d'erreur
+            this.gridItems = originalGridItems;
+            this.gridItemsDict = originalGridItemsDict;
+            originalPublicationFramesState.forEach(state => {
+                const pf = this.publicationFrames.find(p => p.id === state.id);
+                if (pf) pf.imagesData = state.imagesData;
+            });
+            
+            // Reconstruire la grille et les rubans
+            this.imageGridElement.innerHTML = '';
+            this.gridItems.forEach(item => this.imageGridElement.appendChild(item.element));
+            this.sortGridItemsAndReflow();
+            this.refreshPublicationViews();
         }
     }
 
@@ -4755,6 +4855,8 @@ class PublicationOrganizer {
                 imageId: gridItem.id,
                 originalReferencePath: gridItem.parentImageId || gridItem.id,
                 dataURL: gridItem.thumbnailPath,
+                mainImagePath: gridItem.imagePath,
+                basename: gridItem.basename, // <-- AJOUT pour affichage du nom
                 isCropped: gridItem.isCroppedVersion
             };
 
@@ -5569,7 +5671,6 @@ class CroppingPage {
         this.autoCropSidebar.style.display = 'block';
         this.editorPanelElement.style.display = 'none';
         this.editorPlaceholderElement.style.display = 'none';
-        this.editorTitleElement.textContent = "Vue d'ensemble des publications";
         
         this.renderAllPhotosGroupedView();
     }
@@ -5589,7 +5690,6 @@ class CroppingPage {
         if (publicationFrame && publicationFrame.imagesData.length > 0) {
             this.editorPanelElement.style.display = 'flex';
             this.editorPlaceholderElement.style.display = 'none';
-            this.editorTitleElement.textContent = `Recadrage pour Publication ${publicationFrame.letter}`;
             // Lancement du recadrage
             this.startCroppingForJour(publicationFrame, imageIndex);
         } else {
@@ -5601,26 +5701,28 @@ class CroppingPage {
     
     // Logique pour lancer le recadrage manuel
     async startCroppingForJour(publicationFrame, startIndex = 0) {
+        // NOUVELLE LOGIQUE DÉCOUPLÉE
         const imageInfosForCropper = publicationFrame.imagesData.map(imgDataInPublication => {
-            const currentGridItem = this.organizerApp.gridItemsDict[imgDataInPublication.imageId];
-            if (!currentGridItem) return null;
-            const originalImageId = currentGridItem.parentImageId || currentGridItem.id;
-            const originalGridItem = this.organizerApp.gridItemsDict[originalImageId];
-            if (!originalGridItem) return null;
+            // On utilise directement les données stockées dans la publication.
+            // Plus besoin de consulter app.gridItemsDict !
             return {
-                pathForCropper: currentGridItem.id, // ID unique pour le cropper
-                dataURL: imgDataInPublication.dataURL,
-                originalReferenceId: originalImageId,
-                baseImageToCropFromDataURL: originalGridItem.imagePath,
-                currentImageId: currentGridItem.id
+                pathForCropper: imgDataInPublication.imageId,
+                dataURL: imgDataInPublication.dataURL, // Pour la vignette
+                originalReferenceId: imgDataInPublication.originalReferencePath,
+                baseImageToCropFromDataURL: imgDataInPublication.mainImagePath,
+                currentImageId: imgDataInPublication.imageId,
+                // AJOUT : Transmettre le nom du fichier
+                basename: imgDataInPublication.basename
             };
-        }).filter(info => info !== null);
-        
+        }).filter(info => info !== null); // Garde la sécurité au cas où
+
         if (imageInfosForCropper.length === 0) {
             this.clearEditor();
+            this.editorPlaceholderElement.textContent = "Cette publication est vide.";
             return;
         }
         
+        // Le reste de la fonction est inchangé
         await this.croppingManager.startCropping(imageInfosForCropper, publicationFrame, startIndex);
         this._populateThumbnailStrip(publicationFrame);
         this._updateThumbnailStripHighlight(this.croppingManager.currentImageIndex);

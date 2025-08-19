@@ -27,12 +27,18 @@ const ImageSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    // AJOUTEZ CES DEUX CHAMPS
+    webpPath: { type: String },
+    thumbnailWebpPath: { type: String },
     mimeType: {
         type: String
     },
     size: { // Taille en octets
         type: Number
     },
+    // AJOUTEZ CES DEUX CHAMPS
+    width: { type: Number },
+    height: { type: Number },
     exifDateTimeOriginal: { // Date/heure extraite des métadonnées EXIF
         type: Date
     },
