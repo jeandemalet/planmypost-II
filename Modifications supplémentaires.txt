@@ -1,9 +1,3 @@
-Dans recadrage "aucun publication défini n'est pas françaisn à modifier. 
-
-MAJ du logo
-
-Maj du système de basculement entre le mode de recadrage automatique et le système de recadrage individuel avec un bon toggle comme tout recadrer et sélection dans l'onglet recadrage automatique. 
-
 Ajouter l'option split pour les photos horizontales dans l'onglet de recadrage automatique en suivant la logique suivante : Prendre la taille de la zone combinée des deux images, donc horizontale, utiliser la logique du smart recrop pour détecter le recadrage automatique à adopter, puis scinder en deux l'image au centre comme le fait la logique split actuelle en mode manuel. 
 
 Erreur lors du recadrage auto : 
