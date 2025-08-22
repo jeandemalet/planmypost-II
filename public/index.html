@@ -188,11 +188,15 @@
             <div class="cropping-layout">
                 <!-- COLONNE DE GAUCHE : LISTE DES PUBLICATIONS -->
                 <div id="croppingPublicationListPanel">
-                    <h4 data-i18n="labels.publicationsOfGallery">Publications de la Galerie</h4>
+                    <!-- Removed title: Publications de la Galerie -->
                     <!-- NOUVEAU SÉLECTEUR DE VUE À DEUX BOUTONS -->
                     <div id="viewModeSwitch" class="view-mode-switch">
-                        <button id="switchToGroupedViewBtn" class="active" data-i18n="labels.overviewMode">Vue d'ensemble</button>
-                        <button id="switchToEditorViewBtn" data-i18n="labels.individualCropping">Recadrage Individuel</button>
+                        <button id="switchToGroupedViewBtn" class="active" title="Vue d'ensemble">
+                            <img src="/assets/vuedensemble.png" alt="Vue d'ensemble" class="view-mode-icon">
+                        </button>
+                        <button id="switchToEditorViewBtn" title="Recadrage Individuel">
+                            <img src="/assets/recadrageindividuel.png" alt="Recadrage Individuel" class="view-mode-icon">
+                        </button>
                     </div>
                     <ul id="croppingPublicationList">
                     </ul>

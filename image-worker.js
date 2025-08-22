@@ -11,30 +11,43 @@ parentPort.on('message', async (task) => {
     const thumbWebpPath = thumbPath.replace(path.extname(thumbPath), '.webp');
 
     try {
-        const imageProcessor = sharp(tempPath);
-        const metadata = await imageProcessor.metadata(); // <-- AJOUT
+        // Lecture unique du buffer pour optimiser la mémoire
+        const imageBuffer = await fse.readFile(tempPath);
+        const imageProcessor = sharp(imageBuffer);
+        const metadata = await imageProcessor.metadata();
 
-        // Traitement parallèle de toutes les versions
+        // Traitement parallèle optimisé
         await Promise.all([
-            // Créer la miniature JPEG (fallback)
-            imageProcessor.clone()
+            // Miniature JPEG avec compression avancée
+            sharp(imageBuffer)
                 .resize(thumbSize, thumbSize, { fit: 'inside', withoutEnlargement: true })
-                .jpeg({ quality: 85, mozjpeg: true })
+                .jpeg({
+                    quality: 85,
+                    mozjpeg: true,
+                    progressive: true,
+                    optimizeScans: true
+                })
                 .toFile(thumbPath),
 
-            // Créer la miniature WebP (prioritaire)
-            imageProcessor.clone()
+            // Miniature WebP avec qualité réduite
+            sharp(imageBuffer)
                 .resize(thumbSize, thumbSize, { fit: 'inside', withoutEnlargement: true })
-                .webp({ quality: 80 })
+                .webp({
+                    quality: 75,
+                    effort: 6  // Meilleure compression
+                })
                 .toFile(thumbWebpPath),
                 
-            // Créer l'image principale WebP
-            imageProcessor.clone()
-                .webp({ quality: 85 })
+            // Image principale WebP avec qualité optimisée
+            sharp(imageBuffer)
+                .webp({
+                    quality: 80,
+                    effort: 6  // Meilleure compression
+                })
                 .toFile(finalWebpPath),
 
-            // Déplacer le fichier original
-            fse.move(tempPath, finalPath, { overwrite: true }) // overwrite: true pour la sécurité
+            // Déplacement du fichier original
+            fse.move(tempPath, finalPath, { overwrite: true })
         ]);
 
         parentPort.postMessage({

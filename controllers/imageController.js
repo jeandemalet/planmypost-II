@@ -356,37 +356,49 @@ exports.saveCroppedImage = async (req, res) => {
         else if (mimeType === 'image/webp') actualExtension = 'webp';
         else actualExtension = 'jpg';
 
-        const newFilename = `${originalBaseName}_${cleanSuffix}_${timestamp}.${actualExtension}`;
-
+        // Convertir en WebP pour économiser l'espace et améliorer les performances
+        const webpFilename = `${originalBaseName}_${cleanSuffix}_${timestamp}.webp`;
         const galleryUploadDir = path.join(UPLOAD_DIR, galleryId);
         await fse.ensureDir(galleryUploadDir);
-        const newFilePath = path.join(galleryUploadDir, newFilename);
-        const relativePath = path.join(galleryId, newFilename);
+        const webpFilePath = path.join(galleryUploadDir, webpFilename);
 
-        await fs.writeFile(newFilePath, buffer);
+        // Traitement avec sharp pour obtenir les métadonnées et convertir en WebP
+        const imageProcessor = sharp(buffer);
+        const metadata = await imageProcessor.metadata();
+        const webpBuffer = await imageProcessor.webp({
+            quality: 80,
+            effort: 6  // Meilleure compression
+        }).toBuffer();
+        await fs.writeFile(webpFilePath, webpBuffer);
 
-        const thumbFilename = `thumb-${newFilename}`;
-        const thumbFilePath = path.join(galleryUploadDir, thumbFilename);
-        const relativeThumbPath = path.join(galleryId, thumbFilename);
-        await sharp(buffer)
+        // Création de la miniature WebP
+        const thumbWebpFilename = `thumb-${webpFilename}`;
+        const thumbWebpFilePath = path.join(galleryUploadDir, thumbWebpFilename);
+        const relativeThumbPath = path.join(galleryId, thumbWebpFilename);
+        await sharp(webpBuffer)
             .resize(THUMB_SIZE, THUMB_SIZE, { fit: 'inside', withoutEnlargement: true })
-            .jpeg({ quality: 85 })
-            .toFile(thumbFilePath);
+            .webp({
+                quality: 75,
+                effort: 6  // Meilleure compression
+            })
+            .toFile(thumbWebpFilePath);
 
         const croppedImageDoc = new Image({
             galleryId: galleryId,
             originalFilename: `[${cropInfo}] ${fixUTF8Encoding(originalImage.originalFilename)}`,
-            filename: newFilename,
-            path: relativePath,
+            filename: webpFilename,
+            path: path.join(galleryId, webpFilename),
             thumbnailPath: relativeThumbPath,
-            mimeType: mimeType,
-            size: buffer.length,
+            mimeType: 'image/webp',
+            size: webpBuffer.length,
             exifDateTimeOriginal: originalImage.exifDateTimeOriginal,
             fileLastModified: new Date(),
             isCroppedVersion: true,
             parentImageId: originalImage._id,
             cropInfo: cropInfo,
-            uploadDate: new Date()
+            uploadDate: new Date(),
+            width: metadata.width,
+            height: metadata.height
         });
         await croppedImageDoc.save();
         res.status(201).json(croppedImageDoc);
