@@ -1526,12 +1526,7 @@ button.small-cancel-btn:hover {
 }
 
 .preview-title {
-    font-weight: 700;
-    font-size: 1.1em;
-    margin-bottom: 15px;
-    width: 100%;
-    color: var(--text-primary);
-    text-align: center; /* Centrer le titre */
+    display: none; /* Hidden as requested */
 }
 
 #cropperPreviewLeft, #cropperPreviewCenter, #cropperPreviewRight {
