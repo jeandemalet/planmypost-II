@@ -3034,7 +3034,7 @@ button.small-cancel-btn:hover {
     justify-content: center;
     margin-bottom: 15px;
     background-color: #e9ecef;
-    border-radius: 8px; /* Bords arrondis pour le conteneur */
+    border-radius: 15px; /* Style pastille similaire à auto-crop-scope-switch */
     padding: 4px;
     border: 1px solid #ced4da;
     width: 100%;
@@ -3044,8 +3044,8 @@ button.small-cancel-btn:hover {
 .view-mode-switch button {
     flex: 1;
     text-align: center;
-    padding: 8px 10px;
-    border-radius: 6px; /* Bords arrondis pour les boutons internes */
+    padding: 6px 10px;
+    border-radius: 12px; /* Bords arrondis similaires à auto-crop-scope-switch */
     cursor: pointer;
     font-size: 0.85em;
     font-weight: 500;
@@ -3053,6 +3053,10 @@ button.small-cancel-btn:hover {
     background-color: transparent; /* Fond transparent par défaut */
     border: none; /* Pas de bordure par défaut */
     transition: background-color 0.2s, color 0.2s, box-shadow 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
 }
 
 .view-mode-switch button.active {
@@ -3187,40 +3191,7 @@ button.small-cancel-btn:hover {
     border-radius: 6px;
 }
 
-/* Styles pour les boutons de changement de vue */
-.view-mode-switch {
-    display: flex;
-    gap: 5px;
-    margin-bottom: 15px;
-    background-color: #f8f9fa;
-    padding: 5px;
-    border-radius: 6px;
-    border: 1px solid #dee2e6;
-}
-
-.view-mode-switch button {
-    flex: 1;
-    padding: 8px 12px;
-    border: none;
-    background-color: transparent;
-    color: #6c757d;
-    border-radius: 4px;
-    font-size: 0.9em;
-    font-weight: 500;
-    cursor: pointer;
-    transition: all 0.2s;
-}
-
-.view-mode-switch button.active {
-    background-color: #007bff;
-    color: white;
-    box-shadow: 0 2px 4px rgba(0,123,255,0.25);
-}
-
-.view-mode-switch button:hover:not(.active) {
-    background-color: #e9ecef;
-    color: #495057;
-}
+/* Styles pour les boutons de changement de vue - Supprimé car remplacé par la version unifiée ci-dessus */
 
 /* Styles pour le conteneur de la vue groupée */
 #allPhotosGroupedViewContainer {
@@ -3699,32 +3670,10 @@ tyles supplémentaires pour l'intégration de la vue groupée */
     width: 90px;
     height: 90px;
 }
-/* Styles for cropping tab view mode icons */
-.view-mode-switch {
-    display: flex;
-    gap: 8px;
-    margin-bottom: 15px;
-}
-
-.view-mode-switch button {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    padding: 8px;
-    border: none;
-    background: #e9ecef;
-    border-radius: 6px;
-    cursor: pointer;
-    transition: background-color 0.2s;
-}
-
-.view-mode-switch button:hover {
-    background-color: #dee2e6;
-}
-
-.view-mode-switch button.active {
-    background-color: #fff;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+/* Styles for cropping tab view mode icons - Version finale unifiée */
+.view-mode-switch button:hover:not(.active) {
+    background-color: rgba(73, 80, 87, 0.1);
+    color: #495057;
 }
 
 .view-mode-icon {
