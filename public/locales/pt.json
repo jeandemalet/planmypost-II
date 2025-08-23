@@ -29,7 +29,8 @@
       "name_asc": "Nome (A-Z)",
       "name_desc": "Nome (Z-A)",
       "date_desc": "Data (Mais recente)",
-      "date_asc": "Data (Mais antiga)"
+      "date_asc": "Data (Mais antiga)",
+      "ratio_desc": "Proporção (alto para baixo)"
     },
     "galleryStats": "{{count}} foto na galeria",
     "galleryStats_plural": "{{count}} fotos na galeria",

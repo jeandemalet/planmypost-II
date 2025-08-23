@@ -139,6 +139,12 @@ function initializeLanguageMenu() {
 
 class Utils {
     static async loadImage(urlOrFile) {
+        // [FIX] Ajout d'une garde contre les URL non définies
+        if (urlOrFile === undefined) {
+            console.error("❌ [Utils.loadImage] ERREUR : L'argument urlOrFile est indéfini. Impossible de charger l'image.");
+            return Promise.reject(new Error("L'URL ou le fichier est indéfini."));
+        }
+
         // [LOG] Log au début du chargement de l'image
         console.log('[Utils.loadImage] Demande de chargement pour:', typeof urlOrFile === 'string' ? urlOrFile : urlOrFile.name);
         return new Promise((resolve, reject) => {
@@ -1324,6 +1330,12 @@ class CroppingManager {
         this.debouncedUpdatePreview = Utils.debounce(() => this.updatePreview(), 150);
         this.debouncedHandleResize = Utils.debounce(() => this._handleResize(), 50);
         this._initListeners();
+        // Cache d'images pour éviter les rechargements inutiles
+        this.imageCache = new Map();
+        // Taille précédente du conteneur pour éviter les redimensionnements inutiles
+        this.lastContainerSize = { width: 0, height: 0 };
+        // Indicateur d'initialisation de smartcrop
+        this.smartcropInitialized = false;
     }
 
     _initListeners() {
@@ -1432,8 +1444,31 @@ class CroppingManager {
             this.redrawCanvasOnly();
             this.debouncedUpdatePreview();
         } else {
-            console.log('[CroppingManager] Pas de recadrage précédent, initialisation avec smartcrop.');
-            this.initializeCropWithSmartCrop();
+            // --- MODIFICATION PRINCIPALE ---
+            const currentImageInfo = this.imagesToCrop[this.currentImageIndex];
+
+            // 1. VÉRIFIER LE CACHE EN PREMIER
+            if (currentImageInfo && currentImageInfo.cachedSmartCrop) {
+                console.log('[CroppingManager] Utilisation du recadrage mis en cache.');
+                const cached = currentImageInfo.cachedSmartCrop;
+                const { displayX, displayY, displayWidth, displayHeight } = newImageDims;
+
+                // Convertir les coordonnées relatives du cache en coordonnées d'affichage
+                this.cropRectDisplay = {
+                    x: displayX + (cached.x * displayWidth),
+                    y: displayY + (cached.y * displayHeight),
+                    width: cached.width * displayWidth,
+                    height: cached.height * displayHeight
+                };
+                this.redrawCanvasOnly();
+                this.debouncedUpdatePreview();
+
+            // 2. SI PAS DE CACHE, ALORS LANCER SMARTCROP
+            } else {
+                console.log('[CroppingManager] Pas de recadrage en cache, initialisation avec smartcrop.');
+                this.initializeCropWithSmartCrop();
+            }
+            // --- FIN DE LA MODIFICATION ---
         }
     }
 
@@ -1444,6 +1479,48 @@ class CroppingManager {
             this.debouncedUpdatePreview();
             return;
         }
+
+        // Create cache key: image src + aspect ratio
+        const cacheKey = `${this.currentImageObject.src}_${this.aspectRatioSelect.value}`;
+        
+        // Check cache first
+        if (this.smartcropCache && this.smartcropCache[cacheKey]) {
+            console.log(`[Smartcrop] Using cached result for ${cacheKey}`);
+            const bestCrop = this.smartcropCache[cacheKey];
+            const { displayX, displayY, imageScale } = this.getImageDisplayDimensions();
+            if (imageScale > 0) {
+                this.cropRectDisplay = {
+                    x: displayX + (bestCrop.x * imageScale),
+                    y: displayY + (bestCrop.y * imageScale),
+                    width: bestCrop.width * imageScale,
+                    height: bestCrop.height * imageScale
+                };
+                this.adjustCropRectToAspectRatio();
+
+                // --- MODIFICATION : MISE EN CACHE DU RÉSULTAT ---
+                const imgWidth = this.currentImageObject.naturalWidth;
+                const imgHeight = this.currentImageObject.naturalHeight;
+
+                // On stocke des coordonnées relatives pour la résilience au redimensionnement
+                const relativeCropToCache = {
+                    x: bestCrop.x / imgWidth,
+                    y: bestCrop.y / imgHeight,
+                    width: bestCrop.width / imgWidth,
+                    height: bestCrop.height / imgHeight
+                };
+
+                const currentImageInfo = this.imagesToCrop[this.currentImageIndex];
+                if (currentImageInfo) {
+                    currentImageInfo.cachedSmartCrop = relativeCropToCache;
+                    console.log('[CroppingManager] Résultat de smartcrop mis en cache pour l\'image:', currentImageInfo.basename);
+                }
+                // --- FIN DE LA MODIFICATION ---
+                this.redrawCanvasOnly();
+                this.debouncedUpdatePreview();
+                return;
+            }
+        }
+
         try {
             const aspectRatioName = this.aspectRatioSelect.value;
             this.currentAspectRatioName = aspectRatioName;
@@ -1464,6 +1541,12 @@ class CroppingManager {
             }
             const result = await smartcrop.crop(this.currentImageObject, cropOptionsForSmartcrop);
             const bestCrop = result.topCrop;
+            
+            // Store result in cache
+            if (!this.smartcropCache) this.smartcropCache = {};
+            this.smartcropCache[cacheKey] = bestCrop;
+            console.log(`[Smartcrop] Cached result for ${cacheKey}`);
+            
             const { displayX, displayY, imageScale } = this.getImageDisplayDimensions();
             if (imageScale > 0) {
                 this.cropRectDisplay = {
@@ -5671,6 +5754,12 @@ class CroppingPage {
         this.autoCropSidebar.style.display = 'block';
         this.editorPanelElement.style.display = 'none';
         this.editorPlaceholderElement.style.display = 'none';
+
+        // --- MODIFICATION PRINCIPALE ---
+        if (this.jourListPanel) {
+            this.jourListPanel.style.display = 'none';
+        }
+        // --- FIN DE LA MODIFICATION ---
         
         this.renderAllPhotosGroupedView();
     }
@@ -5686,7 +5775,14 @@ class CroppingPage {
         this.switchToEditorViewBtn.classList.add('active');
         this.allPhotosGroupedViewContainer.style.display = 'none';
         this.autoCropSidebar.style.display = 'none';
-        
+
+        // --- MODIFICATION PRINCIPALE ---
+        // 'flex' est utilisé car c'est un conteneur flexbox
+        if (this.jourListPanel) {
+            this.jourListPanel.style.display = 'flex';
+        }
+        // --- FIN DE LA MODIFICATION ---
+
         if (publicationFrame && publicationFrame.imagesData.length > 0) {
             this.editorPanelElement.style.display = 'flex';
             this.editorPlaceholderElement.style.display = 'none';

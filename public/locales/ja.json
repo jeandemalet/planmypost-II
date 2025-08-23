@@ -29,7 +29,8 @@
       "name_asc": "名前 (A-Z)",
       "name_desc": "名前 (Z-A)",
       "date_desc": "日付 (新しい順)",
-      "date_asc": "日付 (古い順)"
+      "date_asc": "日付 (古い順)",
+      "ratio_desc": "比率（高い順）"
     },
     "galleryStats": "ギャラリーに{{count}}枚の写真",
     "galleryStats_plural": "ギャラリーに{{count}}枚の写真",

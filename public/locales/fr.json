@@ -38,7 +38,8 @@
       "name_asc": "Nom (A-Z)",
       "name_desc": "Nom (Z-A)",
       "date_desc": "Date Prise (Plus Récente)",
-      "date_asc": "Date Prise (Plus Ancienne)"
+      "date_asc": "Date Prise (Plus Ancienne)",
+      "ratio_desc": "Ratio (haut en bas)"
     },
     "galleryStats": "{{count}} photo dans la galerie",
     "galleryStats_plural": "{{count}} photos dans la galerie",

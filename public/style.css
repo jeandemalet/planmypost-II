@@ -501,6 +501,12 @@ button.small-cancel-btn:hover {
     border-radius: 8px;
 }
 
+/* Position gallery stats on the right */
+.controls-bar #galleryStatsArea {
+    margin-left: auto;
+    text-align: right;
+}
+
 .controls-bar button {
     padding: 7px 12px;
     border-radius: 6px;
