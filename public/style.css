@@ -2601,6 +2601,7 @@ button.small-cancel-btn:hover {
     display: block;
     cursor: not-allowed;
     white-space: pre-wrap;
+    -webkit-user-select: none;
     user-select: none;
     margin: 8px 0;
     font-style: italic;
@@ -2663,6 +2664,7 @@ button.small-cancel-btn:hover {
     display: block; /* Changé de inline-block à block pour une meilleure intégration */
     cursor: not-allowed;
     white-space: pre-wrap;
+    -webkit-user-select: none;
     user-select: none;
     margin: 4px 0;
     font-style: italic;
@@ -2954,6 +2956,7 @@ button.small-cancel-btn:hover {
     cursor: pointer;
     border-radius: 6px;
     transition: background-color 0.2s, color 0.2s, font-weight 0.2s;
+    -webkit-user-select: none; /* Empêche la sélection de texte */
     user-select: none; /* Empêche la sélection de texte */
 }
 

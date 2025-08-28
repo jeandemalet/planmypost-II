@@ -20,7 +20,7 @@ exports.createPublication = async (req, res) => {
             return res.status(404).json({ message: `Gallery with ID ${galleryId} not found.` });
         }
 
-        const existingPublications = await Publication.find({ galleryId: galleryId }).select('index letter').sort({ index: 1 });
+        const existingPublications = await Publication.find({ galleryId: galleryId }).select('index letter').sort({ index: 1 }).lean();
         
         // ======================= LOG À AJOUTER (1/3) =======================
         console.log(`[DEBUG] createPublication: Galerie ${galleryId}. Publications existantes trouvées:`, existingPublications.map(p => p.letter).join(', ') || 'Aucune');
@@ -183,7 +183,7 @@ exports.deletePublication = async (req, res) => {
         
         const gallery = await Gallery.findById(galleryId);
         if (gallery) {
-            const remainingPublications = await Publication.find({ galleryId: galleryId }).select('index').sort({ index: 1 });
+            const remainingPublications = await Publication.find({ galleryId: galleryId }).select('index').sort({ index: 1 }).lean();
             const remainingIndices = new Set(remainingPublications.map(p => p.index));
             // CORRECTION : Trouver le PREMIER index libre après suppression
             let nextIndex = 0;
