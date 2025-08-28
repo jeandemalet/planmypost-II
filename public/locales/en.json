@@ -39,7 +39,8 @@
       "name_desc": "Name (Z-A)",
       "date_desc": "Date Taken (Newest)",
       "date_asc": "Date Taken (Oldest)",
-      "ratio_desc": "Ratio (high to low)"
+      "ratio_desc": "Ratio (high to low)",
+      "ratio_asc": "Ratio (Portrait > Landscape)"
     },
     "galleryStats": "{{count}} photo in the gallery",
     "galleryStats_plural": "{{count}} photos in the gallery",

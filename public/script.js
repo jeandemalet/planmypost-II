@@ -1910,9 +1910,17 @@ class CroppingManager {
 
     updatePreview() {
         this.previewContainer.classList.remove('split-active', 'double-split-active');
-        this.previewLeft.src = 'about:blank'; this.previewLeft.style.display = 'none';
-        this.previewCenter.src = 'about:blank'; this.previewCenter.style.display = 'none';
-        this.previewRight.src = 'about:blank'; this.previewRight.style.display = 'none';
+        
+        // Cacher les previews pour éviter les erreurs "about:blank"
+        this.previewLeft.style.display = 'none';
+        this.previewCenter.style.display = 'none';
+        this.previewRight.style.display = 'none';
+        
+        // Effacer les sources
+        this.previewLeft.src = 'about:blank';
+        this.previewCenter.src = 'about:blank';
+        this.previewRight.src = 'about:blank';
+        
         if (!this.currentImageObject) return;
 
         const tempCanvas = document.createElement('canvas'), tempCtx = tempCanvas.getContext('2d');
@@ -1921,7 +1929,8 @@ class CroppingManager {
             if (!finalWidth || !finalHeight) return;
             tempCanvas.width = finalWidth; tempCanvas.height = finalHeight; tempCtx.fillStyle = 'white'; tempCtx.fillRect(0, 0, finalWidth, finalHeight);
             this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, pasteX, pasteY, this.currentImageObject.naturalWidth, this.currentImageObject.naturalHeight);
-            this.previewLeft.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH, PREVIEW_HEIGHT, 'lightgrey'); this.previewLeft.style.display = 'block';
+            this.previewLeft.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH, PREVIEW_HEIGHT, 'lightgrey');
+            this.previewLeft.style.display = 'block'; // Réafficher
         } else if (this.saveMode === 'crop' && this.cropRectDisplay) {
             const { sx, sy, sWidth, sHeight } = this.getCropSourceCoordinates();
             if (sWidth <= 0 || sHeight <= 0) return;
@@ -1933,14 +1942,14 @@ class CroppingManager {
                 if (tempCanvas.width > 0 && tempCanvas.height > 0) {
                     this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0, 0, sWidthLeft, sHeight, sx, sy, sWidthLeft, sHeight);
                     this.previewLeft.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH / 2 - 4, PREVIEW_HEIGHT, 'lightgrey');
-                    this.previewLeft.style.display = 'inline-block';
+                    this.previewLeft.style.display = 'inline-block'; // Réafficher
                 }
                 tempCanvas.width = sWidthRight; tempCanvas.height = sHeight;
                 if (tempCanvas.width > 0 && tempCanvas.height > 0) {
                     tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
                     this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0, 0, sWidthRight, sHeight, sx + sWidthLeft, sy, sWidthRight, sHeight);
                     this.previewRight.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH / 2 - 4, PREVIEW_HEIGHT, 'lightgrey');
-                    this.previewRight.style.display = 'inline-block';
+                    this.previewRight.style.display = 'inline-block'; // Réafficher
                 }
             } else if (this.splitModeState === 2) {
                 this.previewContainer.classList.add('double-split-active');
@@ -1951,19 +1960,19 @@ class CroppingManager {
                     tempCanvas.width = sWidthLeft; tempCanvas.height = sHeight;
                     this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0, 0, sWidthLeft, sHeight, sx, sy, sWidthLeft, sHeight);
                     this.previewLeft.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH / 3 - 6, PREVIEW_HEIGHT, 'lightgrey');
-                    this.previewLeft.style.display = 'inline-block';
+                    this.previewLeft.style.display = 'inline-block'; // Réafficher
                 }
                 if (sWidthMid > 0) {
                     tempCanvas.width = sWidthMid; tempCanvas.height = sHeight; tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
                     this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0, 0, sWidthMid, sHeight, sx + sWidthLeft, sy, sWidthMid, sHeight);
                     this.previewCenter.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH / 3 - 6, PREVIEW_HEIGHT, 'lightgrey');
-                    this.previewCenter.style.display = 'inline-block';
+                    this.previewCenter.style.display = 'inline-block'; // Réafficher
                 }
                 if (sWidthRight > 0) {
                     tempCanvas.width = sWidthRight; tempCanvas.height = sHeight; tempCtx.clearRect(0, 0, tempCanvas.width, tempCanvas.height);
                     this.drawFlippedIfNeeded(tempCtx, this.currentImageObject, 0, 0, sWidthRight, sHeight, sx + sWidthLeft + sWidthMid, sy, sWidthRight, sHeight);
                     this.previewRight.src = Utils.createThumbnail(tempCanvas, PREVIEW_WIDTH / 3 - 6, PREVIEW_HEIGHT, 'lightgrey');
-                    this.previewRight.style.display = 'inline-block';
+                    this.previewRight.style.display = 'inline-block'; // Réafficher
                 }
             } else {
                 tempCanvas.width = sWidth; tempCanvas.height = sHeight;
@@ -5797,28 +5806,34 @@ class CroppingPage {
     
     // Logique pour lancer le recadrage manuel
     async startCroppingForJour(publicationFrame, startIndex = 0) {
-        // NOUVELLE LOGIQUE DÉCOUPLÉE
+        // --- LOGIQUE CORRIGÉE ET ROBUSTIFIÉE ---
+        // La nouvelle logique utilise directement les données stockées dans la publication,
+        // ce qui la rend indépendante de la pagination.
         const imageInfosForCropper = publicationFrame.imagesData.map(imgDataInPublication => {
-            // On utilise directement les données stockées dans la publication.
-            // Plus besoin de consulter app.gridItemsDict !
+            // On utilise directement le chemin principal stocké, au lieu de chercher dans gridItemsDict
+            const originalGridItem = this.organizerApp.gridItemsDict[imgDataInPublication.originalReferencePath];
+
+            if (!originalGridItem) {
+                console.warn(`Image originale ${imgDataInPublication.originalReferencePath} non trouvée. Recadrage impossible.`);
+                return null; // Ignorer cette image si son original est introuvable
+            }
+
             return {
-                pathForCropper: imgDataInPublication.imageId,
-                dataURL: imgDataInPublication.dataURL, // Pour la vignette
-                originalReferenceId: imgDataInPublication.originalReferencePath,
-                baseImageToCropFromDataURL: imgDataInPublication.mainImagePath,
                 currentImageId: imgDataInPublication.imageId,
-                // AJOUT : Transmettre le nom du fichier
-                basename: imgDataInPublication.basename
+                basename: originalGridItem.basename,
+                originalReferenceId: imgDataInPublication.originalReferencePath,
+                // Utilisation du chemin direct vers l'image originale pour le recadrage
+                baseImageToCropFromDataURL: originalGridItem.imagePath,
             };
-        }).filter(info => info !== null); // Garde la sécurité au cas où
+        }).filter(info => info !== null);
+        // --- FIN DE LA CORRECTION ---
 
         if (imageInfosForCropper.length === 0) {
             this.clearEditor();
-            this.editorPlaceholderElement.textContent = "Cette publication est vide.";
+            this.editorPlaceholderElement.textContent = "Cette publication est vide ou ses images originales sont introuvables.";
             return;
         }
         
-        // Le reste de la fonction est inchangé
         await this.croppingManager.startCropping(imageInfosForCropper, publicationFrame, startIndex);
         this._populateThumbnailStrip(publicationFrame);
         this._updateThumbnailStripHighlight(this.croppingManager.currentImageIndex);

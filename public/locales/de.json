@@ -30,7 +30,8 @@
       "name_desc": "Name (Z-A)",
       "date_desc": "Datum (Neueste)",
       "date_asc": "Datum (Älteste)",
-      "ratio_desc": "Verhältnis (hoch zu niedrig)"
+      "ratio_desc": "Verhältnis (hoch zu niedrig)",
+      "ratio_asc": "Verhältnis (Hochformat > Querformat)"
     },
     "galleryStats": "{{count}} Foto in der Galerie",
     "galleryStats_plural": "{{count}} Fotos in der Galerie",

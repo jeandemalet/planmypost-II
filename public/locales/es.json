@@ -30,7 +30,8 @@
       "name_desc": "Nombre (Z-A)",
       "date_desc": "Fecha (Más reciente)",
       "date_asc": "Fecha (Más antigua)",
-      "ratio_desc": "Relación (alto a bajo)"
+      "ratio_desc": "Relación (alto a bajo)",
+      "ratio_asc": "Relación (Vertical > Horizontal)"
     },
     "galleryStats": "{{count}} foto en la galería",
     "galleryStats_plural": "{{count}} fotos en la galería",

@@ -2974,7 +2974,9 @@ button.small-cancel-btn:hover {
     font-weight: 600;
     color: #343a40;
     padding-right: 10px;
-}/* 
+}
+
+/* 
 ========================================================== */
 /* --- STYLES POUR LA NOUVELLE BARRE DE CONTRÔLES (APERÇU) --- */
 /* ========================================================== */
@@ -2995,7 +2997,9 @@ button.small-cancel-btn:hover {
 /* On s'assure de cacher l'ancien header au cas où */
 #galleryPreviewHeader {
     display: none !important;
-}/* ===
+}
+
+/* ===
 ======================================================= */
 /* --- STYLES POUR LA NOUVELLE BARRE DE CONTRÔLES (APERÇU) --- */
 /* ========================================================== */
@@ -3024,7 +3028,9 @@ button.small-cancel-btn:hover {
 /* On s'assure de cacher l'ancien header au cas où */
 #galleryPreviewHeader {
     display: none !important;
-}/* ====
+}
+
+/* ====
 ====================================================== */
 /* --- STYLES POUR LE NOUVEL INTERRUPTEUR DE VUE (Recadrage) --- */
 /* ========================================================== */
@@ -3207,8 +3213,9 @@ button.small-cancel-btn:hover {
 .cropping-publication-item.dragging-publication-item {
     opacity: 0.5;
     transform: rotate(5deg);
-}/* S
-tyles supplémentaires pour l'intégration de la vue groupée */
+}
+
+/* Styles supplémentaires pour l'intégration de la vue groupée */
 
 /* Amélioration du conteneur principal de recadrage */
 .cropping-layout {
@@ -3300,7 +3307,9 @@ tyles supplémentaires pour l'intégration de la vue groupée */
     #croppingEditorContainer {
         padding: 0;
     }
-}/*
+}
+
+/*
  Affichage du nom de galerie - Style unifié */
 .gallery-title-display {
     font-weight: bold;
@@ -3313,6 +3322,7 @@ tyles supplémentaires pour l'intégration de la vue groupée */
     text-overflow: ellipsis; /* Ajoute "..." si le nom est trop long */
     max-width: 300px;      /* Limite la largeur maximale pour les noms très longs */
 }
+
 /*
  --- STYLES POUR LE MENU PARAMÈTRES --- */
 .settings-container {
@@ -3395,7 +3405,9 @@ tyles supplémentaires pour l'intégration de la vue groupée */
 .profile-container:first-child,
 .settings-container:first-child {
     margin-left: 0;
-}/* =
+}
+
+/* =
 =========================================================
    STYLES ISOLÉS POUR LES RUBANS D'ÉDITION EN VUE GROUPÉE
    ========================================================== */
@@ -3621,7 +3633,9 @@ tyles supplémentaires pour l'intégration de la vue groupée */
             transform: translateX(0);
         }
     }
-}/* =
+}
+
+/* =
 ========================================================= */
 /* --- OPTIMISATION UI : VUE D'ENSEMBLE RECADRAGE COMPACTE --- */
 /* ========================================================== */
