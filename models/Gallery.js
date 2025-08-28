@@ -55,4 +55,14 @@ GallerySchema.pre('save', function(next) {
     next();
 });
 
+// === INDEX OPTIMIZATIONS ===
+// Index composite pour les requêtes par utilisateur et date d'accès
+GallerySchema.index({ owner: 1, lastAccessed: -1 });
+// Index pour les requêtes par utilisateur et date de création
+GallerySchema.index({ owner: 1, createdAt: -1 });
+// Index de recherche par nom (pour futures fonctionnalités de recherche)
+GallerySchema.index({ name: 'text' });
+// Index pour les requêtes de tri par nom
+GallerySchema.index({ owner: 1, name: 1 });
+
 module.exports = mongoose.model('Gallery', GallerySchema);

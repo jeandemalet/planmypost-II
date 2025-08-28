@@ -14,6 +14,38 @@ const MONTHS_FR_ABBR = ["Jan", "Fév", "Mar", "Avr", "Mai", "Juin", "Juil", "Ao�
 
 let app = null;
 
+// === UTILITAIRES DE SÉCURITÉ ===
+const SecurityUtils = {
+    // Sécurise le HTML en utilisant DOMPurify
+    sanitizeHTML(dirty, options = {}) {
+        if (!dirty) return '';
+        
+        const defaultOptions = {
+            ALLOWED_TAGS: ['br', 'p', 'div', 'span', 'strong', 'em', 'u', 'b', 'i', 'ul', 'ol', 'li'],
+            ALLOWED_ATTR: ['class', 'contenteditable', 'data-zone'],
+            KEEP_CONTENT: true
+        };
+        
+        const finalOptions = { ...defaultOptions, ...options };
+        return DOMPurify.sanitize(dirty, finalOptions);
+    },
+    
+    // Sécurise les attributs de texte
+    sanitizeText(text) {
+        if (!text) return '';
+        return text.replace(/[<>"'&]/g, function(match) {
+            switch(match) {
+                case '<': return '&lt;';
+                case '>': return '&gt;';
+                case '"': return '&quot;';
+                case "'": return '&#x27;';
+                case '&': return '&amp;';
+                default: return match;
+            }
+        });
+    }
+};
+
 // ===============================
 // GESTIONNAIRE D'INTERNATIONALISATION (I18N)
 // ===============================
@@ -772,7 +804,7 @@ class PublicationFrameBackend {
     }
 
     async save() {
-        if (!this.id || !app.currentGalleryId) {
+        if (!this.id || !app.currentGalleryId || !app.csrfToken) {
             return false;
         }
         const imagesToSave = this.imagesData.map((imgData, idx) => ({ imageId: imgData.imageId, order: idx }));
@@ -783,7 +815,10 @@ class PublicationFrameBackend {
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/publications/${this.id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': app.csrfToken
+                },
                 body: JSON.stringify(payload)
             });
             if (!response.ok) {
@@ -871,9 +906,14 @@ class PublicationFrameBackend {
     }
 
     async destroy() {
-        if (this.id && app.currentGalleryId) {
+        if (this.id && app.currentGalleryId && app.csrfToken) {
             try {
-                await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/publications/${this.id}`, { method: 'DELETE' });
+                await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/publications/${this.id}`, { 
+                    method: 'DELETE',
+                    headers: {
+                        'X-CSRF-Token': app.csrfToken
+                    }
+                });
             } catch (error) {
                 console.error(`Error deleting Publication ${this.letter} from backend:`, error);
             }
@@ -2569,6 +2609,7 @@ class DescriptionManager {
         this.editorElement.contentEditable = true;
         this.editorElement.classList.remove('structured');
         this.editorElement.innerHTML = '';
+        // Utiliser innerText pour éviter tout problème de sécurité avec le contenu utilisateur
         this.editorElement.innerText = this.commonDescriptionText;
 
         this.editorContentElement.style.display = 'block';
@@ -2589,6 +2630,7 @@ class DescriptionManager {
         const jourText = publicationFrame.descriptionText || '';
         const isEffectivelyEmpty = jourText.trim() === '' || jourText.trim() === '{{COMMON_TEXT}}';
 
+        // Échapper le texte commun pour éviter les injections XSS
         const escapedCommonText = this.commonDescriptionText.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
         const commonBlockHTML = `<div class="common-text-block" contenteditable="false">${escapedCommonText}</div>`;
 
@@ -2597,6 +2639,7 @@ class DescriptionManager {
         if (isEffectivelyEmpty) {
             this.editorElement.contentEditable = false;
             this.editorElement.classList.add('structured');
+            // Structure sécurisée - pas de contenu utilisateur dans cette partie
             this.editorElement.innerHTML = `
                 <div class="editable-zone" contenteditable="true" data-zone="before"><br></div>
                 ${commonBlockHTML}
@@ -2605,8 +2648,14 @@ class DescriptionManager {
         } else {
             this.editorElement.contentEditable = true;
             this.editorElement.classList.remove('structured');
+            // SÉCURITÉ: Utiliser SecurityUtils pour nettoyer le contenu utilisateur
             const finalHTML = jourText.replace(/{{COMMON_TEXT}}/g, commonBlockHTML);
-            this.editorElement.innerHTML = finalHTML.replace(/\n/g, '<br>');
+            const sanitizedHTML = SecurityUtils.sanitizeHTML(finalHTML.replace(/\n/g, '<br>'), {
+                ALLOWED_TAGS: ['br', 'p', 'div', 'span', 'strong', 'em', 'u', 'b', 'i'],
+                ALLOWED_ATTR: ['class', 'contenteditable', 'data-zone'],
+                KEEP_CONTENT: true
+            });
+            this.editorElement.innerHTML = sanitizedHTML;
         }
 
         this.editorContentElement.style.display = 'block';
@@ -2657,13 +2706,16 @@ class DescriptionManager {
     }
 
     async saveCommonDescription(isDebounced = false) {
-        if (!app.currentGalleryId) return;
+        if (!app.currentGalleryId || !app.csrfToken) return;
         if (!isDebounced) this.debouncedSaveCommon.cancel();
 
         try {
             await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/state`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': app.csrfToken
+                },
                 body: JSON.stringify({ commonDescriptionText: this.commonDescriptionText })
             });
         } catch (error) {
@@ -2699,6 +2751,29 @@ class CalendarPage {
         this.dragData = {};
         this._initListeners();
         this.debouncedChangeMonth = Utils.debounce(this.changeMonth.bind(this), 100);
+
+        // --- AJOUTER CE BLOC POUR LE LAZY LOADING ---
+        this.imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const thumbElement = entry.target;
+                    const imageUrl = thumbElement.dataset.src;
+
+                    if (imageUrl) {
+                        // Appliquer l'image de fond
+                        thumbElement.style.backgroundImage = `url(${imageUrl})`;
+                        
+                        // Nettoyage : retirer la classe et arrêter d'observer cet élément
+                        thumbElement.classList.remove('lazy-load-thumb');
+                        observer.unobserve(thumbElement);
+                    }
+                }
+            });
+        }, {
+            rootMargin: '100px', // Charger les images 100px avant qu'elles ne deviennent visibles
+            threshold: 0.01
+        });
+        // --- FIN DE L'AJOUT ---
     }
 
     // NOUVELLE MÉTHODE : Construire le sélecteur de mois
@@ -2928,6 +3003,11 @@ class CalendarPage {
             const nextMonthDay = new Date(year, month + 1, i);
             this.createDayCell(nextMonthDay, true, false, nextMonthDay < today);
         }
+        
+        // --- AJOUTER CETTE PARTIE À LA FIN DE LA FONCTION ---
+        // Lancer l'observation sur toutes les nouvelles vignettes à charger
+        const lazyImages = this.calendarGridElement.querySelectorAll('.lazy-load-thumb');
+        lazyImages.forEach(img => this.imageObserver.observe(img));
     }
 
     populateJourList() {
@@ -3145,8 +3225,9 @@ class CalendarPage {
 
     // NOUVELLE VERSION CORRIGÉE de loadCalendarThumb
     async loadCalendarThumb(thumbElement, jourLetter, galleryIdForJour) {
-        // --- LOGIQUE HYBRIDE ---
+        let imageUrl = null;
 
+        // --- LOGIQUE HYBRIDE (inchangée) ---
         // 1. SI la publication appartient à la GALERIE ACTUELLEMENT CHARGÉE
         if (galleryIdForJour === this.organizerApp.currentGalleryId) {
             // On utilise les données "en direct" de l'application, qui sont toujours à jour.
@@ -3154,34 +3235,29 @@ class CalendarPage {
 
             if (publicationFrame && publicationFrame.imagesData.length > 0) {
                 // On prend la première image de la publication, c'est la source la plus fiable.
-                const firstImage = publicationFrame.imagesData[0];
-                thumbElement.style.backgroundImage = `url(${firstImage.dataURL})`;
-                thumbElement.textContent = "";
-            } else {
-                // La publication est vide, c'est normal de ne pas avoir de vignette.
-                thumbElement.style.backgroundImage = 'none';
-                thumbElement.textContent = "N/A";
+                imageUrl = publicationFrame.imagesData[0].dataURL;
             }
-            return;
+        } else {
+            // 2. SINON (pour toutes les autres galeries)
+            // On utilise les données "snapshot" chargées initialement.
+            const allUserPublications = this.organizerApp.scheduleContext.allUserPublications;
+            if (allUserPublications) {
+                const publicationData = allUserPublications.find(j => j.letter === jourLetter && j.galleryId === galleryIdForJour);
+                
+                if (publicationData && publicationData.firstImageThumbnail) {
+                    const thumbFilename = Utils.getFilenameFromURL(publicationData.firstImageThumbnail);
+                    imageUrl = `${BASE_API_URL}/api/uploads/${publicationData.galleryId}/${thumbFilename}`;
+                }
+            }
         }
 
-        // 2. SINON (pour toutes les autres galeries)
-        // On utilise les données "snapshot" chargées initialement.
-        const allUserPublications = this.organizerApp.scheduleContext.allUserPublications;
-        if (!allUserPublications) {
-            thumbElement.textContent = "?";
-            return;
-        }
-
-        const publicationData = allUserPublications.find(j => j.letter === jourLetter && j.galleryId === galleryIdForJour);
-
-        if (publicationData && publicationData.firstImageThumbnail) {
-            const thumbFilename = Utils.getFilenameFromURL(publicationData.firstImageThumbnail);
-            const thumbUrl = `${BASE_API_URL}/api/uploads/${publicationData.galleryId}/${thumbFilename}`;
-            thumbElement.style.backgroundImage = `url(${thumbUrl})`;
+        // --- NOUVELLE LOGIQUE DE LAZY LOADING ---
+        if (imageUrl) {
+            // On ne charge pas l'image, on prépare pour le lazy loading
+            thumbElement.dataset.src = imageUrl;
+            thumbElement.classList.add('lazy-load-thumb'); // Ajout d'une classe cible
             thumbElement.textContent = "";
         } else {
-            // La publication (d'une autre galerie) est vide ou introuvable.
             thumbElement.style.backgroundImage = 'none';
             thumbElement.textContent = "N/A";
         }
@@ -3464,6 +3540,7 @@ class CalendarPage {
 
 class PublicationOrganizer {
     constructor() {
+        this.csrfToken = null; // Pour stocker le token CSRF
         this.currentGalleryId = null;
         this.displayedGalleryId = null; // Galerie actuellement affichée dans les onglets principaux
         this.currentThumbSize = { width: 200, height: 200 };
@@ -3538,6 +3615,22 @@ class PublicationOrganizer {
         this._initListeners();
         this.updateAddPhotosPlaceholderVisibility();
         this.updateUIToNoGalleryState();
+    }
+
+    // Méthode pour récupérer le token CSRF
+    async fetchCsrfToken() {
+        try {
+            const response = await fetch('/api/csrf-token');
+            if (!response.ok) {
+                throw new Error('Failed to fetch CSRF token');
+            }
+            const data = await response.json();
+            this.csrfToken = data.csrfToken;
+            console.log('🛡️ CSRF Token initialisé.');
+        } catch (error) {
+            console.error('Erreur critique : Impossible de récupérer le token CSRF.', error);
+            // Gérer l'erreur, par exemple en affichant un message à l'utilisateur
+        }
     }
 
     // Méthode pour initialiser les modules de manière sécurisée après que app soit défini
@@ -3851,7 +3944,10 @@ class PublicationOrganizer {
         try {
             const response = await fetch(`${BASE_API_URL}/api/publications/export-all-scheduled`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': app.csrfToken
+                },
                 body: JSON.stringify({ publications: scheduledPublications })
             });
             if (!response.ok) {
@@ -4323,7 +4419,6 @@ class PublicationOrganizer {
         this.publicationFrames = [];
         this.publicationFramesContainer.innerHTML = '';
         this.currentPublicationFrame = null;
-        this.scheduleContext = { schedule: {}, allUserPublications: [] };
         if (this.descriptionManager) this.descriptionManager.clearEditor();
         if (this.croppingPage) this.croppingPage.clearEditor();
         if (this.galleriesUploadProgressContainer) this.galleriesUploadProgressContainer.style.display = 'none';
@@ -4394,7 +4489,12 @@ class PublicationOrganizer {
                     } else {
                         console.warn(`[LOG 3B - index ${i}] MANQUANT. Tentative de création...`);
                         try {
-                            const createResponse = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/publications`, { method: 'POST' });
+                            const createResponse = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/publications`, { 
+                                method: 'POST',
+                                headers: {
+                                    'X-CSRF-Token': this.csrfToken
+                                }
+                            });
                             if (createResponse.ok) {
                                 const newPubData = await createResponse.json();
                                 console.log(`[LOG 3C - index ${i}] ✅ SUCCÈS. Publication ${newPubData.letter} (index ${newPubData.index}) recréée.`);
@@ -4412,7 +4512,12 @@ class PublicationOrganizer {
             // Si la galerie était/est complètement vide, on crée 'A'
             if (repairedPublications.length === 0) {
                 console.log("[INFO] La galerie était/est vide. Création de 'A' par défaut.");
-                const createResponse = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/publications`, { method: 'POST' });
+                const createResponse = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/publications`, { 
+                    method: 'POST',
+                    headers: {
+                        'X-CSRF-Token': this.csrfToken
+                    }
+                });
                 if (createResponse.ok) {
                     repairedPublications.push(await createResponse.json());
                 }
@@ -4536,7 +4641,12 @@ class PublicationOrganizer {
             return;
         }
         try {
-            const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryId}`, { method: 'DELETE' });
+            const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryId}`, { 
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-Token': this.csrfToken
+                }
+            });
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status} - ${await response.text()}`);
             delete this.galleryCache[galleryId];
             if (this.selectedGalleryForPreviewId === galleryId) {
@@ -4827,7 +4937,10 @@ class PublicationOrganizer {
         try {
             // 3. Appeler l'API en arrière-plan
             const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/images/${imageId}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-Token': this.csrfToken
+                }
             });
             if (!response.ok) {
                 const errorText = await response.text();
@@ -5314,7 +5427,7 @@ class PublicationOrganizer {
     }
 
     async saveAppState() {
-        if (!this.currentGalleryId) return;
+        if (!this.currentGalleryId || !this.csrfToken) return;
         const appState = {
             currentThumbSize: this.currentThumbSize,
             sortOption: this.sortOptionsSelect.value,
@@ -5324,7 +5437,10 @@ class PublicationOrganizer {
         try {
             await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/state`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: { 
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': this.csrfToken
+                },
                 body: JSON.stringify(appState)
             });
         } catch (error) {
@@ -5399,6 +5515,8 @@ async function startApp() {
             window.pubApp = app;
             // Initialiser les modules maintenant que app est défini
             app.initializeModules();
+            // Récupérer le token CSRF pour sécuriser les requêtes
+            await app.fetchCsrfToken();
         }
         let galleryIdToLoad = localStorage.getItem('publicationOrganizer_lastGalleryId');
         if (!galleryIdToLoad) {
@@ -5532,7 +5650,12 @@ function setupGlobalEventListeners() {
 
 async function logout() {
     try {
-        const response = await fetch('/api/auth/logout', { method: 'POST' });
+        const response = await fetch('/api/auth/logout', { 
+            method: 'POST',
+            headers: {
+                'X-CSRF-Token': app.csrfToken
+            }
+        });
         if (response.ok) {
             window.location.href = 'welcome.html';
         } else {

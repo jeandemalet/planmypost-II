@@ -2,6 +2,16 @@
 
 Application web pour organiser et gérer des galeries d'images avec système de planification.
 
+## 🔒 Security & Performance
+**Sécurité et optimisations de performance de niveau entreprise implémentées :**
+- **🛡️ Suite de Sécurité Complète**: Validation des entrées, protection XSS, protection CSRF, limitation de débit, en-têtes de sécurité
+- **⚡ Optimisations de Performance**: Indexation base de données, cache côté serveur, minification des assets, compression
+- **🔧 Sécurité Environnement**: Validation automatique, gestion des secrets, durcissement production
+- **📊 Monitoring**: Statistiques de cache, métriques de performance, logs de sécurité
+
+👉 **[Guide de Configuration Rapide](./QUICK_SETUP_GUIDE.md)** - Configuration sécurité en 5 minutes  
+👉 **[Guide de Sécurité Complet](./SECURITY_PERFORMANCE_GUIDE.md)** - Documentation détaillée
+
 ## Installation
 
 1. Cloner le repository

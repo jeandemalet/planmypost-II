@@ -68,4 +68,16 @@ ImageSchema.index({ galleryId: 1, originalFilename: 1 });
 ImageSchema.index({ galleryId: 1, uploadDate: 1 }); // Utile pour tri par date d'upload
 ImageSchema.index({ galleryId: 1, isCroppedVersion: 1 }); // Utile pour filtrer les originales
 
+// === INDEX OPTIMIZATIONS SUPPLÉMENTAIRES ===
+// Index pour les requêtes de tri par taille de fichier
+ImageSchema.index({ galleryId: 1, size: -1 });
+// Index pour les requêtes de tri par dimensions
+ImageSchema.index({ galleryId: 1, width: -1, height: -1 });
+// Index pour rechercher par type MIME
+ImageSchema.index({ galleryId: 1, mimeType: 1 });
+// Index pour les images recadrées et leur parent
+ImageSchema.index({ parentImageId: 1, isCroppedVersion: 1 });
+// Index pour les requêtes par date EXIF
+ImageSchema.index({ galleryId: 1, exifDateTimeOriginal: -1 });
+
 module.exports = mongoose.model('Image', ImageSchema);

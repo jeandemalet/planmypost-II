@@ -27,4 +27,12 @@ ScheduleSchema.index({ galleryId: 1, date: 1, jourLetter: 1 }, { unique: true })
 // Index pour trouver rapidement toutes les entrées pour une date donnée dans une galerie
 ScheduleSchema.index({ galleryId: 1, date: 1 });
 
+// === INDEX OPTIMIZATIONS SUPPLÉMENTAIRES ===
+// Index pour les requêtes par mois (optimisation pour les vues calendrier) - removed duplicate
+// ScheduleSchema.index({ galleryId: 1, date: 1 }); // REMOVED: duplicate of index defined above
+// Index pour les requêtes par lettre de publication
+ScheduleSchema.index({ galleryId: 1, jourLetter: 1 });
+// Index pour les tris par date (ordre chronologique)
+ScheduleSchema.index({ date: 1 });
+
 module.exports = mongoose.model('Schedule', ScheduleSchema);

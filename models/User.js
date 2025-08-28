@@ -33,4 +33,14 @@ const userSchema = new mongoose.Schema({
     },
 });
 
+// === INDEX OPTIMIZATIONS ===
+// Index pour les requêtes par rôle
+userSchema.index({ role: 1 });
+// Index pour les requêtes par email - removed as unique: true already creates this index
+// userSchema.index({ email: 1 }); // REMOVED: duplicate of unique constraint
+// Index pour la recherche par nom
+userSchema.index({ name: 'text' });
+// Index composite pour les requêtes admin
+userSchema.index({ role: 1, createdAt: -1 });
+
 module.exports = mongoose.model('User', userSchema);

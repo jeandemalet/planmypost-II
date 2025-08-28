@@ -66,6 +66,12 @@ PublicationSchema.index({ galleryId: 1, letter: 1 }, { unique: true });
 // Index pour trier les publications par leur index (ordre A, B, C...)
 PublicationSchema.index({ galleryId: 1, index: 1 });
 
+// === INDEX OPTIMIZATIONS SUPPLÉMENTAIRES ===
+// Index pour les requêtes sur le contenu des descriptions
+PublicationSchema.index({ galleryId: 1, descriptionText: 'text' });
+// Index pour les publications avec des paramètres de recadrage automatique
+PublicationSchema.index({ galleryId: 1, 'autoCropSettings.vertical': 1, 'autoCropSettings.horizontal': 1 });
+
 // MODIFICATION CRUCIALE : On renomme le modèle en 'Publication', mais on lui dit de continuer à utiliser
 // l'ancienne collection 'jours' dans la base de données. CELA ÉVITE DE DEVOIR FAIRE UNE MIGRATION DE DONNÉES.
 module.exports = mongoose.model('Publication', PublicationSchema, 'jours');

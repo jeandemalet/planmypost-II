@@ -3,6 +3,26 @@
 //  Fichier: server.js (Version finale et corrigée)
 // =======================================================
 require('dotenv').config();
+
+// === VALIDATION D'ENVIRONNEMENT ===
+const { 
+    validateEnvironment, 
+    configureForProduction, 
+    displayConfiguration 
+} = require('./config/environment');
+
+// Valider l'environnement avant de continuer
+try {
+    validateEnvironment();
+    configureForProduction();
+    displayConfiguration();
+} catch (error) {
+    console.error('\n💥 Environment validation failed:');
+    console.error(error.message);
+    console.error('\n📝 Please check your .env file and ensure all required variables are set.');
+    process.exit(1);
+}
+
 const express = require('express');
 const mongoose = require('mongoose');
 const cors = require('cors');
@@ -12,6 +32,8 @@ const fse = require('fs-extra');
 const http = require('http');
 const cookieParser = require('cookie-parser');
 const compression = require('compression'); // <-- NOUVEAU: Importation de la compression
+const helmet = require('helmet'); // <-- NOUVEAU: Importation de Helmet pour la sécurité
+const session = require('express-session'); // <-- NOUVEAU: Importation des sessions
 const jwt = require('jsonwebtoken'); // Ajouté pour la logique de redirection
 const authMiddleware = require('./middleware/auth'); // Import du middleware d'authentification
 
@@ -46,7 +68,32 @@ const PORT = process.env.PORT || 3000;
 const MONGODB_URI = process.env.MONGODB_URI;
 
 // --- MIDDLEWARES DE BASE ---
+// Configuration Helmet pour la sécurité
+app.use(helmet({
+    contentSecurityPolicy: {
+        directives: {
+            defaultSrc: ["'self'"],
+            styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com"],
+            fontSrc: ["'self'", "https://fonts.gstatic.com"],
+            scriptSrc: ["'self'", "'unsafe-inline'", "https://accounts.google.com", "https://apis.google.com", "https://cdn.jsdelivr.net"],
+            imgSrc: ["'self'", "data:", "blob:", "https://lh3.googleusercontent.com"],
+            connectSrc: ["'self'", "https://accounts.google.com"]
+        }
+    },
+    crossOriginEmbedderPolicy: false // Nécessaire pour Google Sign-In
+}));
 app.use(compression()); // <-- NOUVEAU: Activer la compression Gzip pour toutes les réponses
+// Configuration des sessions pour CSRF
+app.use(session({
+    secret: process.env.SESSION_SECRET || 'default-secret-change-in-production',
+    resave: false,
+    saveUninitialized: false,
+    cookie: {
+        secure: process.env.NODE_ENV === 'production', // HTTPS uniquement en production
+        httpOnly: true,
+        maxAge: 24 * 60 * 60 * 1000 // 24 heures
+    }
+}));
 app.use(cors({
     origin: true, // Adaptez pour la production si nécessaire
     credentials: true
@@ -79,7 +126,13 @@ app.use('/api', apiRoutes);
 //    Lorsqu'une requête pour /script.js, /style.css, /welcome.html ou une image arrive,
 //    ce middleware la trouve dans le dossier 'public' et la sert directement.
 //    La requête s'arrête ici et ne va pas plus loin.
-app.use(express.static(path.join(__dirname, 'public')));
+// Servir les fichiers statiques depuis 'dist' en production, 'public' en développement
+const staticDir = process.env.NODE_ENV === 'production' && process.argv.includes('--static-dir=dist') 
+    ? path.join(__dirname, 'dist') 
+    : path.join(__dirname, 'public');
+
+console.log(`📁 Serving static files from: ${staticDir}`);
+app.use(express.static(staticDir));
 
 // 3. La route de "catch-all" pour l'application principale vient en DERNIER.
 //    Logique améliorée pour rediriger si l'utilisateur n'est pas connecté.

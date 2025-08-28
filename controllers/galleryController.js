@@ -226,7 +226,7 @@ exports.getGalleryDetails = async (req, res) => {
             jours: jours,
             schedule: scheduleData,
             scheduleContext: {
-                allUserJours: joursForScheduling
+                allUserPublications: joursForScheduling // CORRIGÉ: Renommé de 'allUserJours' vers 'allUserPublications'
             }
         });
 

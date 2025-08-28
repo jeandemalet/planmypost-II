@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const rateLimit = require('express-rate-limit'); // <-- NOUVEAU: Rate limiting
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
@@ -12,9 +13,70 @@ const scheduleController = require('../controllers/scheduleController');
 const adminController = require('../controllers/adminController');
 const authMiddleware = require('../middleware/auth');
 const adminAuthMiddleware = require('../middleware/adminAuth');
+const validation = require('../middleware/validation'); // <-- NOUVEAU: Import des validations
+const csrfProtection = require('../middleware/csrf'); // <-- NOUVEAU: Import CSRF
+const {
+    galleryCacheMiddleware,
+    imageCacheMiddleware,
+    publicationCacheMiddleware,
+    scheduleCacheMiddleware,
+    cacheInvalidationMiddleware,
+    getCacheStats
+} = require('../middleware/cache'); // <-- NOUVEAU: Import du cache
+
+// === CONFIGURATION RATE LIMITING ===
+// Rate limiting global pour toutes les routes API
+const globalApiLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 500, // Limite chaque IP à 500 requêtes par fenêtre
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        error: 'Trop de requêtes depuis cette IP, veuillez réessayer plus tard.'
+    }
+});
+
+// Rate limiting strict pour les routes d'authentification
+const authLimiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 10, // Limite les tentatives de connexion
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        error: 'Trop de tentatives de connexion, veuillez réessayer plus tard.'
+    }
+});
+
+// Rate limiting pour les uploads
+const uploadLimiter = rateLimit({
+    windowMs: 60 * 60 * 1000, // 1 heure
+    max: 50, // 50 uploads par heure
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: {
+        error: 'Limite d\'upload atteinte, veuillez réessayer plus tard.'
+    }
+});
+
+// Appliquer le rate limiting global à toutes les routes
+router.use(globalApiLimiter);
+
+// Appliquer la génération de token CSRF à toutes les routes
+router.use(csrfProtection.generateToken);
+
+// Appliquer l'invalidation de cache pour les opérations de modification
+router.use(cacheInvalidationMiddleware);
+
+// Route pour obtenir un token CSRF
+router.get('/csrf-token', csrfProtection.getToken);
+
+// Route pour les statistiques de cache (admin seulement)
+router.get('/cache/stats', authMiddleware, adminAuthMiddleware, (req, res) => {
+    res.json(getCacheStats());
+});
 
 // --- Route d'Authentification ---
-router.post('/auth/google-signin', authController.googleSignIn);
+router.post('/auth/google-signin', authLimiter, authController.googleSignIn);
 router.post('/auth/logout', authController.logout);
 router.get('/auth/status', authController.status);
 
@@ -51,11 +113,11 @@ const upload = multer({
 });
 
 // --- Routes Galerie ---
-router.post('/galleries', authMiddleware, galleryController.createGallery);
-router.get('/galleries', authMiddleware, galleryController.listGalleries);
-router.get('/galleries/:galleryId', authMiddleware, galleryController.getGalleryDetails);
-router.put('/galleries/:galleryId/state', authMiddleware, galleryController.updateGalleryState);
-router.delete('/galleries/:galleryId', authMiddleware, galleryController.deleteGallery);
+router.post('/galleries', authMiddleware, csrfProtection.validateToken, validation.validateGalleryCreation, galleryController.createGallery);
+router.get('/galleries', authMiddleware, galleryCacheMiddleware, galleryController.listGalleries);
+router.get('/galleries/:galleryId', authMiddleware, galleryCacheMiddleware, validation.validateGalleryId, galleryController.getGalleryDetails);
+router.put('/galleries/:galleryId/state', authMiddleware, csrfProtection.validateToken, validation.validateGalleryId, galleryController.updateGalleryState);
+router.delete('/galleries/:galleryId', authMiddleware, csrfProtection.validateToken, validation.validateGalleryId, galleryController.deleteGallery);
 
 // --- Routes Images ---
 const handleUploadErrors = (err, req, res, next) => {
@@ -78,6 +140,8 @@ const handleUploadErrors = (err, req, res, next) => {
 router.post(
     '/galleries/:galleryId/images',
     authMiddleware,
+    uploadLimiter, // <-- NOUVEAU: Rate limiting pour les uploads
+    csrfProtection.validateToken, // <-- NOUVEAU: Protection CSRF
     (req, res, next) => {
         next();
     },
@@ -86,30 +150,30 @@ router.post(
     imageController.uploadImages
 );
 
-router.get('/galleries/:galleryId/images', authMiddleware, imageController.getImagesForGallery);
-router.get('/uploads/:galleryId/:imageName', authMiddleware, imageController.serveImage);
-router.post('/galleries/:galleryId/images/:originalImageId/crop', authMiddleware, imageController.saveCroppedImage);
-router.delete('/galleries/:galleryId/images/:imageId', authMiddleware, imageController.deleteImage);
-router.delete('/galleries/:galleryId/images', authMiddleware, imageController.deleteAllImagesForGallery);
+router.get('/galleries/:galleryId/images', authMiddleware, imageCacheMiddleware, validation.validateGalleryId, validation.validatePagination, imageController.getImagesForGallery);
+router.get('/uploads/:galleryId/:imageName', authMiddleware, validation.validateGalleryId, imageController.serveImage);
+router.post('/galleries/:galleryId/images/:originalImageId/crop', authMiddleware, csrfProtection.validateToken, validation.validateCropData, imageController.saveCroppedImage);
+router.delete('/galleries/:galleryId/images/:imageId', authMiddleware, csrfProtection.validateToken, validation.validateImageId, imageController.deleteImage);
+router.delete('/galleries/:galleryId/images', authMiddleware, csrfProtection.validateToken, validation.validateGalleryId, imageController.deleteAllImagesForGallery);
 
 // --- Routes Publications ---
-router.post('/galleries/:galleryId/publications', authMiddleware, publicationController.createPublication);
-router.get('/galleries/:galleryId/publications', authMiddleware, publicationController.getPublicationsForGallery);
-router.put('/galleries/:galleryId/publications/:publicationId', authMiddleware, publicationController.updatePublication);
-router.delete('/galleries/:galleryId/publications/:publicationId', authMiddleware, publicationController.deletePublication);
+router.post('/galleries/:galleryId/publications', authMiddleware, csrfProtection.validateToken, validation.validatePublicationCreation, publicationController.createPublication);
+router.get('/galleries/:galleryId/publications', authMiddleware, publicationCacheMiddleware, validation.validateGalleryId, publicationController.getPublicationsForGallery);
+router.put('/galleries/:galleryId/publications/:publicationId', authMiddleware, csrfProtection.validateToken, validation.validatePublicationUpdate, publicationController.updatePublication);
+router.delete('/galleries/:galleryId/publications/:publicationId', authMiddleware, csrfProtection.validateToken, validation.validateImageId, publicationController.deletePublication);
 // NOUVELLE ROUTE CI-DESSOUS
-router.get('/galleries/:galleryId/publications/:publicationId/export', authMiddleware, publicationController.exportPublicationImagesAsZip);
+router.get('/galleries/:galleryId/publications/:publicationId/export', authMiddleware, validation.validateImageId, publicationController.exportPublicationImagesAsZip);
 
 // NOUVELLE ROUTE POUR LE NETTOYAGE AUTOMATIQUE
-router.post('/galleries/:galleryId/publications/cleanup', authMiddleware, publicationController.cleanupAndResequence);
+router.post('/galleries/:galleryId/publications/cleanup', authMiddleware, csrfProtection.validateToken, validation.validateGalleryId, publicationController.cleanupAndResequence);
 
 // --- Routes Calendrier ---
-router.get('/galleries/:galleryId/schedule', authMiddleware, scheduleController.getScheduleForGallery);
-router.put('/galleries/:galleryId/schedule', authMiddleware, scheduleController.updateSchedule);
+router.get('/galleries/:galleryId/schedule', authMiddleware, scheduleCacheMiddleware, validation.validateGalleryId, scheduleController.getScheduleForGallery);
+router.put('/galleries/:galleryId/schedule', authMiddleware, csrfProtection.validateToken, validation.validateScheduleUpdate, scheduleController.updateSchedule);
 
 // --- Routes Admin (protégées) ---
 router.get('/admin/users', authMiddleware, adminAuthMiddleware, adminController.listUsers);
-router.get('/admin/users/:userId/galleries', authMiddleware, adminAuthMiddleware, adminController.getGalleriesForUser);
-router.post('/auth/impersonate', authMiddleware, adminAuthMiddleware, adminController.impersonateUser);
+router.get('/admin/users/:userId/galleries', authMiddleware, adminAuthMiddleware, validation.validateUserId, adminController.getGalleriesForUser);
+router.post('/auth/impersonate', authMiddleware, adminAuthMiddleware, csrfProtection.validateToken, validation.validateImpersonation, adminController.impersonateUser);
 
 module.exports = router;
