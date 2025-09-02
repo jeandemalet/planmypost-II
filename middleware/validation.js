@@ -27,6 +27,53 @@ const validateGalleryCreation = [
     handleValidationErrors
 ];
 
+const validateGalleryStateUpdate = [
+    param('galleryId')
+        .isMongoId()
+        .withMessage('ID de galerie invalide'),
+    body('name')
+        .optional()
+        .trim()
+        .isLength({ min: 1, max: 100 })
+        .withMessage('Le nom de la galerie doit contenir entre 1 et 100 caractères')
+        .escape(),
+    body('currentThumbSize')
+        .optional()
+        .isObject()
+        .withMessage('currentThumbSize doit être un objet'),
+    body('currentThumbSize.width')
+        .optional()
+        .isInt({ min: 50, max: 1000 })
+        .withMessage('La largeur des vignettes doit être entre 50 et 1000 pixels'),
+    body('currentThumbSize.height')
+        .optional()
+        .isInt({ min: 50, max: 1000 })
+        .withMessage('La hauteur des vignettes doit être entre 50 et 1000 pixels'),
+    body('sortOption')
+        .optional()
+        .isIn(['date_asc', 'date_desc', 'name_asc', 'name_desc', 'size_asc', 'size_desc'])
+        .withMessage('Option de tri invalide'),
+    body('activeTab')
+        .optional()
+        .isIn(['images', 'publications', 'calendar', 'settings'])
+        .withMessage('Onglet actif invalide'),
+    body('nextPublicationIndex')
+        .optional()
+        .isInt({ min: 0, max: 25 })
+        .withMessage('L\'index de la prochaine publication doit être entre 0 et 25'),
+    body('commonDescriptionText')
+        .optional()
+        .isLength({ max: 5000 })
+        .withMessage('La description commune ne peut pas dépasser 5000 caractères')
+        .trim(),
+    // Empêcher la modification de champs sensibles
+    body('owner').not().exists().withMessage('Le propriétaire ne peut pas être modifié'),
+    body('_id').not().exists().withMessage('L\'ID ne peut pas être modifié'),
+    body('createdAt').not().exists().withMessage('La date de création ne peut pas être modifiée'),
+    body('__v').not().exists().withMessage('La version ne peut pas être modifiée'),
+    handleValidationErrors
+];
+
 const validateGalleryId = [
     param('galleryId')
         .isMongoId()
@@ -170,6 +217,7 @@ const validatePagination = [
 module.exports = {
     handleValidationErrors,
     validateGalleryCreation,
+    validateGalleryStateUpdate,
     validateGalleryId,
     validatePublicationCreation,
     validatePublicationUpdate,

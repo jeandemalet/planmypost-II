@@ -3268,6 +3268,142 @@ button.small-cancel-btn:hover {
     transition: opacity 0.3s ease-in-out;
 }
 
+/* ===== STYLES POUR LA SECTION DES IMAGES INUTILISÉES ===== */
+.unused-images-section {
+    margin-bottom: 25px;
+    background-color: #ffffff;
+    border: 1px solid #e0e6ed;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.cropping-section-header {
+    margin: 0;
+    padding: 15px 20px;
+    background: linear-gradient(135deg, #f8f9fa 0%, #e9ecef 100%);
+    border-bottom: 1px solid #dee2e6;
+    font-size: 1.1em;
+    font-weight: 600;
+    color: #495057;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.unused-images-header {
+    background: linear-gradient(135deg, #e3f2fd 0%, #bbdefb 100%);
+    color: #1976d2;
+    border-bottom-color: #2196f3;
+}
+
+.header-icon {
+    font-size: 1.2em;
+}
+
+.unused-images-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+    gap: 12px;
+    padding: 20px;
+    background-color: #fafbfc;
+}
+
+.unused-image-item {
+    position: relative;
+    width: 100px;
+    height: 100px;
+    border: 2px solid #dee2e6;
+    border-radius: 8px;
+    cursor: grab;
+    overflow: hidden;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    background-color: #f8f9fa;
+    transition: all 0.2s ease;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.unused-image-item:hover {
+    border-color: #007bff;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 8px rgba(0,123,255,0.2);
+}
+
+.unused-image-item:active,
+.unused-image-item.dragging-unused-item {
+    cursor: grabbing;
+    transform: scale(0.95) rotate(2deg);
+    opacity: 0.8;
+    z-index: 1000;
+}
+
+.unused-image-info {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: linear-gradient(transparent, rgba(0,0,0,0.7));
+    color: white;
+    padding: 8px 6px 4px;
+    font-size: 11px;
+    font-weight: 500;
+    text-align: center;
+    line-height: 1.2;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.5);
+}
+
+.cropping-section-separator {
+    height: 1px;
+    background: linear-gradient(90deg, transparent 0%, #dee2e6 20%, #dee2e6 80%, transparent 100%);
+    margin: 20px 0;
+}
+
+/* Amélioration des en-têtes de publications */
+.publication-group-header {
+    background: linear-gradient(135deg, #f1f3f4 0%, #e8eaed 100%);
+    color: #202124;
+    padding: 12px 20px;
+    margin: 0;
+    border-bottom: 1px solid #dadce0;
+    font-size: 1.05em;
+    font-weight: 600;
+}
+
+/* Animation pour les images en cours de glissement depuis les inutilisées */
+.dragging-unused-item {
+    animation: dragPulse 0.6s ease-in-out infinite alternate;
+}
+
+@keyframes dragPulse {
+    from {
+        box-shadow: 0 4px 8px rgba(0,123,255,0.3);
+    }
+    to {
+        box-shadow: 0 6px 16px rgba(0,123,255,0.5);
+    }
+}
+
+/* Responsive pour la grille des images inutilisées */
+@media (max-width: 768px) {
+    .unused-images-grid {
+        grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
+        gap: 8px;
+        padding: 15px;
+    }
+    
+    .unused-image-item {
+        width: 80px;
+        height: 80px;
+    }
+    
+    .unused-image-info {
+        font-size: 10px;
+        padding: 6px 4px 2px;
+    }
+}
+
 /* Amélioration de la barre latérale de recadrage automatique */
 #autoCropSidebar {
     width: 300px;

@@ -455,6 +455,23 @@
         </div>
     </div>
     <script src="script.js?v=1.1"></script>
+    <script src="constants.js"></script> <!-- Centralized constants -->
+    <script src="errorHandler.js"></script> <!-- Error handling system -->
+    <script src="saveStatusIndicator.js"></script> <!-- Save status feedback system -->
+    
+    <!-- Modular Architecture Components -->
+    <script src="modules/base/BaseComponent.js"></script>
+    <script src="modules/core/EventBus.js"></script>
+    <script src="modules/core/StateManager.js"></script>
+    <script src="modules/components/CroppingManager.js"></script>
+    <script src="modules/components/DescriptionManager.js"></script>
+    <script src="modules/modular-integration-example.js"></script>
+    
+    <!-- Modular Integration for Gradual Migration -->
+    <script src="modules/integration/ComponentLoader.js"></script>
+    <script src="modules/integration/ModularPublicationOrganizer.js"></script>
+    
+    <script src="zipExportManager.js"></script> <!-- Background ZIP export manager -->
 
     <!-- ▼▼▼ AJOUT DE LA MODALE POUR L'ASSISTANT HASHTAGS ▼▼▼ -->
     <div id="hashtagModal" class="modal-overlay" style="display: none;">

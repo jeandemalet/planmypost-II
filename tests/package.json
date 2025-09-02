@@ -1,0 +1,48 @@
+{
+  "name": "publication-organizer-tests",
+  "version": "1.0.0",
+  "description": "Test configuration for Publication Organizer",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:verbose": "jest --verbose",
+    "test:silent": "jest --silent",
+    "test:unit": "jest --testPathPattern=unit",
+    "test:integration": "jest --testPathPattern=integration",
+    "test:security": "jest --testPathPattern=security",
+    "test:api": "jest --testPathPattern=api",
+    "test:components": "jest --testPathPattern=components"
+  },
+  "jest": {
+    "testEnvironment": "node",
+    "roots": ["<rootDir>/tests"],
+    "testMatch": [
+      "**/__tests__/**/*.js",
+      "**/?(*.)+(spec|test).js"
+    ],
+    "collectCoverageFrom": [
+      "controllers/**/*.js",
+      "middleware/**/*.js",
+      "models/**/*.js",
+      "utils/**/*.js",
+      "public/modules/**/*.js",
+      "!**/node_modules/**",
+      "!**/coverage/**",
+      "!**/logs/**"
+    ],
+    "coverageDirectory": "coverage",
+    "coverageReporters": ["text", "lcov", "html"],
+    "setupFilesAfterEnv": ["<rootDir>/tests/setup.js"],
+    "testTimeout": 10000,
+    "verbose": true,
+    "detectOpenHandles": true,
+    "forceExit": true
+  },
+  "devDependencies": {
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4",
+    "@types/jest": "^29.5.8",
+    "mongodb-memory-server": "^9.1.1"
+  }
+}

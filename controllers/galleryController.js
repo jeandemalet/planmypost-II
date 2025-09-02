@@ -54,7 +54,7 @@ const createInitialJour = async (galleryId) => {
 
         const gallery = await Gallery.findById(galleryId);
         if (gallery) {
-            gallery.nextJourIndex = 1;
+            gallery.nextPublicationIndex = 1;
             await gallery.save();
         }
     } catch (error) {
@@ -117,9 +117,11 @@ exports.listGalleries = async (req, res) => {
 };
 
 // Obtenir les détails complets d'une galerie (état + données associées)
-// Cette fonction reste en grande partie la même mais on s'assure que l'utilisateur a accès.
+// Version optimisée avec pagination et chargement progressif
 exports.getGalleryDetails = async (req, res) => {
     const { galleryId } = req.params;
+    const { loadFullData = 'false', page = 1, limit = 50 } = req.query;
+    
     try {
         if (!mongoose.Types.ObjectId.isValid(galleryId)) {
             return res.status(400).send('Invalid Gallery ID format.');
@@ -142,49 +144,167 @@ exports.getGalleryDetails = async (req, res) => {
             }
         }
 
-        // 1. D'abord récupérer les galeries de l'utilisateur pour le contexte global
-        const userGalleries = await Gallery.find({ owner: gallery.owner })
-                                          .select('_id name')
-                                          .lean();
-        const userGalleryIds = userGalleries.map(g => g._id);
+        const pageNum = parseInt(page, 10) || 1;
+        const limitNum = Math.min(parseInt(limit, 10) || 50, 100); // Max 100 items per page
+        const skip = (pageNum - 1) * limitNum;
 
-        const limit = 50; // Nombre d'images par page
-        
-        // 2. OPTIMISATION: Lancer toutes les autres requêtes de données en parallèle
-        const [
-            imagesPage, // <-- Changement ici
-            jours, 
-            scheduleEntries, 
-            allJoursForUser,
-            totalImages // <-- Ajout ici
-        ] = await Promise.all([
-            // Ne charger que la première page d'images
+        // Données essentielles toujours chargées
+        const [imagesPage, totalImages, jours] = await Promise.all([
+            // Images paginées
             Image.find({ galleryId: galleryId })
                  .sort({ uploadDate: 1 })
-                 .limit(limit) // <-- AJOUT : Limiter à 50
-                 .select('-__v -mimeType -size') // Exclure des champs inutiles pour la grille
+                 .skip(skip)
+                 .limit(limitNum)
+                 .select('-__v -mimeType -size')
                  .lean(),
+            // Nombre total d'images
+            Image.countDocuments({ galleryId: galleryId }),
+            // Publications de cette galerie uniquement
             Publication.find({ galleryId: galleryId })
                 .populate({
                     path: 'images.imageId',
-                    select: 'path thumbnailPath originalFilename isCroppedVersion parentImageId' // Ne peupler que les champs utiles
+                    select: 'path thumbnailPath originalFilename isCroppedVersion parentImageId'
                 })
                 .sort({ index: 1 })
-                .lean(),
-            // CORRECTION CRUCIALE: Données globales pour l'utilisateur (pour onglet Calendrier)
-            Schedule.find({ galleryId: { $in: userGalleryIds } }).select('date jourLetter galleryId').lean(),
-            Publication.find({ galleryId: { $in: userGalleryIds } })
-                .populate({ path: 'images.imageId', select: 'thumbnailPath' })
-                .select('_id letter galleryId images')
-                .lean(),
-            // Compter le nombre total d'images pour la pagination
-            Image.countDocuments({ galleryId: galleryId }) // <-- AJOUT
+                .lean()
         ]);
 
         // Mise à jour de lastAccessed en arrière-plan (non bloquant)
         Gallery.findByIdAndUpdate(galleryId, { lastAccessed: new Date() }).exec();
 
-        // Traitement des données (rapide, car en mémoire)
+        const response = {
+            galleryState: gallery,
+            images: {
+                docs: imagesPage,
+                total: totalImages,
+                limit: limitNum,
+                page: pageNum,
+                totalPages: Math.ceil(totalImages / limitNum),
+                hasNextPage: skip + limitNum < totalImages,
+                hasPrevPage: pageNum > 1
+            },
+            jours: jours
+        };
+
+        // Chargement conditionnel des données globales (calendrier, etc.)
+        if (loadFullData === 'true') {
+            console.log('[PERF] Loading full calendar and scheduling data...');
+            
+            // Récupérer les galeries de l'utilisateur pour le contexte global
+            const userGalleries = await Gallery.find({ owner: gallery.owner })
+                                              .select('_id name')
+                                              .lean();
+            const userGalleryIds = userGalleries.map(g => g._id);
+
+            const [scheduleEntries, allJoursForUser] = await Promise.all([
+                Schedule.find({ galleryId: { $in: userGalleryIds } })
+                    .select('date jourLetter galleryId')
+                    .lean(),
+                Publication.find({ galleryId: { $in: userGalleryIds } })
+                    .populate({ path: 'images.imageId', select: 'thumbnailPath' })
+                    .select('_id letter galleryId images')
+                    .lean()
+            ]);
+
+            // Traitement des données globales
+            const galleryNameMap = userGalleries.reduce((acc, g) => {
+                acc[g._id.toString()] = g.name;
+                return acc;
+            }, {});
+
+            const scheduleData = scheduleEntries.reduce((acc, entry) => {
+                if (!acc[entry.date]) acc[entry.date] = {};
+                acc[entry.date][entry.jourLetter] = {
+                    galleryId: entry.galleryId.toString(),
+                    galleryName: galleryNameMap[entry.galleryId.toString()] || 'Galerie Inconnue'
+                };
+                return acc;
+            }, {});
+
+            const joursForScheduling = allJoursForUser.map(j => {
+                if (j.images && Array.isArray(j.images) && j.images.length > 1) {
+                    j.images.sort((a, b) => (a.order || 0) - (b.order || 0));
+                }
+                const firstImage = j.images && j.images.length > 0 ? j.images[0]?.imageId : null;
+                return {
+                    _id: j._id,
+                    letter: j.letter,
+                    galleryId: j.galleryId.toString(),
+                    galleryName: galleryNameMap[j.galleryId.toString()] || 'Galerie Inconnue',
+                    firstImageThumbnail: firstImage ? firstImage.thumbnailPath : null
+                };
+            });
+
+            response.schedule = scheduleData;
+            response.scheduleContext = {
+                allUserPublications: joursForScheduling
+            };
+        } else {
+            // Mode rapide : données minimales pour les onglets non-calendrier
+            response.schedule = {};
+            response.scheduleContext = {
+                allUserPublications: []
+            };
+        }
+                
+        res.json(response);
+
+    } catch (error) {
+        console.error(`Error getting gallery details for ${galleryId}:`, error);
+        res.status(500).send('Server error getting gallery details.');
+    }
+};
+
+// Endpoint optimisé pour charger les données de calendrier à la demande
+exports.getCalendarData = async (req, res) => {
+    const { galleryId } = req.params;
+    const { month, year } = req.query; // Optionnel : filtrer par mois/année
+    
+    try {
+        if (!mongoose.Types.ObjectId.isValid(galleryId)) {
+            return res.status(400).send('Invalid Gallery ID format.');
+        }
+
+        const gallery = await Gallery.findById(galleryId).select('owner').lean();
+        if (!gallery) {
+            return res.status(404).send('Gallery not found.');
+        }
+
+        // Vérification de sécurité
+        if (gallery.owner.toString() !== req.userData.userId) {
+            const user = await User.findById(req.userData.userId).select('role').lean();
+            if (!user || user.role !== 'admin') {
+                return res.status(403).send('Access denied to this gallery.');
+            }
+        }
+
+        console.log('[PERF] Loading calendar data on demand for user:', req.userData.userId);
+
+        // Récupérer toutes les galeries de l'utilisateur
+        const userGalleries = await Gallery.find({ owner: gallery.owner })
+                                          .select('_id name')
+                                          .lean();
+        const userGalleryIds = userGalleries.map(g => g._id);
+
+        // Filtre optionnel par date
+        let dateFilter = { galleryId: { $in: userGalleryIds } };
+        if (month && year) {
+            const startDate = new Date(year, month - 1, 1).toISOString().split('T')[0];
+            const endDate = new Date(year, month, 0).toISOString().split('T')[0];
+            dateFilter.date = { $gte: startDate, $lte: endDate };
+        }
+
+        const [scheduleEntries, allJoursForUser] = await Promise.all([
+            Schedule.find(dateFilter)
+                .select('date jourLetter galleryId')
+                .lean(),
+            Publication.find({ galleryId: { $in: userGalleryIds } })
+                .populate({ path: 'images.imageId', select: 'thumbnailPath' })
+                .select('_id letter galleryId images')
+                .lean()
+        ]);
+
+        // Traitement des données
         const galleryNameMap = userGalleries.reduce((acc, g) => {
             acc[g._id.toString()] = g.name;
             return acc;
@@ -212,27 +332,23 @@ exports.getGalleryDetails = async (req, res) => {
                 firstImageThumbnail: firstImage ? firstImage.thumbnailPath : null
             };
         });
-                
+
         res.json({
-            galleryState: gallery,
-            // NOUVEAU : Renvoyer un objet de pagination complet
-            images: {
-                docs: imagesPage,
-                total: totalImages,
-                limit: limit,
-                page: 1,
-                totalPages: Math.ceil(totalImages / limit)
-            },
-            jours: jours,
             schedule: scheduleData,
             scheduleContext: {
-                allUserPublications: joursForScheduling // CORRIGÉ: Renommé de 'allUserJours' vers 'allUserPublications'
+                allUserPublications: joursForScheduling
+            },
+            meta: {
+                totalGalleries: userGalleries.length,
+                totalScheduleEntries: scheduleEntries.length,
+                totalPublications: allJoursForUser.length,
+                dateRange: month && year ? { month: parseInt(month), year: parseInt(year) } : null
             }
         });
 
     } catch (error) {
-        console.error(`Error getting gallery details for ${galleryId}:`, error);
-        res.status(500).send('Server error getting gallery details.');
+        console.error(`Error loading calendar data for gallery ${galleryId}:`, error);
+        res.status(500).send('Server error loading calendar data.');
     }
 };
 

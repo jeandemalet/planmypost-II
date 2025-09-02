@@ -13,7 +13,7 @@ const ScheduleSchema = new mongoose.Schema({
         required: true,
         match: /^\d{4}-\d{2}-\d{2}$/ // Valider le format YYYY-MM-DD
     },
-    jourLetter: { // Lettre du Jour (A, B, C...) prévu pour cette date
+    publicationLetter: { // Lettre de la Publication (A, B, C...) prévue pour cette date
         type: String,
         required: true,
         match: /^[A-Z]$/ // Valider une seule lettre majuscule
@@ -22,8 +22,8 @@ const ScheduleSchema = new mongoose.Schema({
     // Les détails du Jour (images, etc.) sont récupérés via le modèle Jour.
 });
 
-// Index composite pour assurer l'unicité d'une entrée (une seule fois un Jour donné pour une date donnée dans une galerie)
-ScheduleSchema.index({ galleryId: 1, date: 1, jourLetter: 1 }, { unique: true });
+// Index composite pour assurer l'unicité d'une entrée (une seule fois une Publication donnée pour une date donnée dans une galerie)
+ScheduleSchema.index({ galleryId: 1, date: 1, publicationLetter: 1 }, { unique: true });
 // Index pour trouver rapidement toutes les entrées pour une date donnée dans une galerie
 ScheduleSchema.index({ galleryId: 1, date: 1 });
 
@@ -31,7 +31,7 @@ ScheduleSchema.index({ galleryId: 1, date: 1 });
 // Index pour les requêtes par mois (optimisation pour les vues calendrier) - removed duplicate
 // ScheduleSchema.index({ galleryId: 1, date: 1 }); // REMOVED: duplicate of index defined above
 // Index pour les requêtes par lettre de publication
-ScheduleSchema.index({ galleryId: 1, jourLetter: 1 });
+ScheduleSchema.index({ galleryId: 1, publicationLetter: 1 });
 // Index pour les tris par date (ordre chronologique)
 ScheduleSchema.index({ date: 1 });
 

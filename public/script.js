@@ -774,10 +774,44 @@ class PublicationFrameBackend {
             alert("Erreur: Impossible de déterminer la galerie ou l'ID du publication pour l'exportation.");
             return;
         }
-        const exportUrl = `${BASE_API_URL}/api/galleries/${this.galleryId}/publications/${this.id}/export`;
+
+        const imageCount = this.imagesData.length;
         const originalButtonText = this.exportPublicationImagesBtn.textContent;
+        
+        // For large publications (>= 10 images), use background processing
+        if (imageCount >= 10) {
+            this.exportPublicationImagesBtn.textContent = 'Mise en file...';
+            this.exportPublicationImagesBtn.disabled = true;
+            
+            try {
+                // Start background export job
+                const jobId = await zipExportManager.startExport(
+                    this.galleryId, 
+                    this.id, 
+                    this.letter,
+                    { priority: 3 } // Medium priority for user-initiated exports
+                );
+                
+                // Show success message
+                alert(`Export de la Publication ${this.letter} ajouté à la file d'attente.\nVous recevrez une notification quand le ZIP sera prêt.`);
+                
+                console.log(`📦 Background export started for Publication ${this.letter} (${imageCount} images) - Job ID: ${jobId}`);
+                
+            } catch (error) {
+                console.error(`Erreur lors du démarrage de l'export en arrière-plan pour Publication ${this.letter}:`, error);
+                alert(`Erreur: ${error.message}`);
+            } finally {
+                this.exportPublicationImagesBtn.textContent = originalButtonText;
+                this.exportPublicationImagesBtn.disabled = false;
+            }
+            return;
+        }
+
+        // For small publications (< 10 images), use synchronous export as fallback
+        const exportUrl = `${BASE_API_URL}/api/galleries/${this.galleryId}/publications/${this.id}/export`;
         this.exportPublicationImagesBtn.textContent = 'Préparation...';
         this.exportPublicationImagesBtn.disabled = true;
+        
         try {
             const response = await fetch(exportUrl);
             if (!response.ok) {
@@ -794,6 +828,7 @@ class PublicationFrameBackend {
                 }
             }
             Utils.downloadDataURL(window.URL.createObjectURL(blob), filename);
+            console.log(`📦 Synchronous export completed for Publication ${this.letter} (${imageCount} images)`);
         } catch (error) {
             console.error(`Erreur lors de l'exportation du Publication ${this.letter}:`, error);
             alert(`Erreur d'exportation: ${error.message}`);
@@ -1313,7 +1348,7 @@ class AutoCropper {
         }
 
         // On s'assure de rafraîchir la vue principale si elle est affichée.
-        if (this.croppingPage.isAllPhotosViewActive) {
+        if (this.croppingPage && this.croppingPage.isGroupedViewActive) {
             this.croppingPage.renderAllPhotosGroupedView();
         }
 
@@ -2425,8 +2460,21 @@ class DescriptionManager {
         this.commonDescriptionText = '';
         this.isEditingCommon = true;
 
-        this.debouncedSavePublication = Utils.debounce(() => this.saveCurrentPublicationDescription(true), 1500);
-        this.debouncedSaveCommon = Utils.debounce(() => this.saveCommonDescription(true), 1500);
+        // Wrap save functions with status indicators
+        this.debouncedSavePublication = Utils.debounce(() => {
+            window.saveStatusIndicator.wrapSaveFunction(
+                () => this.saveCurrentPublicationDescription(true),
+                'description publication'
+            )();
+        }, 1500);
+        
+        this.debouncedSaveCommon = Utils.debounce(() => {
+            window.saveStatusIndicator.wrapSaveFunction(
+                () => this.saveCommonDescription(true),
+                'description commune'
+            )();
+        }, 1500);
+        
         this._initListeners();
     }
 
@@ -2434,9 +2482,11 @@ class DescriptionManager {
         this.editorElement.addEventListener('input', () => {
             if (this.isEditingCommon) {
                 this.commonDescriptionText = this.editorElement.innerText;
+                window.saveStatusIndicator.showTyping('Modification description commune...');
                 this.debouncedSaveCommon();
             } else if (this.currentSelectedPublicationFrame) {
                 this.currentSelectedPublicationFrame.descriptionText = this._extractTextFromEditor();
+                window.saveStatusIndicator.showTyping('Modification description publication...');
                 this.debouncedSavePublication();
             }
             this._updateShortcutButtonsState();
@@ -2699,10 +2749,18 @@ class DescriptionManager {
         if (!this.currentSelectedPublicationFrame || !app.currentGalleryId) return;
         if (!isDebounced) this.debouncedSavePublication.cancel();
 
-        const publicationToUpdate = this.currentSelectedPublicationFrame;
-        jourToUpdate.descriptionText = this._extractTextFromEditor();
-        await jourToUpdate.save();
-        this.organizerApp.refreshSidePanels();
+        try {
+            const publicationToUpdate = this.currentSelectedPublicationFrame;
+            publicationToUpdate.descriptionText = this._extractTextFromEditor();
+            await publicationToUpdate.save();
+            this.organizerApp.refreshSidePanels();
+        } catch (error) {
+            console.error("Error saving publication description:", error);
+            if (window.errorHandler) {
+                window.errorHandler.handleApiError(error, 'sauvegarde description publication');
+            }
+            throw error; // Re-throw for saveStatusIndicator to catch
+        }
     }
 
     async saveCommonDescription(isDebounced = false) {
@@ -2710,7 +2768,7 @@ class DescriptionManager {
         if (!isDebounced) this.debouncedSaveCommon.cancel();
 
         try {
-            await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/state`, {
+            const response = await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/state`, {
                 method: 'PUT',
                 headers: { 
                     'Content-Type': 'application/json',
@@ -2718,8 +2776,16 @@ class DescriptionManager {
                 },
                 body: JSON.stringify({ commonDescriptionText: this.commonDescriptionText })
             });
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+            }
         } catch (error) {
             console.error("Error saving common description:", error);
+            if (window.errorHandler) {
+                window.errorHandler.handleApiError(error, 'sauvegarde description commune');
+            }
+            throw error; // Re-throw for saveStatusIndicator to catch
         }
     }
 
@@ -5432,7 +5498,7 @@ class PublicationOrganizer {
             currentThumbSize: this.currentThumbSize,
             sortOption: this.sortOptionsSelect.value,
             activeTab: document.querySelector('.tab-button.active')?.dataset.tab || 'galleries',
-            nextJourIndex: this.nextPublicationIndex
+            nextPublicationIndex: this.nextPublicationIndex
         };
         try {
             await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/state`, {
@@ -5511,7 +5577,29 @@ async function startApp() {
     
     try {
         if (!app) {
-            app = new PublicationOrganizer();
+            // ===== NOUVELLE INTÉGRATION MODULAIRE =====
+            // Initialize ComponentLoader for gradual migration
+            if (typeof ComponentLoader !== 'undefined') {
+                console.log('🔧 Initializing modular architecture with ComponentLoader...');
+                window.componentLoader = new ComponentLoader();
+                
+                // Load modular components
+                await window.componentLoader.initializeModularComponents();
+                
+                // Create enhanced modular PublicationOrganizer
+                if (typeof ModularPublicationOrganizer !== 'undefined') {
+                    console.log('🚀 Creating ModularPublicationOrganizer instance...');
+                    app = new ModularPublicationOrganizer();
+                } else {
+                    console.warn('⚠️ ModularPublicationOrganizer not available, falling back to original PublicationOrganizer');
+                    app = new PublicationOrganizer();
+                }
+            } else {
+                console.warn('⚠️ ComponentLoader not available, using original PublicationOrganizer');
+                app = new PublicationOrganizer();
+            }
+            // ===== FIN DE L'INTÉGRATION MODULAIRE =====
+            
             window.pubApp = app;
             // Initialiser les modules maintenant que app est défini
             app.initializeModules();
@@ -5973,6 +6061,15 @@ class CroppingPage {
             return;
         }
         
+        // ===== SECTION DES IMAGES INUTILISÉES (NOUVELLE FONCTIONNALITÉ) =====
+        this._renderUnusedImagesSection(container, app);
+        
+        // ===== SECTION DES PUBLICATIONS EXISTANTES =====
+        const publicationsHeader = document.createElement('h3');
+        publicationsHeader.className = 'cropping-section-header';
+        publicationsHeader.textContent = 'Publications actuelles';
+        container.appendChild(publicationsHeader);
+        
         app.publicationFrames.forEach((publicationFrame, pubIndex) => {
             const groupDiv = document.createElement('div');
             groupDiv.className = 'publication-group-container';
@@ -6031,6 +6128,72 @@ class CroppingPage {
             groupDiv.appendChild(ribbonDiv);
             container.appendChild(groupDiv);
         });
+    }
+    
+    // ===== NOUVELLE MÉTHODE : RENDU DE LA SECTION DES IMAGES INUTILISÉES =====
+    _renderUnusedImagesSection(container, app) {
+        // Obtenir les images inutilisées
+        const unusedImages = app.gridItems.filter(gridItem => 
+            gridItem.isValid && !gridItem.used && !gridItem.isCroppedVersion
+        );
+        
+        if (unusedImages.length === 0) {
+            return; // Aucune image inutilisée, ne pas afficher la section
+        }
+        
+        // Créer la section des images inutilisées
+        const unusedSection = document.createElement('div');
+        unusedSection.className = 'unused-images-section';
+        
+        const unusedHeader = document.createElement('h3');
+        unusedHeader.className = 'cropping-section-header unused-images-header';
+        unusedHeader.innerHTML = `<span class="header-icon">📂</span> Images disponibles (${unusedImages.length})`;
+        unusedSection.appendChild(unusedHeader);
+        
+        const unusedGrid = document.createElement('div');
+        unusedGrid.className = 'unused-images-grid';
+        
+        unusedImages.forEach(gridItem => {
+            const unusedItem = document.createElement('div');
+            unusedItem.className = 'unused-image-item';
+            unusedItem.style.backgroundImage = `url(${gridItem.thumbnailPath})`;
+            unusedItem.title = gridItem.basename || 'Image sans nom';
+            unusedItem.draggable = true;
+            
+            // Configuration du drag-and-drop
+            unusedItem.addEventListener('dragstart', (e) => {
+                e.dataTransfer.setData("application/json", JSON.stringify({
+                    sourceType: 'grid',
+                    imageId: gridItem.id,
+                    originalFilename: gridItem.basename,
+                    thumbnailPath: gridItem.thumbnailPath
+                }));
+                e.dataTransfer.effectAllowed = "copy";
+                unusedItem.classList.add('dragging-unused-item');
+            });
+            
+            unusedItem.addEventListener('dragend', () => {
+                unusedItem.classList.remove('dragging-unused-item');
+            });
+            
+            // Informations sur l'image
+            const imageInfo = document.createElement('div');
+            imageInfo.className = 'unused-image-info';
+            imageInfo.textContent = gridItem.basename ? 
+                (gridItem.basename.length > 12 ? gridItem.basename.substring(0, 12) + '...' : gridItem.basename) : 
+                'Sans nom';
+            unusedItem.appendChild(imageInfo);
+            
+            unusedGrid.appendChild(unusedItem);
+        });
+        
+        unusedSection.appendChild(unusedGrid);
+        container.appendChild(unusedSection);
+        
+        // Séparateur
+        const separator = document.createElement('div');
+        separator.className = 'cropping-section-separator';
+        container.appendChild(separator);
     }
     
     // Bande de vignettes pour le recadrage manuel

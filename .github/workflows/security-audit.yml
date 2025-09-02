@@ -1,0 +1,124 @@
+name: Security Audit
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+  schedule:
+    # Run weekly security audit every Monday at 8 AM UTC
+    - cron: '0 8 * * 1'
+
+jobs:
+  security-audit:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        
+    - name: Install dependencies
+      run: npm ci
+      
+    - name: Run npm audit
+      run: npm audit --audit-level moderate
+      continue-on-error: true
+      
+    - name: Check for outdated packages
+      run: npm outdated
+      continue-on-error: true
+      
+    - name: Run comprehensive security check
+      run: npm run security:check
+      env:
+        NODE_ENV: test
+        
+    - name: Generate security reports
+      run: npm run security:report
+      continue-on-error: true
+      
+    - name: Upload security reports
+      uses: actions/upload-artifact@v4
+      if: always()
+      with:
+        name: security-reports-node-${{ matrix.node-version }}
+        path: |
+          audit-report.json
+          outdated-report.json
+          security-report.json
+        retention-days: 30
+        
+    - name: Comment on PR with security status
+      if: github.event_name == 'pull_request'
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const fs = require('fs');
+          
+          try {
+            let comment = '## 🔒 Security Audit Results\n\n';
+            
+            // Check if security report exists
+            if (fs.existsSync('security-report.json')) {
+              const report = JSON.parse(fs.readFileSync('security-report.json', 'utf8'));
+              
+              comment += `**Status:** ${report.status}\n`;
+              comment += `**Errors:** ${report.summary.errors}\n`;
+              comment += `**Warnings:** ${report.summary.warnings}\n\n`;
+              
+              if (report.summary.errors > 0) {
+                comment += '### ❌ Errors Found:\n';
+                report.errors.forEach(error => {
+                  comment += `- ${error}\n`;
+                });
+                comment += '\n';
+              }
+              
+              if (report.summary.warnings > 0) {
+                comment += '### ⚠️ Warnings:\n';
+                report.warnings.slice(0, 5).forEach(warning => {
+                  comment += `- ${warning}\n`;
+                });
+                if (report.warnings.length > 5) {
+                  comment += `- ... and ${report.warnings.length - 5} more warnings\n`;
+                }
+              }
+            } else {
+              comment += '❌ Security report not generated - check failed\n';
+            }
+            
+            comment += '\n---\n*Automated security audit by GitHub Actions*';
+            
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+          } catch (error) {
+            console.log('Could not create comment:', error);
+          }
+
+  dependency-review:
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Dependency Review
+      uses: actions/dependency-review-action@v4
+      with:
+        fail-on-severity: moderate
+        allow-licenses: MIT, Apache-2.0, BSD-2-Clause, BSD-3-Clause, ISC

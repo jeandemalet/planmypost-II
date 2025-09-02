@@ -4,11 +4,20 @@ on:
   push:
     branches:
       - main
+  workflow_dispatch: # Allow manual deployment
+    inputs:
+      force_reload:
+        description: 'Force PM2 reload (instead of graceful)'
+        required: false
+        default: 'false'
+        type: boolean
 
 jobs:
   deploy:
     name: Deploy code to planmypost-vm
     runs-on: ubuntu-latest
+    environment: production
+    
     steps:
       # ÉTAPE 1 : CONNEXION AU RÉSEAU TAILSCALE
       - name: Connect to Tailscale
@@ -20,8 +29,8 @@ jobs:
       - name: Wait for Tailscale
         run: sleep 5
 
-      # ÉTAPE 2 : DÉPLOIEMENT VIA SSH
-      - name: SSH into VM and deploy
+      # ÉTAPE 2 : DÉPLOIEMENT VIA SSH AVEC ZERO-DOWNTIME
+      - name: SSH into VM and deploy with zero-downtime
         uses: appleboy/ssh-action@master
         with:
           # On utilise l'adresse IP, c'est le plus fiable
@@ -29,6 +38,89 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           key: ${{ secrets.SSH_PRIVATE_KEY }}
           script: |
-            cd /var/www/planmypost-II
-            git pull origin main
-            echo "Deployment successful!"
+            echo "🚀 Starting zero-downtime deployment..."
+            
+            # Vérifier si nous sommes dans le bon répertoire
+            cd /var/www/planmypost-II || {
+              echo "❌ Failed to change to deployment directory"
+              exit 1
+            }
+            
+            # Sauvegarder l'état actuel au cas où nous devons faire un rollback
+            echo "📋 Creating backup point..."
+            BACKUP_BRANCH="backup-$(date +%Y%m%d-%H%M%S)"
+            git checkout -b "$BACKUP_BRANCH" 2>/dev/null || true
+            git checkout main
+            
+            # Vérifier l'état de PM2 avant le déploiement
+            echo "📊 Checking PM2 status before deployment..."
+            pm2 status
+            
+            # Récupérer les derniers changements
+            echo "📥 Pulling latest changes..."
+            git fetch origin main
+            git reset --hard origin/main
+            
+            # Vérifier et installer les nouvelles dépendances
+            echo "📦 Checking for dependency updates..."
+            if ! npm ci --production --silent; then
+              echo "❌ Failed to install dependencies"
+              exit 1
+            fi
+            
+            # Valider l'environnement avant le redémarrage
+            echo "🔍 Validating environment configuration..."
+            if ! node -e "require('./config/environment').validateEnvironment()" 2>/dev/null; then
+              echo "⚠️  Environment validation failed, but continuing..."
+            fi
+            
+            # Exécuter les checks de sécurité (non bloquant)
+            echo "🔒 Running security checks..."
+            npm run security:check || echo "⚠️  Security checks failed, but deployment continues"
+            
+            # Redémarrage PM2 avec zéro downtime
+            if [ "${{ github.event.inputs.force_reload }}" = "true" ]; then
+              echo "🔄 Force reloading PM2 application..."
+              pm2 reload ecosystem.config.js --env production --force
+            else
+              echo "🔄 Gracefully reloading PM2 application..."
+              pm2 reload ecosystem.config.js --env production
+            fi
+            
+            # Attendre que l'application soit stable
+            echo "⏳ Waiting for application to stabilize..."
+            sleep 10
+            
+            # Vérifier la santé de l'application
+            echo "🏥 Health check..."
+            if pm2 status | grep -q "online"; then
+              echo "✅ Application is running successfully"
+              
+              # Test de base de l'API
+              if curl -f http://localhost:3000/api/auth/status &>/dev/null; then
+                echo "✅ API health check passed"
+              else
+                echo "⚠️  API health check failed, but application is running"
+              fi
+              
+              # Nettoyer les anciennes branches de backup (garder seulement les 5 dernières)
+              echo "🧹 Cleaning up old backup branches..."
+              git branch | grep "backup-" | head -n -5 | xargs -r git branch -D 2>/dev/null || true
+              
+              echo "🎉 Deployment successful!"
+              
+              # Afficher les informations de déploiement
+              echo "📋 Deployment Summary:"
+              echo "   - Commit: $(git rev-parse --short HEAD)"
+              echo "   - Deployed at: $(date)"
+              echo "   - PM2 Status:"
+              pm2 status
+              
+            else
+              echo "❌ Application failed to start properly"
+              echo "🔙 Rolling back to previous state..."
+              git checkout "$BACKUP_BRANCH"
+              pm2 reload ecosystem.config.js --env production
+              echo "🔄 Rollback completed"
+              exit 1
+            fi

@@ -1,0 +1,248 @@
+{
+  "summary": {
+    "totalTests": 31,
+    "totalPassed": 31,
+    "totalFailed": 0,
+    "successRate": 100,
+    "duration": "0s",
+    "timestamp": "2025-08-28T21:33:31.453Z"
+  },
+  "categories": {
+    "security": {
+      "passed": 11,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Security Dependency: helmet",
+          "passed": true,
+          "message": "Version: ^8.1.0",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.447Z"
+        },
+        {
+          "name": "Security Dependency: express-validator",
+          "passed": true,
+          "message": "Version: ^7.2.1",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.447Z"
+        },
+        {
+          "name": "Security Dependency: express-rate-limit",
+          "passed": true,
+          "message": "Version: ^8.0.1",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.448Z"
+        },
+        {
+          "name": "Security Dependency: express-session",
+          "passed": true,
+          "message": "Version: ^1.18.2",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.448Z"
+        },
+        {
+          "name": "Gallery State Validation",
+          "passed": true,
+          "message": "Enhanced validation implemented",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.448Z"
+        },
+        {
+          "name": "Sensitive Field Protection",
+          "passed": true,
+          "message": "Sensitive fields protected",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.448Z"
+        },
+        {
+          "name": "Dynamic CORS Configuration",
+          "passed": true,
+          "message": "Environment-aware CORS configured",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.448Z"
+        },
+        {
+          "name": "Environment-based CORS",
+          "passed": true,
+          "message": "Production CORS restrictions configured",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.448Z"
+        },
+        {
+          "name": "Security Check Script",
+          "passed": true,
+          "message": "Security automation script available",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.449Z"
+        },
+        {
+          "name": "Security Audit Workflow",
+          "passed": true,
+          "message": "Automated security checks configured",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.449Z"
+        },
+        {
+          "name": "NPM Security Scripts",
+          "passed": "npm update && npm audit fix",
+          "message": "Security scripts available in package.json",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.449Z"
+        }
+      ]
+    },
+    "performance": {
+      "passed": 9,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Gallery Details Pagination",
+          "passed": true,
+          "message": "Pagination implemented",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.449Z"
+        },
+        {
+          "name": "Conditional Data Loading",
+          "passed": true,
+          "message": "Lazy loading implemented",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.449Z"
+        },
+        {
+          "name": "Separate Calendar Endpoint",
+          "passed": true,
+          "message": "Calendar data endpoint separated",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.450Z"
+        },
+        {
+          "name": "Lean Database Queries",
+          "passed": true,
+          "message": "Multiple lean queries found",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.450Z"
+        },
+        {
+          "name": "Field Selection Optimization",
+          "passed": true,
+          "message": "Field selection implemented",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.450Z"
+        },
+        {
+          "name": "Parallel Query Execution",
+          "passed": true,
+          "message": "Parallel queries implemented",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.450Z"
+        },
+        {
+          "name": "Zero-Downtime Deployment",
+          "passed": true,
+          "message": "PM2 zero-downtime reload configured",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.450Z"
+        },
+        {
+          "name": "Deployment Health Checks",
+          "passed": true,
+          "message": "Health checks implemented",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.450Z"
+        },
+        {
+          "name": "Local Deployment Script",
+          "passed": true,
+          "message": "Local deployment automation available",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.451Z"
+        }
+      ]
+    },
+    "api": {
+      "passed": 11,
+      "failed": 0,
+      "tests": [
+        {
+          "name": "Paginated Images Endpoint",
+          "passed": true,
+          "message": "Dedicated image pagination endpoint",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.451Z"
+        },
+        {
+          "name": "Calendar Data Endpoint",
+          "passed": true,
+          "message": "Separate calendar data endpoint",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.451Z"
+        },
+        {
+          "name": "Route Validation Coverage",
+          "passed": true,
+          "message": "Validation used on 25 endpoints",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.451Z"
+        },
+        {
+          "name": "CORS Environment Variables",
+          "passed": true,
+          "message": "CORS environment variables configured",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.451Z"
+        },
+        {
+          "name": "Environment Validation",
+          "passed": true,
+          "message": "Environment validation implemented",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.452Z"
+        },
+        {
+          "name": "Validation Middleware",
+          "passed": true,
+          "message": "File present: middleware/validation.js",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.452Z"
+        },
+        {
+          "name": "Security Check Script",
+          "passed": true,
+          "message": "File present: scripts/security-check.js",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.452Z"
+        },
+        {
+          "name": "Deployment Script",
+          "passed": true,
+          "message": "File present: scripts/deploy.js",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.452Z"
+        },
+        {
+          "name": "Security Audit Workflow",
+          "passed": true,
+          "message": "File present: .github/workflows/security-audit.yml",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.452Z"
+        },
+        {
+          "name": "Deployment Workflow",
+          "passed": true,
+          "message": "File present: .github/workflows/deploy.yml",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.452Z"
+        },
+        {
+          "name": "Security Guide",
+          "passed": true,
+          "message": "File present: SECURITY_PERFORMANCE_GUIDE.md",
+          "details": {},
+          "timestamp": "2025-08-28T21:33:31.453Z"
+        }
+      ]
+    }
+  },
+  "recommendations": []
+}

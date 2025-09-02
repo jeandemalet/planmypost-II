@@ -166,10 +166,23 @@
 
         async function handleCredentialResponse(response) {
             try {
+                console.log('Credential response received:', response);
                 const idToken = response.credential;
+                
+                // Montrer un indicateur de chargement
+                const buttonDiv = document.getElementById('googleSignInButtonDiv');
+                if (buttonDiv) {
+                    buttonDiv.style.opacity = '0.5';
+                    buttonDiv.style.pointerEvents = 'none';
+                }
+                
                 const res = await fetch('/api/auth/google-signin', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    credentials: 'include', // Important pour les cookies
                     body: JSON.stringify({ token: idToken }),
                 });
 
@@ -202,10 +215,20 @@
 
                 const data = await res.json();
                 console.log('Connexion réussie:', data);
-                window.location.href = '/index.html';
+                
+                // Utiliser location.replace pour éviter les problèmes de navigation
+                window.location.replace('/index.html');
 
             } catch (error) {
                 console.error('Erreur lors de la connexion:', error);
+                
+                // Restaurer le bouton
+                const buttonDiv = document.getElementById('googleSignInButtonDiv');
+                if (buttonDiv) {
+                    buttonDiv.style.opacity = '1';
+                    buttonDiv.style.pointerEvents = 'auto';
+                }
+                
                 const errorMsgEl = document.getElementById('authErrorMessage');
                 if (errorMsgEl) {
                     errorMsgEl.textContent = `Erreur: ${error.message}`;
@@ -215,6 +238,25 @@
         }
 
         window.onload = function () {
+            // Gestionnaire global d'erreurs pour intercepter les erreurs GSI
+            window.addEventListener('error', function(event) {
+                if (event.error && event.error.message && event.error.message.includes('window.opener is null')) {
+                    console.warn('Erreur window.opener interceptée et gérée:', event.error.message);
+                    // Empêcher la propagation de l'erreur
+                    event.preventDefault();
+                    event.stopPropagation();
+                    return true;
+                }
+            });
+            
+            // Gestionnaire pour les erreurs non capturées
+            window.addEventListener('unhandledrejection', function(event) {
+                if (event.reason && event.reason.message && event.reason.message.includes('postMessage')) {
+                    console.warn('Promesse rejetée interceptée (postMessage):', event.reason.message);
+                    event.preventDefault();
+                }
+            });
+
             // Animations de révélation
             const revealItems = document.querySelectorAll('.reveal-item');
             revealItems.forEach((item, index) => {
@@ -223,23 +265,38 @@
                 }, index * 100);
             });
 
-            // Configuration Google Sign-In
-            if (typeof google !== 'undefined' && GOOGLE_CLIENT_ID) {
-                google.accounts.id.initialize({
-                    client_id: GOOGLE_CLIENT_ID,
-                    callback: handleCredentialResponse
-                });
+            // Configuration Google Sign-In avec gestion d'erreur améliorée
+            if (typeof google !== 'undefined' && google.accounts && GOOGLE_CLIENT_ID) {
+                try {
+                    google.accounts.id.initialize({
+                        client_id: GOOGLE_CLIENT_ID,
+                        callback: handleCredentialResponse,
+                        auto_select: false, // Désactiver la sélection automatique
+                        cancel_on_tap_outside: false, // Éviter les annulations accidentelles
+                        use_fedcm_for_prompt: false // Utiliser le flux classique
+                    });
 
-                google.accounts.id.renderButton(
-                    document.getElementById('googleSignInButtonDiv'),
-                    {
-                        theme: 'outline',
-                        size: 'large',
-                        text: 'signin_with',
-                        shape: 'pill',
-                        logo_alignment: 'left'
+                    google.accounts.id.renderButton(
+                        document.getElementById('googleSignInButtonDiv'),
+                        {
+                            theme: 'outline',
+                            size: 'large',
+                            text: 'signin_with',
+                            shape: 'pill',
+                            logo_alignment: 'left',
+                            width: 300 // Largeur fixe pour consistance
+                        }
+                    );
+                    
+                    console.log('Google Sign-In initialized successfully');
+                } catch (initError) {
+                    console.error('Erreur lors de l\'initialisation Google Sign-In:', initError);
+                    const errorMsgEl = document.getElementById('authErrorMessage');
+                    if (errorMsgEl) {
+                        errorMsgEl.textContent = 'Erreur d\'initialisation Google Sign-In';
+                        errorMsgEl.style.display = 'block';
                     }
-                );
+                }
             } else {
                 const errorMsgEl = document.getElementById('authErrorMessage');
                 if (errorMsgEl) {

@@ -78,6 +78,25 @@ function validateEnvironment() {
                 }
                 return true;
             }
+        })
+        .optional('FRONTEND_URL', '', {
+            validator: (value) => {
+                if (process.env.NODE_ENV === 'production' && !value) {
+                    return 'required in production for CORS security';
+                }
+                if (value && !/^https?:\/\//.test(value)) {
+                    return 'must be a valid URL (http:// or https://)';
+                }
+                return true;
+            }
+        })
+        .optional('ADMIN_URL', '', {
+            validator: (value) => {
+                if (value && !/^https?:\/\//.test(value)) {
+                    return 'must be a valid URL (http:// or https://)';
+                }
+                return true;
+            }
         });
 
     // Exécuter la validation
@@ -134,6 +153,8 @@ function displayConfiguration() {
     console.log(`  Google Client ID: ${process.env.GOOGLE_CLIENT_ID ? process.env.GOOGLE_CLIENT_ID.substring(0, 20) + '...' : 'NOT SET'}`);
     console.log(`  Max File Size: ${process.env.MAX_FILE_SIZE || '50'}MB`);
     console.log(`  Rate Limit: ${process.env.RATE_LIMIT_MAX || '500'} requests per ${process.env.RATE_LIMIT_WINDOW || '15'} minutes`);
+    console.log(`  Frontend URL: ${process.env.FRONTEND_URL || 'Not configured (development mode)'}`);
+    console.log(`  Admin URL: ${process.env.ADMIN_URL || 'Not configured'}`);
 }
 
 // Créer un fichier .env.example

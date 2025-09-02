@@ -134,5 +134,11 @@
     "hairdresser_f": "✂️ Hairdresser",
     "subject": "💃 Subject(s)",
     "location": "📍 Location"
+  },
+  "calendar": {
+    "months_full": ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"],
+    "months_abbr": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    "weekdays_full": ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"],
+    "weekdays_abbr": ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"]
   }
 }

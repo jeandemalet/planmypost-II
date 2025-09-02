@@ -1,0 +1,26 @@
+{
+  "timestamp": "2025-08-28T20:08:02.975Z",
+  "status": "FAIL",
+  "summary": {
+    "errors": 1,
+    "warnings": 4,
+    "info": 6
+  },
+  "errors": [
+    "[2025-08-28T20:08:02.974Z] Potential weak secret detected in .env file: a8b3d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7a8b9c0d1e2f3"
+  ],
+  "warnings": [
+    "[2025-08-28T20:08:02.974Z] File .env may be readable by others",
+    "[2025-08-28T20:08:02.975Z] File config/environment.js may be readable by others",
+    "[2025-08-28T20:08:02.975Z] File middleware/auth.js may be readable by others",
+    "[2025-08-28T20:08:02.975Z] File package.json may be readable by others"
+  ],
+  "info": [
+    "[2025-08-28T20:07:59.954Z] Running npm audit...",
+    "[2025-08-28T20:08:01.214Z] No vulnerabilities found in dependencies",
+    "[2025-08-28T20:08:01.215Z] Checking for outdated packages...",
+    "[2025-08-28T20:08:02.973Z] Some packages are outdated (this is normal)",
+    "[2025-08-28T20:08:02.973Z] Checking environment security...",
+    "[2025-08-28T20:08:02.974Z] Checking file permissions..."
+  ]
+}

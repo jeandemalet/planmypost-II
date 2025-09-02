@@ -11,6 +11,7 @@ const imageController = require('../controllers/imageController');
 const publicationController = require('../controllers/publicationController');
 const scheduleController = require('../controllers/scheduleController');
 const adminController = require('../controllers/adminController');
+const zipExportController = require('../controllers/zipExportController'); // NOUVEAU: Export ZIP en arrière-plan
 const authMiddleware = require('../middleware/auth');
 const adminAuthMiddleware = require('../middleware/adminAuth');
 const validation = require('../middleware/validation'); // <-- NOUVEAU: Import des validations
@@ -116,7 +117,11 @@ const upload = multer({
 router.post('/galleries', authMiddleware, csrfProtection.validateToken, validation.validateGalleryCreation, galleryController.createGallery);
 router.get('/galleries', authMiddleware, galleryCacheMiddleware, galleryController.listGalleries);
 router.get('/galleries/:galleryId', authMiddleware, galleryCacheMiddleware, validation.validateGalleryId, galleryController.getGalleryDetails);
-router.put('/galleries/:galleryId/state', authMiddleware, csrfProtection.validateToken, validation.validateGalleryId, galleryController.updateGalleryState);
+// NOUVEAU: Endpoint pour chargement paginé des images
+router.get('/galleries/:galleryId/images/paginated', authMiddleware, imageCacheMiddleware, validation.validateGalleryId, validation.validatePagination, imageController.getImagesForGallery);
+// NOUVEAU: Endpoint pour les données de calendrier global
+router.get('/galleries/:galleryId/calendar-data', authMiddleware, scheduleCacheMiddleware, validation.validateGalleryId, galleryController.getCalendarData);
+router.put('/galleries/:galleryId/state', authMiddleware, csrfProtection.validateToken, validation.validateGalleryStateUpdate, galleryController.updateGalleryState);
 router.delete('/galleries/:galleryId', authMiddleware, csrfProtection.validateToken, validation.validateGalleryId, galleryController.deleteGallery);
 
 // --- Routes Images ---
@@ -175,5 +180,27 @@ router.put('/galleries/:galleryId/schedule', authMiddleware, csrfProtection.vali
 router.get('/admin/users', authMiddleware, adminAuthMiddleware, adminController.listUsers);
 router.get('/admin/users/:userId/galleries', authMiddleware, adminAuthMiddleware, validation.validateUserId, adminController.getGalleriesForUser);
 router.post('/auth/impersonate', authMiddleware, adminAuthMiddleware, csrfProtection.validateToken, validation.validateImpersonation, adminController.impersonateUser);
+
+// --- Routes Export ZIP en Arrière-plan (NOUVEAU) ---
+// Démarrer un export de publication en arrière-plan
+router.post('/zip-exports/publications/:galleryId/:publicationId/start', authMiddleware, csrfProtection.validateToken, validation.validateImageId, zipExportController.startPublicationExport);
+
+// Obtenir le statut d'un job d'export
+router.get('/zip-exports/status/:jobId', authMiddleware, zipExportController.getJobStatus);
+
+// Télécharger un fichier ZIP généré
+router.get('/zip-exports/:fileName', authMiddleware, zipExportController.downloadZipFile);
+
+// Obtenir tous les jobs d'un utilisateur
+router.get('/zip-exports/user/jobs', authMiddleware, zipExportController.getUserJobs);
+
+// Annuler un job en attente
+router.delete('/zip-exports/jobs/:jobId', authMiddleware, csrfProtection.validateToken, zipExportController.cancelJob);
+
+// Statistiques de la file d'attente (admin seulement)
+router.get('/zip-exports/admin/stats', authMiddleware, adminAuthMiddleware, zipExportController.getQueueStats);
+
+// Export synchrone legacy (pour petites publications)
+router.get('/zip-exports/publications/:galleryId/:publicationId/sync', authMiddleware, validation.validateImageId, zipExportController.exportPublicationSync);
 
 module.exports = router;

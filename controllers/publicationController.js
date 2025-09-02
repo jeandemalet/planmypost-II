@@ -75,7 +75,7 @@ exports.createPublication = async (req, res) => {
             if (galleryNextHintIndex >= 26) break; // Sécurité
         }
         
-        gallery.nextJourIndex = galleryNextHintIndex;
+        gallery.nextPublicationIndex = galleryNextHintIndex;
         await gallery.save(); 
 
         const populatedPublication = await Publication.findById(newPublication._id).populate('images.imageId');
@@ -191,7 +191,7 @@ exports.deletePublication = async (req, res) => {
                 nextIndex++;
                 if (nextIndex >= 26) break; // Sécurité
             }
-            gallery.nextJourIndex = nextIndex;
+            gallery.nextPublicationIndex = nextIndex;
             await gallery.save();
         }
 
@@ -352,7 +352,7 @@ exports.cleanupAndResequence = async (req, res) => {
         if (needsUpdate || idsToDelete.length > 0) {
             const gallery = await Gallery.findById(galleryId);
             if (gallery) {
-                gallery.nextJourIndex = fullPublications.length;
+                gallery.nextPublicationIndex = fullPublications.length;
                 await gallery.save();
             }
         }

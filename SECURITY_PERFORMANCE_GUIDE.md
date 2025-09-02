@@ -9,43 +9,263 @@ This document outlines all the security and performance improvements implemented
 - [Environment Configuration](#environment-configuration)
 - [Deployment Guidelines](#deployment-guidelines)
 - [Monitoring & Maintenance](#monitoring--maintenance)
+- [API Optimizations](#api-optimizations)
+- [Automated Security](#automated-security)
 
 ## 🛡️ Security Features
 
-### 1. Input Validation & Sanitization
+### 1. Comprehensive Input Validation & Sanitization
 **Implementation**: `middleware/validation.js`
 
 - **Express-Validator**: Comprehensive input validation for all API routes
 - **Sanitization**: Automatic escaping and trimming of user inputs
 - **Type Validation**: Strict validation of data types, formats, and constraints
 - **Custom Validators**: Business logic validation (e.g., MongoDB ObjectId format)
+- **Gallery State Protection**: Enhanced validation for the `PUT /galleries/:galleryId/state` endpoint
 
 ```javascript
-// Example: Gallery creation validation
-body('name')
-    .trim()
-    .isLength({ min: 1, max: 100 })
-    .withMessage('Gallery name must be 1-100 characters')
-    .escape()
+// Example: Enhanced gallery state validation
+const validateGalleryStateUpdate = [
+    param('galleryId').isMongoId().withMessage('Invalid gallery ID'),
+    body('name').optional().trim().isLength({ min: 1, max: 100 }).escape(),
+    body('currentThumbSize.width').optional().isInt({ min: 50, max: 1000 }),
+    body('sortOption').optional().isIn(['date_asc', 'date_desc', 'name_asc', 'name_desc']),
+    // Prevent modification of sensitive fields
+    body('owner').not().exists().withMessage('Owner cannot be modified'),
+    handleValidationErrors
+];
 ```
 
-### 2. XSS Protection
-**Implementation**: Frontend `SecurityUtils` + DOMPurify
+### 2. Enhanced CORS Security
+**Implementation**: `server.js` with environment-aware configuration
 
-- **DOMPurify**: Client-side HTML sanitization for user-generated content
-- **Content Security Policy**: Strict CSP headers via Helmet
-- **Safe HTML Rendering**: All user content sanitized before display
+- **Production Restrictions**: Strict origin validation for production environments
+- **Development Flexibility**: Permissive settings for local development
+- **Environment Variables**: Configurable allowed origins via `FRONTEND_URL` and `ADMIN_URL`
+- **Security Headers**: Comprehensive allowed headers and methods specification
 
 ```javascript
-// Sanitize user content before rendering
-const cleanHTML = SecurityUtils.sanitizeHTML(userContent, {
-    ALLOWED_TAGS: ['br', 'p', 'div', 'span', 'strong', 'em'],
-    ALLOWED_ATTR: ['class'],
-    KEEP_CONTENT: true
-});
+// Production-ready CORS configuration
+const corsOptions = {
+    origin: function (origin, callback) {
+        if (process.env.NODE_ENV === 'production') {
+            const allowedOrigins = [process.env.FRONTEND_URL, process.env.ADMIN_URL].filter(Boolean);
+            if (allowedOrigins.indexOf(origin) !== -1) {
+                callback(null, true);
+            } else {
+                callback(new Error('Not allowed by CORS'));
+            }
+        } else {
+            callback(null, true); // Allow all in development
+        }
+    },
+    credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization', 'X-CSRF-Token']
+};
 ```
 
-### 3. Security Headers (Helmet)
+### 3. Automated Security Auditing
+**Implementation**: `scripts/security-check.js` and GitHub Actions
+
+- **Automated Dependency Audits**: Regular npm audit checks
+- **Environment Security Validation**: Detection of weak secrets and missing variables
+- **File Permission Checks**: Basic security assessment of sensitive files
+- **Continuous Integration**: Automated security checks on every PR and push
+- **Weekly Security Scans**: Scheduled vulnerability assessments
+
+**Available Scripts:**
+```bash
+npm run security:check      # Comprehensive security audit
+npm run security:report     # Generate detailed security reports
+npm run security:update     # Update dependencies and fix vulnerabilities
+```
+
+### 4. Security Headers (Helmet)
+**Implementation**: Updated Helmet configuration with CSP
+
+- **Content Security Policy**: Restrictive CSP allowing only trusted domains
+- **XSS Protection**: Multiple layers of XSS prevention
+- **Clickjacking Protection**: X-Frame-Options and frame-ancestors
+- **MIME Sniffing Protection**: X-Content-Type-Options header
+- **Google Sign-In Compatible**: CSP configured for Google authentication
+
+### 5. Rate Limiting & CSRF Protection
+**Implementation**: Multi-tier rate limiting with CSRF tokens
+
+- **Global API Limits**: 500 requests per 15 minutes
+- **Authentication Limits**: 10 login attempts per 15 minutes
+- **Upload Limits**: 50 uploads per hour
+- **CSRF Tokens**: Required for all state-changing operations
+- **Session-based Protection**: Secure session management
+
+## ⚡ Performance Optimizations
+
+### 1. API Endpoint Optimization
+**Major Enhancement**: Paginated and lazy-loaded data
+
+#### Gallery Details Endpoint (`GET /galleries/:galleryId`)
+- **Conditional Loading**: Use `?loadFullData=true` for calendar data
+- **Image Pagination**: Built-in pagination with configurable limits
+- **Selective Data Loading**: Only load necessary data for current view
+- **Database Query Optimization**: `.lean()` and `.select()` for faster queries
+
+```javascript
+// Optimized pagination response
+{
+  "galleryState": { /* gallery info */ },
+  "images": {
+    "docs": [ /* image array */ ],
+    "total": 1250,
+    "limit": 50,
+    "page": 1,
+    "totalPages": 25,
+    "hasNextPage": true,
+    "hasPrevPage": false
+  },
+  "jours": [ /* publications */ ]
+  // Calendar data only loaded when needed
+}
+```
+
+#### New Performance Endpoints
+- **`GET /galleries/:galleryId/images/paginated`**: Dedicated image pagination
+- **`GET /galleries/:galleryId/calendar-data`**: On-demand calendar data loading
+- **Month/Year Filtering**: Reduce calendar data by date ranges
+
+### 2. Database Query Optimization
+**Implementation**: Enhanced Mongoose usage
+
+- **Lean Queries**: Return plain JavaScript objects for read operations
+- **Field Selection**: Only fetch required fields with `.select()`
+- **Parallel Execution**: Use `Promise.all()` for independent queries
+- **Background Updates**: Non-blocking `lastAccessed` updates
+- **Index Optimization**: Proper indexing on frequently queried fields
+
+### 3. Enhanced Caching Strategy
+**Implementation**: Improved cache middleware
+
+- **Endpoint-Specific TTL**: Different cache durations per resource type
+- **User-Scoped Caching**: Cache keys include user context
+- **Automatic Invalidation**: Smart cache clearing on data modifications
+- **Cache Statistics**: Monitor cache hit ratios via `/api/cache/stats`
+
+### 4. Image Processing Optimization
+**Implementation**: Worker threads and progressive loading
+
+- **Worker Thread Processing**: Non-blocking image operations
+- **Thumbnail Generation**: Optimized sharp usage
+- **Progressive Loading**: Lazy loading for gallery views
+- **Memory Management**: Efficient handling of large image sets
+
+## 🚀 Deployment Optimizations
+
+### 1. Zero-Downtime Deployments
+**Implementation**: Enhanced GitHub Actions workflow
+
+- **PM2 Graceful Reload**: No service interruption during updates
+- **Health Checks**: Automated verification of deployment success
+- **Rollback Capability**: Automatic rollback on deployment failure
+- **Environment Validation**: Pre-deployment configuration checks
+- **Dependency Management**: Smart dependency installation
+
+### 2. Local Deployment Tools
+**Implementation**: `scripts/deploy.js`
+
+```bash
+npm run deploy:dev      # Development deployment
+npm run deploy:prod     # Production deployment
+npm run deploy:test     # Quick deployment (skip tests)
+```
+
+**Features:**
+- Pre-deployment validation
+- Security checks integration
+- Health monitoring
+- Deployment reporting
+- Cleanup automation
+
+## 🔍 Monitoring & Maintenance
+
+### 1. Security Monitoring
+**Automated Checks:**
+- Weekly dependency vulnerability scans
+- Environment security validation
+- File permission monitoring
+- API security assessment
+
+### 2. Performance Monitoring
+**Available Metrics:**
+- Cache hit ratios: Check `/api/cache/stats`
+- Database query performance
+- API response times
+- Memory usage patterns
+
+### 3. Deployment Monitoring
+**GitHub Actions Integration:**
+- Automated security reports on PRs
+- Deployment success/failure notifications
+- Performance regression detection
+- Dependency review automation
+
+## 📚 Configuration Reference
+
+### Environment Variables
+```bash
+# Security Configuration
+JWT_SECRET=<32+ character secret>
+SESSION_SECRET=<32+ character secret>
+FRONTEND_URL=https://your-frontend-domain.com  # Production only
+ADMIN_URL=https://admin.your-domain.com        # Optional
+
+# Performance Configuration
+RATE_LIMIT_WINDOW=15      # minutes
+RATE_LIMIT_MAX=500        # requests per window
+MAX_FILE_SIZE=50          # MB
+
+# Database & Core
+MONGODB_URI=mongodb://...
+GOOGLE_CLIENT_ID=...
+PORT=3000
+NODE_ENV=production
+```
+
+### Performance Tuning
+```javascript
+// Cache TTL Configuration (middleware/cache.js)
+const galleryCacheMiddleware = cacheMiddleware(1800); // 30 minutes
+const imageCacheMiddleware = cacheMiddleware(900);    // 15 minutes
+const scheduleCacheMiddleware = cacheMiddleware(600); // 10 minutes
+
+// Pagination Limits
+const DEFAULT_PAGE_SIZE = 50;
+const MAX_PAGE_SIZE = 100;
+```
+
+## 🛠️ Development Workflow
+
+### Pre-commit Checks
+```bash
+npm run security:check    # Run before committing
+npm run audit:security    # Check for vulnerabilities
+```
+
+### Deployment Process
+1. **Local Testing**: `npm run deploy:test`
+2. **Security Validation**: Automated in GitHub Actions
+3. **Production Deployment**: Zero-downtime via PM2 reload
+4. **Health Verification**: Automated post-deployment checks
+
+### Troubleshooting
+- **Security Issues**: Check `security-report.json`
+- **Performance Issues**: Monitor `/api/cache/stats`
+- **Deployment Issues**: Review `deployment-report.json`
+- **API Issues**: Check PM2 logs and error monitoring
+
+---
+
+*Last updated: August 2024*
+*Version: 2.0 - Enhanced Security & Performance*
 **Implementation**: `server.js`
 
 - **X-Content-Type-Options**: Prevents MIME sniffing attacks

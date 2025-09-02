@@ -13,7 +13,29 @@
     "copy-nlp": "node scripts/copy-nlp.js",
     "build:thesaurus": "python scripts/generer_thesaurus_complet.py",
     "audit:security": "npm audit --audit-level moderate",
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "audit:fix": "npm audit fix",
+    "security:check": "node scripts/security-check.js",
+    "security:report": "npm audit --json > audit-report.json && npm outdated --json > outdated-report.json",
+    "security:update": "npm update && npm audit fix",
+    "deploy:dev": "node scripts/deploy.js",
+    "deploy:prod": "node scripts/deploy.js --production",
+    "deploy:test": "node scripts/deploy.js --skip-tests --skip-security",
+    "test:security-performance": "node scripts/test-security-performance.js",
+    "validate:all": "npm run security:check && npm run test:security-performance",
+    "prestart": "npm run security:check",
+    "cleanup:run": "node scripts/scheduled-cleanup.js",
+    "cleanup:schedule": "node scripts/scheduled-cleanup.js --schedule",
+    "maintenance:full": "npm run cleanup:run && npm run security:check",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:security": "jest tests/unit/security --verbose",
+    "test:models": "jest tests/unit/models --verbose",
+    "test:controllers": "jest tests/unit/controllers --verbose",
+    "test:middleware": "jest tests/unit/middleware --verbose",
+    "test:frontend": "jest tests/unit/frontend --verbose",
+    "test:modular": "jest tests/unit/frontend --verbose --testNamePattern='(BaseComponent|EventBus|StateManager|ComponentLoader|ModularPublicationOrganizer)'",
+    "test:integration": "jest tests/unit/frontend/ComponentLoader.test.js tests/unit/frontend/ModularPublicationOrganizer.test.js --verbose"
   },
   "keywords": [
     "image",
@@ -33,14 +55,25 @@
     "dotenv": "^16.3.1",
     "exif-parser": "^0.1.12",
     "express": "^4.18.2",
+    "express-rate-limit": "^8.0.1",
+    "express-session": "^1.18.2",
+    "express-validator": "^7.2.1",
     "fs-extra": "^11.1.1",
     "google-auth-library": "^10.1.0",
+    "helmet": "^8.1.0",
     "jsonwebtoken": "^9.0.2",
     "mongoose": "^8.14.2",
     "multer": "^1.4.5-lts.1",
-    "sharp": "^0.33.0"
+    "node-cron": "^3.0.3",
+    "sharp": "^0.33.0",
+    "uuid": "^11.1.0",
+    "winston": "^3.17.0",
+    "winston-daily-rotate-file": "^5.0.0"
   },
   "devDependencies": {
-    "nodemon": "^3.0.2"
+    "nodemon": "^3.0.2",
+    "jest": "^29.7.0",
+    "supertest": "^6.3.4",
+    "mongodb-memory-server": "^9.1.3"
   }
 }

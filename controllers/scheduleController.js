@@ -25,7 +25,7 @@ exports.getScheduleForGallery = async (req, res) => {
         const scheduleData = scheduleEntries.reduce((acc, entry) => {
             const date = entry.date;
             if (!acc[date]) acc[date] = {};
-            acc[date][entry.jourLetter] = {
+            acc[date][entry.publicationLetter] = {
                 galleryId: entry.galleryId.toString(),
                 galleryName: galleryNameMap[entry.galleryId.toString()] || 'Galerie Inconnue'
             };
@@ -58,7 +58,7 @@ exports.updateSchedule = async (req, res) => {
 
         const oldScheduleEntries = await Schedule.find({ galleryId: { $in: userGalleryIds } }).lean();
         const oldScheduleSet = new Set(
-            oldScheduleEntries.map(e => `${e.date}_${e.jourLetter}_${e.galleryId.toString()}`)
+            oldScheduleEntries.map(e => `${e.date}_${e.publicationLetter}_${e.galleryId.toString()}`)
         );
 
         // 2. Traiter les nouvelles données du calendrier
@@ -70,20 +70,20 @@ exports.updateSchedule = async (req, res) => {
         for (const date in scheduleData) {
             if (!dateRegex.test(date)) continue;
 
-            const joursOnDate = scheduleData[date];
-            for (const jourLetter in joursOnDate) {
-                if (!letterRegex.test(jourLetter)) continue;
+            const publicationsOnDate = scheduleData[date];
+            for (const publicationLetter in publicationsOnDate) {
+                if (!letterRegex.test(publicationLetter)) continue;
 
-                const entryData = joursOnDate[jourLetter];
+                const entryData = publicationsOnDate[publicationLetter];
                 // Sécurité: Vérifier que le galleryId de l'entrée est valide et appartient bien à l'utilisateur
                 if (entryData && entryData.galleryId && userGalleryIdsSet.has(entryData.galleryId)) {
-                    const uniqueKey = `${date}_${jourLetter}_${entryData.galleryId}`;
+                    const uniqueKey = `${date}_${publicationLetter}_${entryData.galleryId}`;
                     if (!newScheduleSet.has(uniqueKey)) {
                         newScheduleSet.add(uniqueKey);
                         newEntriesToInsert.push({
                             galleryId: new mongoose.Types.ObjectId(entryData.galleryId),
                             date: date,
-                            jourLetter: jourLetter,
+                            publicationLetter: publicationLetter,
                             owner: userId // On pourrait ajouter un champ owner pour simplifier les requêtes
                         });
                     }
@@ -95,7 +95,7 @@ exports.updateSchedule = async (req, res) => {
         const entriesToAdd = [];
         const newScheduleKeysForDb = new Set();
         for (const entry of newEntriesToInsert) {
-            const key = `${entry.date}_${entry.jourLetter}_${entry.galleryId}`;
+            const key = `${entry.date}_${entry.publicationLetter}_${entry.galleryId}`;
             newScheduleKeysForDb.add(key);
             if (!oldScheduleSet.has(key)) {
                 entriesToAdd.push(entry);
