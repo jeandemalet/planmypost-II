@@ -86,6 +86,7 @@
     "title": "Settings",
     "language": "Language",
     "clearCache": "Clear application cache",
+    "cleanupBrokenImages": "Clean up broken images",
     "switchTo": "Switch to French",
     "accountAndHelp": "Account & Help",
     "myProfile": "My Profile",

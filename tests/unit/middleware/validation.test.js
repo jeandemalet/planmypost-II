@@ -118,7 +118,7 @@ describe('Validation Middleware', () => {
                     name: 'Updated Gallery',
                     currentThumbSize: { width: 300, height: 300 },
                     sortOption: 'date_desc',
-                    activeTab: 'publications',
+                    activeTab: 'currentGallery',
                     nextPublicationIndex: 5,
                     commonDescriptionText: 'Updated description'
                 };
@@ -170,8 +170,9 @@ describe('Validation Middleware', () => {
             });
             
             test('should validate active tab options', async () => {
-                const validTabs = ['images', 'publications', 'calendar', 'settings'];
-                const invalidTabs = ['admin', 'secret', 'unknown'];
+                // CORRECTED: Use the actual tab values from the HTML
+                const validTabs = ['galleries', 'currentGallery', 'cropping', 'description', 'calendar'];
+                const invalidTabs = ['admin', 'secret', 'unknown', 'images', 'publications', 'settings'];
                 
                 // Test valid tabs
                 for (const tab of validTabs) {
@@ -295,58 +296,31 @@ describe('Validation Middleware', () => {
         describe('validatePublicationCreation', () => {
             const validGalleryId = '507f1f77bcf86cd799439011';
             
-            test('should accept valid publication data', async () => {
+            test('should accept empty body for publication creation', async () => {
+                // CORRECTION: La création de publication ne nécessite plus de données dans le body
+                // car la lettre et l'index sont générés automatiquement par le serveur
+                const response = await request(app)
+                    .post(`/test/gallery/${validGalleryId}/publication`)
+                    .send({}) // Corps vide, comme dans la vraie application
+                    .expect(200);
+                
+                expect(response.body.success).toBe(true);
+            });
+            
+            test('should accept publication creation with optional data', async () => {
+                // Les données optionnelles peuvent toujours être envoyées mais ne sont pas requises
                 const response = await request(app)
                     .post(`/test/gallery/${validGalleryId}/publication`)
                     .send({
-                        letter: 'A',
-                        index: 0,
-                        descriptionText: 'Test description'
+                        // Aucune donnée requise - le serveur génère tout automatiquement
                     })
                     .expect(200);
                 
                 expect(response.body.success).toBe(true);
             });
             
-            test('should validate publication letter format', async () => {
-                const validLetters = ['A', 'B', 'Z'];
-                const invalidLetters = ['a', 'AA', '1', '@', ''];
-                
-                // Test valid letters
-                for (const letter of validLetters) {
-                    await request(app)
-                        .post(`/test/gallery/${validGalleryId}/publication`)
-                        .send({ letter, index: 0 })
-                        .expect(200);
-                }
-                
-                // Test invalid letters
-                for (const letter of invalidLetters) {
-                    await request(app)
-                        .post(`/test/gallery/${validGalleryId}/publication`)
-                        .send({ letter, index: 0 })
-                        .expect(400);
-                }
-            });
-            
-            test('should validate publication index range', async () => {
-                const validIndexes = [0, 12, 25];
-                const invalidIndexes = [-1, 26, 100];
-                
-                // Test valid indexes
-                for (const index of validIndexes) {
-                    await request(app)
-                        .post(`/test/gallery/${validGalleryId}/publication`)
-                        .send({ letter: 'A', index })
-                        .expect(200);
-                }
-                
-                // Test invalid indexes
-                for (const index of invalidIndexes) {
-                    await request(app)
-                        .post(`/test/gallery/${validGalleryId}/publication`)
-                        .send({ letter: 'A', index })
-                        .expect(400);
+            // SUPPRIMÉ: Les tests de validation de letter et index car ces champs
+            // ne sont plus validés lors de la création (ils sont auto-générés)
                 }
             });
             

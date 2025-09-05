@@ -63,6 +63,7 @@
                         
                         <!-- Section Données -->
                         <a href="#" id="clearCacheBtn" data-i18n="settings.clearCache">Vider le cache de l'application</a>
+                        <a href="#" id="cleanupBrokenImagesBtn" data-i18n="settings.cleanupBrokenImages">🧹 Nettoyer les images cassées</a>
                         
                         <div class="dropdown-divider"></div>
                         
@@ -195,10 +196,10 @@
                     <!-- NOUVEAU SÉLECTEUR DE VUE À DEUX BOUTONS -->
                     <div id="viewModeSwitch" class="view-mode-switch">
                         <button id="switchToGroupedViewBtn" class="active" title="Vue d'ensemble">
-                            <img src="/assets/vuedensemble.png?v=1.1" alt="Vue d'ensemble" class="view-mode-icon">
+                            <img src="/assets/vuedensemble.png?v=1.1" alt="Vue d'ensemble" class="view-mode-icon" loading="lazy">
                         </button>
                         <button id="switchToEditorViewBtn" title="Recadrage Individuel">
-                            <img src="/assets/recadrageindividuel.png?v=1.1" alt="Recadrage Individuel" class="view-mode-icon">
+                            <img src="/assets/recadrageindividuel.png?v=1.1" alt="Recadrage Individuel" class="view-mode-icon" loading="lazy">
                         </button>
                     </div>
                     <ul id="croppingPublicationList">
@@ -229,9 +230,9 @@
                             </div>
                         </div>
                         <div class="cropper-controls">
-                            <button id="cropPrevImageBtn" title="Image précédente" data-i18n-title="tooltips.previousImage"><img src="assets/previous.png?v=1.1" alt="Précédent"></button>
-                            <button id="cropNextImageBtn" title="Image suivante" data-i18n-title="tooltips.nextImage"><img src="assets/next.png?v=1.1" alt="Suivant"></button>
-                            <button id="cropFlipBtn" title="Retourner Horizontalement" data-i18n-title="tooltips.flipHorizontal"><img src="assets/turn-around.png?v=1.1" alt="Retourner"></button>
+                            <button id="cropPrevImageBtn" title="Image précédente" data-i18n-title="tooltips.previousImage"><img src="assets/previous.png?v=1.1" alt="Précédent" loading="lazy"></button>
+                            <button id="cropNextImageBtn" title="Image suivante" data-i18n-title="tooltips.nextImage"><img src="assets/next.png?v=1.1" alt="Suivant" loading="lazy"></button>
+                            <button id="cropFlipBtn" title="Retourner Horizontalement" data-i18n-title="tooltips.flipHorizontal"><img src="assets/turn-around.png?v=1.1" alt="Retourner" loading="lazy"></button>
                             <select id="cropAspectRatio">
                                 <option value="3:4" data-i18n="cropping.aspectRatios.3:4">3:4 (Vertical)</option>
                                 <option value="1:1" data-i18n="cropping.aspectRatios.1:1">1:1 (Carré)</option>
@@ -455,21 +456,21 @@
         </div>
     </div>
     <script src="script.js?v=1.1"></script>
-    <script src="constants.js"></script> <!-- Centralized constants -->
-    <script src="errorHandler.js"></script> <!-- Error handling system -->
-    <script src="saveStatusIndicator.js"></script> <!-- Save status feedback system -->
+    <script type="module" src="constants.js"></script> <!-- Centralized constants -->
+    <script type="module" src="errorHandler.js"></script> <!-- Error handling system -->
+    <script type="module" src="saveStatusIndicator.js"></script> <!-- Save status feedback system -->
     
     <!-- Modular Architecture Components -->
-    <script src="modules/base/BaseComponent.js"></script>
-    <script src="modules/core/EventBus.js"></script>
-    <script src="modules/core/StateManager.js"></script>
-    <script src="modules/components/CroppingManager.js"></script>
-    <script src="modules/components/DescriptionManager.js"></script>
-    <script src="modules/modular-integration-example.js"></script>
+    <script type="module" src="modules/base/BaseComponent.js"></script>
+    <script type="module" src="modules/core/EventBus.js"></script>
+    <script type="module" src="modules/core/StateManager.js"></script>
+    <script type="module" src="modules/components/CroppingManager.js"></script>
+    <script type="module" src="modules/components/DescriptionManager.js"></script>
+    <script type="module" src="modules/modular-integration-example.js"></script>
     
     <!-- Modular Integration for Gradual Migration -->
-    <script src="modules/integration/ComponentLoader.js"></script>
-    <script src="modules/integration/ModularPublicationOrganizer.js"></script>
+    <script type="module" src="modules/integration/ComponentLoader.js"></script>
+    <script type="module" src="modules/integration/ModularPublicationOrganizer.js"></script>
     
     <script src="zipExportManager.js"></script> <!-- Background ZIP export manager -->
 

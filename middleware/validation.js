@@ -55,7 +55,7 @@ const validateGalleryStateUpdate = [
         .withMessage('Option de tri invalide'),
     body('activeTab')
         .optional()
-        .isIn(['images', 'publications', 'calendar', 'settings'])
+        .isIn(['galleries', 'currentGallery', 'cropping', 'description', 'calendar'])
         .withMessage('Onglet actif invalide'),
     body('nextPublicationIndex')
         .optional()
@@ -83,20 +83,12 @@ const validateGalleryId = [
 
 // === VALIDATIONS POUR LES PUBLICATIONS ===
 const validatePublicationCreation = [
+    // CORRECTION: On ne valide que l'ID de la galerie, car la lettre et l'index sont générés par le serveur
     param('galleryId')
         .isMongoId()
         .withMessage('ID de galerie invalide'),
-    body('letter')
-        .matches(/^[A-Z]$/)
-        .withMessage('La lettre doit être une seule lettre majuscule (A-Z)'),
-    body('index')
-        .isInt({ min: 0, max: 25 })
-        .withMessage('L\'index doit être un nombre entre 0 et 25'),
-    body('descriptionText')
-        .optional()
-        .isLength({ max: 5000 })
-        .withMessage('La description ne peut pas dépasser 5000 caractères')
-        .trim(),
+    // Les validations pour 'letter' et 'index' ont été retirées car ces champs sont auto-générés
+    // La validation pour 'descriptionText' est également retirée car non pertinente lors de la création initiale
     handleValidationErrors
 ];
 

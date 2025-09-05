@@ -86,6 +86,7 @@
     "title": "Paramètres",
     "language": "Langue",
     "clearCache": "Vider le cache de l'application",
+    "cleanupBrokenImages": "Nettoyer les images cassées",
     "switchTo": "Passer en Anglais",
     "accountAndHelp": "Compte & Aide",
     "myProfile": "Mon Profil",

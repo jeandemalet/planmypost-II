@@ -195,7 +195,8 @@ describe('Gallery Controller', () => {
                 owner: mockUser._id,
                 currentThumbSize: { width: 200, height: 200 },
                 sortOption: 'name_asc',
-                activeTab: 'images'
+                // CORRECTED: Use the actual tab values from the HTML
+                activeTab: 'currentGallery'
             });
             
             otherUserGallery = await Gallery.create({
@@ -301,7 +302,7 @@ describe('Gallery Controller', () => {
                 owner: mockUser._id,
                 currentThumbSize: { width: 200, height: 200 },
                 sortOption: 'name_asc',
-                activeTab: 'images',
+                activeTab: 'currentGallery',
                 nextPublicationIndex: 0
             });
         });

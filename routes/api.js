@@ -161,6 +161,9 @@ router.post('/galleries/:galleryId/images/:originalImageId/crop', authMiddleware
 router.delete('/galleries/:galleryId/images/:imageId', authMiddleware, csrfProtection.validateToken, validation.validateImageId, imageController.deleteImage);
 router.delete('/galleries/:galleryId/images', authMiddleware, csrfProtection.validateToken, validation.validateGalleryId, imageController.deleteAllImagesForGallery);
 
+// NOUVELLE ROUTE: Nettoyage des images cassées
+router.post('/cleanup-broken-images', authMiddleware, csrfProtection.validateToken, imageController.cleanupBrokenImages);
+
 // --- Routes Publications ---
 router.post('/galleries/:galleryId/publications', authMiddleware, csrfProtection.validateToken, validation.validatePublicationCreation, publicationController.createPublication);
 router.get('/galleries/:galleryId/publications', authMiddleware, publicationCacheMiddleware, validation.validateGalleryId, publicationController.getPublicationsForGallery);

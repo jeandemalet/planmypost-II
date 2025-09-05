@@ -1020,7 +1020,10 @@ class AutoCropper {
         try {
             await fetch(`${BASE_API_URL}/api/galleries/${publicationFrame.galleryId}/publications/${publicationFrame.id}`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': app.csrfToken
+                },
                 body: JSON.stringify({ autoCropSettings: settings })
             });
         } catch (error) {
@@ -3421,7 +3424,10 @@ class CalendarPage {
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/schedule`, {
                 method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': app.csrfToken
+                },
                 body: JSON.stringify(this.organizerApp.scheduleContext.schedule)
             });
             if (!response.ok) {
@@ -4413,12 +4419,32 @@ class PublicationOrganizer {
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': this.csrfToken
+                },
                 body: JSON.stringify({ name: finalName })
             });
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status} - ${await response.text()}`);
-            const newGallery = await response.json();
+            
+            // CORRECTION RACE CONDITION: Gérer la nouvelle réponse complète du serveur
+            const creationResult = await response.json();
+            const newGallery = creationResult.gallery || creationResult; // Compatibilité avec l'ancien format
+            const initialPublication = creationResult.initialPublication;
+            
             this.galleryCache[newGallery._id] = newGallery.name;
+
+            // CORRECTION: Si on a reçu la publication initiale, l'ajouter immédiatement au cache
+            // Cela évite la race condition lors du premier loadState()
+            if (initialPublication && !this.currentGalleryId) {
+                // Pré-initialiser l'état de la galerie avec sa publication A
+                this.currentGalleryState = {
+                    ...newGallery,
+                    _id: newGallery._id
+                };
+                this.jours = [initialPublication];
+                console.log('[RACE CONDITION FIX] Publication initiale A pré-chargée:', initialPublication.letter);
+            }
 
             // Supprimer l'élément temporaire
             newGalleryItem.remove();
@@ -4449,12 +4475,31 @@ class PublicationOrganizer {
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': this.csrfToken
+                },
                 body: JSON.stringify({ name: galleryName })
             });
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status} - ${await response.text()}`);
-            const newGallery = await response.json();
+            
+            // CORRECTION RACE CONDITION: Gérer la nouvelle réponse complète du serveur
+            const creationResult = await response.json();
+            const newGallery = creationResult.gallery || creationResult; // Compatibilité avec l'ancien format
+            const initialPublication = creationResult.initialPublication;
+            
             this.galleryCache[newGallery._id] = newGallery.name;
+
+            // CORRECTION: Si on a reçu la publication initiale, l'ajouter immédiatement au cache
+            if (initialPublication && !this.currentGalleryId) {
+                this.currentGalleryState = {
+                    ...newGallery,
+                    _id: newGallery._id
+                };
+                this.jours = [initialPublication];
+                console.log('[RACE CONDITION FIX] Publication initiale A pré-chargée:', initialPublication.letter);
+            }
+
             await this.loadGalleriesList();
             this.showGalleryPreview(newGallery._id, newGallery.name);
             if (!this.currentGalleryId) {
@@ -4936,6 +4981,7 @@ class PublicationOrganizer {
         return new Promise((resolve, reject) => {
             const xhr = new XMLHttpRequest();
             xhr.open('POST', `${BASE_API_URL}/api/galleries/${galleryId}/images`, true);
+            xhr.setRequestHeader('X-CSRF-Token', this.csrfToken);
             if (onProgress && typeof onProgress === 'function') {
                 xhr.upload.onprogress = onProgress;
             }
@@ -5263,7 +5309,10 @@ class PublicationOrganizer {
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/publications`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRF-Token': this.csrfToken
+                },
             });
             if (!response.ok) {
                 let errorBody = await response.text();
@@ -5494,14 +5543,29 @@ class PublicationOrganizer {
 
     async saveAppState() {
         if (!this.currentGalleryId || !this.csrfToken) return;
+        
+        // Get the current active tab, ensuring it's a valid value
+        const currentActiveTab = document.querySelector('.tab-button.active')?.dataset.tab;
+        // CORRECTED: Use the actual tab values from the HTML
+        const validTabs = ['galleries', 'currentGallery', 'cropping', 'description', 'calendar'];
+        const activeTab = validTabs.includes(currentActiveTab) ? currentActiveTab : 'galleries';
+        
+        // Ensure nextPublicationIndex is a valid integer
+        const nextIndex = typeof this.nextPublicationIndex === 'number' && 
+                         this.nextPublicationIndex >= 0 && 
+                         this.nextPublicationIndex <= 25 
+                         ? this.nextPublicationIndex 
+                         : 0;
+        
         const appState = {
             currentThumbSize: this.currentThumbSize,
             sortOption: this.sortOptionsSelect.value,
-            activeTab: document.querySelector('.tab-button.active')?.dataset.tab || 'galleries',
-            nextPublicationIndex: this.nextPublicationIndex
+            activeTab: activeTab,
+            nextPublicationIndex: nextIndex
         };
+        
         try {
-            await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/state`, {
+            const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/state`, {
                 method: 'PUT',
                 headers: { 
                     'Content-Type': 'application/json',
@@ -5509,6 +5573,11 @@ class PublicationOrganizer {
                 },
                 body: JSON.stringify(appState)
             });
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.error(`Failed to save app state: ${response.status} ${response.statusText}`, errorText);
+            }
         } catch (error) {
             console.error("Error saving app state to backend:", error);
         }
@@ -5578,25 +5647,21 @@ async function startApp() {
     try {
         if (!app) {
             // ===== NOUVELLE INTÉGRATION MODULAIRE =====
+            // Create PublicationOrganizer instance first
+            app = new PublicationOrganizer();
+            
             // Initialize ComponentLoader for gradual migration
             if (typeof ComponentLoader !== 'undefined') {
                 console.log('🔧 Initializing modular architecture with ComponentLoader...');
-                window.componentLoader = new ComponentLoader();
+                // CORRECTION: Passer l'instance app au ComponentLoader
+                window.componentLoader = new ComponentLoader(app);
                 
-                // Load modular components
-                await window.componentLoader.initializeModularComponents();
+                // Load modular components using the correct method name
+                await window.componentLoader.initialize();
                 
-                // Create enhanced modular PublicationOrganizer
-                if (typeof ModularPublicationOrganizer !== 'undefined') {
-                    console.log('🚀 Creating ModularPublicationOrganizer instance...');
-                    app = new ModularPublicationOrganizer();
-                } else {
-                    console.warn('⚠️ ModularPublicationOrganizer not available, falling back to original PublicationOrganizer');
-                    app = new PublicationOrganizer();
-                }
+                console.log('✅ ComponentLoader initialized successfully');
             } else {
                 console.warn('⚠️ ComponentLoader not available, using original PublicationOrganizer');
-                app = new PublicationOrganizer();
             }
             // ===== FIN DE L'INTÉGRATION MODULAIRE =====
             
@@ -5706,6 +5771,51 @@ function setupGlobalEventListeners() {
                 localStorage.clear();
                 // Le "true" force un rechargement depuis le serveur, ignorant le cache du navigateur
                 window.location.reload(true);
+            }
+        });
+    }
+
+    // Bouton de nettoyage des images cassées
+    const cleanupBrokenImagesBtn = document.getElementById('cleanupBrokenImagesBtn');
+    if (cleanupBrokenImagesBtn) {
+        cleanupBrokenImagesBtn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            
+            if (!window.brokenImages || window.brokenImages.size === 0) {
+                alert('Aucune image cassée détectée pour le moment.');
+                return;
+            }
+
+            const brokenCount = window.brokenImages.size;
+            if (confirm(`${brokenCount} image(s) cassée(s) détectée(s). Voulez-vous les nettoyer maintenant ?`)) {
+                try {
+                    // Utiliser la méthode de nettoyage de l'organisateur
+                    if (window.organizerApp && window.organizerApp.cleanupBrokenImages) {
+                        await window.organizerApp.cleanupBrokenImages();
+                    } else {
+                        // Fallback si la méthode n'est pas disponible
+                        const brokenImagesList = Array.from(window.brokenImages);
+                        const response = await fetch('/api/cleanup-broken-images', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'X-CSRF-Token': window.csrfToken
+                            },
+                            body: JSON.stringify({ brokenImages: brokenImagesList })
+                        });
+
+                        if (response.ok) {
+                            const result = await response.json();
+                            window.brokenImages.clear();
+                            alert(`Nettoyage terminé. ${result.results.cleaned} images nettoyées.`);
+                        } else {
+                            throw new Error('Erreur serveur lors du nettoyage');
+                        }
+                    }
+                } catch (error) {
+                    console.error('Erreur lors du nettoyage:', error);
+                    alert('Erreur lors du nettoyage des images cassées.');
+                }
             }
         });
     }
@@ -6026,6 +6136,13 @@ class CroppingPage {
 
             if (!originalGridItem) {
                 console.warn(`Image originale ${imgDataInPublication.originalReferencePath} non trouvée. Recadrage impossible.`);
+                
+                // Afficher un message utilisateur plus clair
+                this.showUserNotification(`Image manquante: ${imgDataInPublication.originalReferencePath}`, 'warning');
+                
+                // Marquer cette image comme défectueuse pour nettoyage ultérieur
+                this.markImageForCleanup(imgDataInPublication.imageId, imgDataInPublication.originalReferencePath);
+                
                 return null; // Ignorer cette image si son original est introuvable
             }
 
@@ -6049,6 +6166,104 @@ class CroppingPage {
         this._populateThumbnailStrip(publicationFrame);
         this._updateThumbnailStripHighlight(this.croppingManager.currentImageIndex);
     }
+
+    // Fonction utilitaire pour charger les images de manière sécurisée
+    safeSetImageSrc(imageElement, imageUrl, fallbackUrl = '/assets/placeholder-missing.svg') {
+        if (!imageElement || !(imageElement instanceof HTMLImageElement)) {
+            console.error('Élément image invalide fourni à safeSetImageSrc');
+            return false;
+        }
+
+        // Vérifier si l'URL est valide
+        if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.trim() === '' || imageUrl === 'about:blank') {
+            console.warn(`URL d'image invalide: "${imageUrl}". Utilisation du fallback.`);
+            imageElement.src = fallbackUrl;
+            imageElement.alt = 'Image non disponible';
+            return false;
+        }
+
+        // Gérer les erreurs de chargement
+        imageElement.onerror = () => {
+            console.error(`Échec du chargement de l'image: ${imageUrl}`);
+            if (imageElement.src !== fallbackUrl) {
+                imageElement.src = fallbackUrl;
+                imageElement.alt = 'Image non disponible';
+            }
+        };
+
+        imageElement.src = imageUrl;
+        return true;
+    }
+
+    // Méthodes de gestion d'erreur robuste pour les images manquantes
+    showUserNotification(message, type = 'info') {
+        // Créer ou utiliser un système de notification existant
+        const notification = document.createElement('div');
+        notification.className = `notification notification-${type}`;
+        notification.textContent = message;
+        notification.style.cssText = `
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 15px;
+            background: ${type === 'warning' ? '#fff3cd' : '#d1ecf1'};
+            border: 1px solid ${type === 'warning' ? '#ffeaa7' : '#bee5eb'};
+            border-radius: 4px;
+            color: ${type === 'warning' ? '#856404' : '#0c5460'};
+            z-index: 10000;
+            max-width: 300px;
+        `;
+        
+        document.body.appendChild(notification);
+        
+        // Auto-suppression après 5 secondes
+        setTimeout(() => {
+            if (notification.parentNode) {
+                notification.parentNode.removeChild(notification);
+            }
+        }, 5000);
+    }
+
+    markImageForCleanup(imageId, originalPath) {
+        // Marquer les images défectueuses pour nettoyage
+        if (!window.brokenImages) {
+            window.brokenImages = new Set();
+        }
+        window.brokenImages.add({
+            imageId: imageId,
+            originalPath: originalPath,
+            timestamp: Date.now()
+        });
+        
+        console.log(`Image marquée pour nettoyage: ${imageId} (${originalPath})`);
+    }
+
+    // Méthode pour nettoyer les références d'images cassées
+    async cleanupBrokenImages() {
+        if (!window.brokenImages || window.brokenImages.size === 0) {
+            return;
+        }
+
+        const brokenImagesList = Array.from(window.brokenImages);
+        console.log(`Nettoyage de ${brokenImagesList.length} images cassées...`);
+
+        try {
+            const response = await fetch('/api/cleanup-broken-images', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ brokenImages: brokenImagesList })
+            });
+
+            if (response.ok) {
+                window.brokenImages.clear();
+                this.showUserNotification('Images cassées nettoyées avec succès', 'info');
+            }
+        } catch (error) {
+            console.error('Erreur lors du nettoyage des images cassées:', error);
+        }
+    }
     
     // La vue groupée reste interactive
     renderAllPhotosGroupedView() {
@@ -6061,10 +6276,7 @@ class CroppingPage {
             return;
         }
         
-        // ===== SECTION DES IMAGES INUTILISÉES (NOUVELLE FONCTIONNALITÉ) =====
-        this._renderUnusedImagesSection(container, app);
-        
-        // ===== SECTION DES PUBLICATIONS EXISTANTES =====
+        // Section des publications existantes
         const publicationsHeader = document.createElement('h3');
         publicationsHeader.className = 'cropping-section-header';
         publicationsHeader.textContent = 'Publications actuelles';
@@ -6128,72 +6340,6 @@ class CroppingPage {
             groupDiv.appendChild(ribbonDiv);
             container.appendChild(groupDiv);
         });
-    }
-    
-    // ===== NOUVELLE MÉTHODE : RENDU DE LA SECTION DES IMAGES INUTILISÉES =====
-    _renderUnusedImagesSection(container, app) {
-        // Obtenir les images inutilisées
-        const unusedImages = app.gridItems.filter(gridItem => 
-            gridItem.isValid && !gridItem.used && !gridItem.isCroppedVersion
-        );
-        
-        if (unusedImages.length === 0) {
-            return; // Aucune image inutilisée, ne pas afficher la section
-        }
-        
-        // Créer la section des images inutilisées
-        const unusedSection = document.createElement('div');
-        unusedSection.className = 'unused-images-section';
-        
-        const unusedHeader = document.createElement('h3');
-        unusedHeader.className = 'cropping-section-header unused-images-header';
-        unusedHeader.innerHTML = `<span class="header-icon">📂</span> Images disponibles (${unusedImages.length})`;
-        unusedSection.appendChild(unusedHeader);
-        
-        const unusedGrid = document.createElement('div');
-        unusedGrid.className = 'unused-images-grid';
-        
-        unusedImages.forEach(gridItem => {
-            const unusedItem = document.createElement('div');
-            unusedItem.className = 'unused-image-item';
-            unusedItem.style.backgroundImage = `url(${gridItem.thumbnailPath})`;
-            unusedItem.title = gridItem.basename || 'Image sans nom';
-            unusedItem.draggable = true;
-            
-            // Configuration du drag-and-drop
-            unusedItem.addEventListener('dragstart', (e) => {
-                e.dataTransfer.setData("application/json", JSON.stringify({
-                    sourceType: 'grid',
-                    imageId: gridItem.id,
-                    originalFilename: gridItem.basename,
-                    thumbnailPath: gridItem.thumbnailPath
-                }));
-                e.dataTransfer.effectAllowed = "copy";
-                unusedItem.classList.add('dragging-unused-item');
-            });
-            
-            unusedItem.addEventListener('dragend', () => {
-                unusedItem.classList.remove('dragging-unused-item');
-            });
-            
-            // Informations sur l'image
-            const imageInfo = document.createElement('div');
-            imageInfo.className = 'unused-image-info';
-            imageInfo.textContent = gridItem.basename ? 
-                (gridItem.basename.length > 12 ? gridItem.basename.substring(0, 12) + '...' : gridItem.basename) : 
-                'Sans nom';
-            unusedItem.appendChild(imageInfo);
-            
-            unusedGrid.appendChild(unusedItem);
-        });
-        
-        unusedSection.appendChild(unusedGrid);
-        container.appendChild(unusedSection);
-        
-        // Séparateur
-        const separator = document.createElement('div');
-        separator.className = 'cropping-section-separator';
-        container.appendChild(separator);
     }
     
     // Bande de vignettes pour le recadrage manuel

@@ -476,3 +476,84 @@ exports.deleteAllImagesForGallery = async (req, res) => {
         res.status(500).send('Server error deleting all images for gallery.');
     }
 };
+
+// Nouvel endpoint pour nettoyer les images cassées
+exports.cleanupBrokenImages = async (req, res) => {
+    const { brokenImages } = req.body;
+
+    if (!brokenImages || !Array.isArray(brokenImages)) {
+        return res.status(400).json({ error: 'Liste d\'images cassées requise' });
+    }
+
+    try {
+        const cleanupResults = {
+            cleaned: 0,
+            errors: [],
+            details: []
+        };
+
+        for (const brokenImage of brokenImages) {
+            try {
+                const { imageId, originalPath } = brokenImage;
+
+                // Vérifier si l'image existe dans la base de données
+                const imageDoc = await Image.findById(imageId);
+                if (!imageDoc) {
+                    cleanupResults.details.push({
+                        imageId,
+                        originalPath,
+                        action: 'skipped',
+                        reason: 'Image non trouvée en base de données'
+                    });
+                    continue;
+                }
+
+                // Vérifier si le fichier physique existe
+                const fullPath = path.join(UPLOAD_DIR, imageDoc.path);
+                const fileExists = await fse.pathExists(fullPath);
+
+                if (!fileExists) {
+                    // Supprimer la référence de la base de données
+                    await Image.deleteOne({ _id: imageId });
+
+                    // Supprimer les références dans les publications
+                    await Publication.updateMany(
+                        {},
+                        { $pull: { images: { imageId: new mongoose.Types.ObjectId(imageId) } } }
+                    );
+
+                    cleanupResults.cleaned++;
+                    cleanupResults.details.push({
+                        imageId,
+                        originalPath,
+                        action: 'cleaned',
+                        reason: 'Fichier physique manquant, référence supprimée'
+                    });
+                } else {
+                    cleanupResults.details.push({
+                        imageId,
+                        originalPath,
+                        action: 'skipped',
+                        reason: 'Fichier physique existe, pas de nettoyage nécessaire'
+                    });
+                }
+
+            } catch (error) {
+                cleanupResults.errors.push({
+                    imageId: brokenImage.imageId,
+                    originalPath: brokenImage.originalPath,
+                    error: error.message
+                });
+            }
+        }
+
+        res.status(200).json({
+            message: `Nettoyage terminé. ${cleanupResults.cleaned} images nettoyées.`,
+            results: cleanupResults
+        });
+
+    } catch (error) {
+        console.error('Erreur lors du nettoyage des images cassées:', error);
+        res.status(500).json({ error: 'Erreur serveur lors du nettoyage' });
+    }
+};

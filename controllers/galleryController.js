@@ -57,9 +57,12 @@ const createInitialJour = async (galleryId) => {
             gallery.nextPublicationIndex = 1;
             await gallery.save();
         }
+
+        // CORRECTION: Retourner la publication créée pour éviter la race condition
+        return newPublication;
     } catch (error) {
         console.error(`Failed to create initial Jour 'A' for gallery ${galleryId}:`, error);
-        // We don't send a response here as this is an internal function
+        throw error; // Propager l'erreur pour que createGallery puisse la gérer
     }
 };
 
@@ -79,9 +82,15 @@ exports.createGallery = async (req, res) => {
         });
         await newGallery.save();
 
-        await createInitialJour(newGallery._id);
+        // CORRECTION RACE CONDITION: Créer la publication initiale et la récupérer
+        const initialPublication = await createInitialJour(newGallery._id);
 
-        res.status(201).json(newGallery);
+        // CORRECTION: Renvoyer un état complet avec la galerie ET sa publication initiale
+        // Cela élimine totalement la race condition côté client
+        res.status(201).json({
+            gallery: newGallery,
+            initialPublication: initialPublication
+        });
     } catch (error) {
         console.error("Error creating gallery:", error);
         res.status(500).send('Server error creating gallery.');
