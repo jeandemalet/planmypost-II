@@ -1,3 +1,6 @@
+// Variable globale pour stocker le token CSRF
+let csrfToken = null;
+
 document.addEventListener('DOMContentLoaded', async () => {
     // Vérifier si l'utilisateur est un admin
     try {
@@ -8,6 +11,9 @@ document.addEventListener('DOMContentLoaded', async () => {
             window.location.href = '/index.html';
             return;
         }
+
+        // Récupérer le token CSRF
+        csrfToken = statusData.csrfToken;
 
         if (statusData.user.impersonatedBy) {
             document.getElementById('impersonation-banner').style.display = 'block';
@@ -51,7 +57,10 @@ document.getElementById('user-list').addEventListener('click', async (e) => {
             try {
                 const res = await fetch('/api/auth/impersonate', {
                     method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': csrfToken
+                    },
                     body: JSON.stringify({ userIdToImpersonate: userId })
                 });
                 const data = await res.json();
@@ -71,6 +80,11 @@ document.getElementById('user-list').addEventListener('click', async (e) => {
 // Gérer la fin de l'usurpation d'identité
 document.getElementById('stop-impersonation-btn')?.addEventListener('click', async () => {
     // La façon la plus simple est de se déconnecter puis de se reconnecter
-    await fetch('/api/auth/logout', { method: 'POST' });
+    await fetch('/api/auth/logout', { 
+        method: 'POST',
+        headers: {
+            'X-CSRF-Token': csrfToken
+        }
+    });
     window.location.href = '/welcome.html';
 });

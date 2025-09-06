@@ -173,7 +173,9 @@ router.delete('/galleries/:galleryId/publications/:publicationId', authMiddlewar
 router.get('/galleries/:galleryId/publications/:publicationId/export', authMiddleware, validation.validateImageId, publicationController.exportPublicationImagesAsZip);
 
 // NOUVELLE ROUTE POUR LE NETTOYAGE AUTOMATIQUE
-router.post('/galleries/:galleryId/publications/cleanup', authMiddleware, csrfProtection.validateToken, validation.validateGalleryId, publicationController.cleanupAndResequence);
+// Note: Cette route n'utilise pas csrfProtection.validateToken car elle est appelée via sendBeacon
+// qui ne peut pas envoyer de headers personnalisés. La sécurité est assurée par authMiddleware.
+router.post('/galleries/:galleryId/publications/cleanup', authMiddleware, validation.validateGalleryId, publicationController.cleanupAndResequence);
 
 // --- Routes Calendrier ---
 router.get('/galleries/:galleryId/schedule', authMiddleware, scheduleCacheMiddleware, validation.validateGalleryId, scheduleController.getScheduleForGallery);

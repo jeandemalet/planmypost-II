@@ -1309,7 +1309,10 @@ class AutoCropper {
                     if (dataURL) {
                         const response = await fetch(`${BASE_API_URL}/api/galleries/${publication.galleryId}/images/${originalGridItem.id}/crop`, {
                             method: 'POST',
-                            headers: { 'Content-Type': 'application/json' },
+                            headers: { 
+                                'Content-Type': 'application/json',
+                                'X-CSRF-Token': app.csrfToken
+                            },
                             body: JSON.stringify({ imageDataUrl: dataURL, cropInfo, filenameSuffix })
                         });
                         if (!response.ok) throw new Error(await response.text());
@@ -2276,7 +2279,10 @@ class CroppingManager {
                     if (!opPayload.imageDataUrl || !opPayload.imageDataUrl.startsWith('data:image/jpeg;base64,')) { continue; }
                     const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryIdForAPI}/images/${originalImageId}/crop`, {
                         method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
+                        headers: { 
+                            'Content-Type': 'application/json',
+                            'X-CSRF-Token': app.csrfToken
+                        },
                         body: JSON.stringify(opPayload)
                     });
                     if (!response.ok) {
@@ -4700,6 +4706,11 @@ class PublicationOrganizer {
     }
 
     async loadMoreImages() {
+        // ✅ CORRECTION: Désactiver le chargement infini pour afficher toutes les images d'un coup
+        // Cette fonction ne fait plus rien, toutes les images sont chargées au démarrage
+        return;
+        
+        // Le code ci-dessous n'est plus exécuté mais conservé pour référence
         if (this.isLoadingMoreImages || this.currentGridPage >= this.totalGridPages) {
             return; // Sortir si déjà en chargement ou si toutes les pages sont chargées
         }
@@ -4731,7 +4742,10 @@ class PublicationOrganizer {
             try {
                 const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryId}/state`, {
                     method: 'PUT',
-                    headers: { 'Content-Type': 'application/json' },
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRF-Token': this.csrfToken
+                    },
                     body: JSON.stringify({ name: newName.trim() })
                 });
                 if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
@@ -5490,7 +5504,13 @@ class PublicationOrganizer {
             navigator.sendBeacon(url);
         } else {
             // Fallback pour les très vieux navigateurs (rarement nécessaire)
-            fetch(url, { method: 'POST', keepalive: true }).catch(() => {});
+            fetch(url, { 
+                method: 'POST', 
+                keepalive: true,
+                headers: {
+                    'X-CSRF-Token': this.csrfToken
+                }
+            }).catch(() => {});
         }
     }
 
@@ -5799,7 +5819,7 @@ function setupGlobalEventListeners() {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json',
-                                'X-CSRF-Token': window.csrfToken
+                                'X-CSRF-Token': app.csrfToken
                             },
                             body: JSON.stringify({ brokenImages: brokenImagesList })
                         });
@@ -6252,6 +6272,7 @@ class CroppingPage {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-CSRF-Token': this.csrfToken
                 },
                 body: JSON.stringify({ brokenImages: brokenImagesList })
             });

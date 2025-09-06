@@ -153,19 +153,28 @@ exports.getGalleryDetails = async (req, res) => {
             }
         }
 
+        // ✅ CORRECTION: Désactiver la pagination par défaut pour afficher toutes les images
+        // Si des paramètres de pagination sont explicitement fournis, les utiliser (pour compatibilité API)
+        const usePagination = req.query.page || req.query.limit;
         const pageNum = parseInt(page, 10) || 1;
         const limitNum = Math.min(parseInt(limit, 10) || 50, 100); // Max 100 items per page
         const skip = (pageNum - 1) * limitNum;
 
         // Données essentielles toujours chargées
         const [imagesPage, totalImages, jours] = await Promise.all([
-            // Images paginées
-            Image.find({ galleryId: galleryId })
-                 .sort({ uploadDate: 1 })
-                 .skip(skip)
-                 .limit(limitNum)
-                 .select('-__v -mimeType -size')
-                 .lean(),
+            // ✅ Images : toutes par défaut, paginées seulement si explicitement demandé
+            usePagination ? 
+                Image.find({ galleryId: galleryId })
+                     .sort({ uploadDate: 1 })
+                     .skip(skip)
+                     .limit(limitNum)
+                     .select('-__v -mimeType -size')
+                     .lean()
+                :
+                Image.find({ galleryId: galleryId })
+                     .sort({ uploadDate: 1 })
+                     .select('-__v -mimeType -size')
+                     .lean(),
             // Nombre total d'images
             Image.countDocuments({ galleryId: galleryId }),
             // Publications de cette galerie uniquement
@@ -181,9 +190,11 @@ exports.getGalleryDetails = async (req, res) => {
         // Mise à jour de lastAccessed en arrière-plan (non bloquant)
         Gallery.findByIdAndUpdate(galleryId, { lastAccessed: new Date() }).exec();
 
+        // ✅ CORRECTION: Adapter la réponse selon si la pagination est utilisée ou non
         const response = {
             galleryState: gallery,
-            images: {
+            images: usePagination ? {
+                // Mode paginé (compatibilité API)
                 docs: imagesPage,
                 total: totalImages,
                 limit: limitNum,
@@ -191,6 +202,15 @@ exports.getGalleryDetails = async (req, res) => {
                 totalPages: Math.ceil(totalImages / limitNum),
                 hasNextPage: skip + limitNum < totalImages,
                 hasPrevPage: pageNum > 1
+            } : {
+                // Mode complet (nouveau comportement par défaut)
+                docs: imagesPage,
+                total: totalImages,
+                limit: totalImages, // Toutes les images chargées
+                page: 1,
+                totalPages: 1, // Une seule page contenant tout
+                hasNextPage: false,
+                hasPrevPage: false
             },
             jours: jours
         };

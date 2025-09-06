@@ -93,19 +93,21 @@ class DescriptionManager extends BaseComponent {
             if (this.isEditingCommon) {
                 this.commonDescriptionText = this.editorElement.innerText;
                 
+                // ✅ CORRECTION: Désactiver le popup orange agaçant lors de la saisie
                 // Show typing indicator if available
-                if (window.saveStatusIndicator) {
-                    window.saveStatusIndicator.showTyping('Modification description commune...');
-                }
+                // if (window.saveStatusIndicator) {
+                //     window.saveStatusIndicator.showTyping('Modification description commune...');
+                // }
                 
                 this.debouncedSaveCommon();
             } else if (this.currentSelectedPublicationFrame) {
                 this.currentSelectedPublicationFrame.descriptionText = this._extractTextFromEditor();
                 
+                // ✅ CORRECTION: Désactiver le popup orange agaçant lors de la saisie
                 // Show typing indicator if available
-                if (window.saveStatusIndicator) {
-                    window.saveStatusIndicator.showTyping('Modification description publication...');
-                }
+                // if (window.saveStatusIndicator) {
+                //     window.saveStatusIndicator.showTyping('Modification description publication...');
+                // }
                 
                 this.debouncedSavePublication();
             }

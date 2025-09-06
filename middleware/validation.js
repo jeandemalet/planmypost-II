@@ -168,13 +168,16 @@ const validateScheduleUpdate = [
     param('galleryId')
         .isMongoId()
         .withMessage('ID de galerie invalide'),
-    body('schedule')
+    // CORRECTION: Le client envoie directement l'objet de planification, pas un objet contenant "schedule"
+    body()
         .isObject()
-        .withMessage('Le calendrier doit être un objet'),
-    body('schedule.*.publicationId')
-        .optional()
+        .withMessage('Le corps de la requête doit être un objet représentant le calendrier.'),
+    // CORRECTION: Valide la structure imbriquée : { "YYYY-MM-DD": { "A": { galleryId: "..." } } }
+    // Le '*' est un joker qui correspond à n'importe quelle date et n'importe quelle lettre.
+    body('*.*.galleryId')
+        .if(body('*.*.galleryId').exists()) // N'exécute la validation que si le champ existe
         .isMongoId()
-        .withMessage('ID de publication invalide'),
+        .withMessage('Chaque entrée du calendrier doit avoir un ID de galerie valide.'),
     handleValidationErrors
 ];
 
