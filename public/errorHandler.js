@@ -184,28 +184,42 @@ class ErrorHandler {
         const notificationId = `notification-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
         notification.id = notificationId;
 
-        let actionsHtml = '';
-        if (actions.length > 0) {
-            actionsHtml = `
-                <div class="notification-actions">
-                    ${actions.map(action => `
-                        <button class="notification-btn ${action.primary ? 'primary' : ''}" 
-                                onclick="${action.onClick}">
-                            ${action.label}
-                        </button>
-                    `).join('')}
-                </div>
-            `;
-        }
-
+        // Create notification structure
         notification.innerHTML = `
             <div class="notification-header">
                 <div class="notification-title">${title}</div>
-                <button class="notification-close" onclick="errorHandler.removeNotification('${notificationId}')">&times;</button>
+                <button class="notification-close">&times;</button>
             </div>
             <div class="notification-message">${message}</div>
-            ${actionsHtml}
+            ${actions.length > 0 ? '<div class="notification-actions"></div>' : ''}
         `;
+
+        // Add event listeners (CSP compliant)
+        const closeBtn = notification.querySelector('.notification-close');
+        closeBtn.addEventListener('click', () => this.removeNotification(notificationId));
+
+        // Add action buttons with event listeners
+        if (actions.length > 0) {
+            const actionsContainer = notification.querySelector('.notification-actions');
+            actions.forEach(action => {
+                const button = document.createElement('button');
+                button.className = `notification-btn ${action.primary ? 'primary' : ''}`;
+                button.textContent = action.label;
+                button.addEventListener('click', () => {
+                    if (typeof action.onClick === 'function') {
+                        action.onClick();
+                    } else if (typeof action.onClick === 'string') {
+                        // Evaluate string as function call (fallback)
+                        try {
+                            eval(action.onClick);
+                        } catch (e) {
+                            console.error('Error executing action:', e);
+                        }
+                    }
+                });
+                actionsContainer.appendChild(button);
+            });
+        }
 
         this.notificationContainer.appendChild(notification);
 

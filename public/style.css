@@ -2404,6 +2404,7 @@ button.small-cancel-btn:hover {
     border-color: #007bff;
     transform: scale(1.05);
 }
+}
 
 .cropping-thumbnail-item.active {
     border-color: #007bff;

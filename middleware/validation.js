@@ -145,21 +145,22 @@ const validateCropData = [
     param('originalImageId')
         .isMongoId()
         .withMessage('ID d\'image originale invalide'),
-    body('cropType')
-        .isIn(['barres_4x5', 'barres_1x1', 'split_gauche', 'split_droite'])
-        .withMessage('Type de recadrage invalide'),
-    body('x')
-        .isFloat({ min: 0 })
-        .withMessage('Coordonnée X invalide'),
-    body('y')
-        .isFloat({ min: 0 })
-        .withMessage('Coordonnée Y invalide'),
-    body('width')
-        .isFloat({ min: 1 })
-        .withMessage('Largeur invalide'),
-    body('height')
-        .isFloat({ min: 1 })
-        .withMessage('Hauteur invalide'),
+    // Validation pour les données réellement envoyées par l'auto-cropper
+    body('imageDataUrl')
+        .exists({ checkFalsy: true })
+        .withMessage('imageDataUrl est requis')
+        .matches(/^data:image\/(jpeg|jpg|png|webp);base64,/)
+        .withMessage('imageDataUrl doit être une URL de données d\'image valide'),
+    body('cropInfo')
+        .isString()
+        .withMessage('cropInfo doit être une chaîne de caractères')
+        .notEmpty()
+        .withMessage('cropInfo ne peut pas être vide'),
+    body('filenameSuffix')
+        .isString()
+        .withMessage('filenameSuffix doit être une chaîne de caractères')
+        .notEmpty()
+        .withMessage('filenameSuffix ne peut pas être vide'),
     handleValidationErrors
 ];
 

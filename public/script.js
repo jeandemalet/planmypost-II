@@ -2773,8 +2773,18 @@ class DescriptionManager {
     }
 
     async saveCommonDescription(isDebounced = false) {
-        if (!app.currentGalleryId || !app.csrfToken) return;
+        if (!app.currentGalleryId) return;
         if (!isDebounced) this.debouncedSaveCommon.cancel();
+        
+        // Attendre que le token CSRF soit disponible
+        if (!app.csrfToken) {
+            console.warn('Token CSRF non disponible pour saveCommonDescription, tentative de récupération...');
+            await app.fetchCsrfToken();
+            if (!app.csrfToken) {
+                console.error('Impossible de récupérer le token CSRF, sauvegarde description annulée');
+                return;
+            }
+        }
 
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/state`, {
@@ -3017,7 +3027,7 @@ class CalendarPage {
             console.log(`[CalendarPage.cleanupNonExistentPublications] Supprimé ${removedCount} référence(s) de publication(s) inexistante(s) du calendrier`);
 
             // Sauvegarder les changements
-            this.organizerApp.saveAppState();
+            this.organizerApp.debouncedSaveAppState();
         }
     }
 
@@ -3619,6 +3629,10 @@ class CalendarPage {
 class PublicationOrganizer {
     constructor() {
         this.csrfToken = null; // Pour stocker le token CSRF
+        
+        // CORRECTION: Initialiser debouncedSaveAppState en premier pour éviter les erreurs d'ordre
+        this.debouncedSaveAppState = Utils.debounce(() => this.saveAppState(), 1500);
+        
         this.currentGalleryId = null;
         this.displayedGalleryId = null; // Galerie actuellement affichée dans les onglets principaux
         this.currentThumbSize = { width: 200, height: 200 };
@@ -3806,7 +3820,7 @@ class PublicationOrganizer {
             }
         }
         this.updateUIToNoGalleryState();
-        this.saveAppState();
+        this.debouncedSaveAppState();
     }
 
     refreshPublicationViews() {
@@ -4301,7 +4315,10 @@ class PublicationOrganizer {
         }
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${previewGalleryId}/images/${imageId}`, {
-                method: 'DELETE'
+                method: 'DELETE',
+                headers: {
+                    'X-CSRF-Token': this.csrfToken
+                }
             });
             if (!response.ok) {
                 const errorText = await response.text();
@@ -4526,7 +4543,7 @@ class PublicationOrganizer {
             return;
         }
         if (this.currentGalleryId && this.currentGalleryId !== galleryId) {
-            await this.saveAppState();
+            await this.saveAppState(); // Garder synchrone pour la sauvegarde avant changement de galerie
         }
         this.currentGalleryId = galleryId;
         localStorage.setItem('publicationOrganizer_lastGalleryId', this.currentGalleryId);
@@ -4709,31 +4726,6 @@ class PublicationOrganizer {
         // ✅ CORRECTION: Désactiver le chargement infini pour afficher toutes les images d'un coup
         // Cette fonction ne fait plus rien, toutes les images sont chargées au démarrage
         return;
-        
-        // Le code ci-dessous n'est plus exécuté mais conservé pour référence
-        if (this.isLoadingMoreImages || this.currentGridPage >= this.totalGridPages) {
-            return; // Sortir si déjà en chargement ou si toutes les pages sont chargées
-        }
-
-        this.isLoadingMoreImages = true;
-        this.currentGridPage++;
-
-        try {
-            // Utiliser l'endpoint qui gère déjà la pagination
-            const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/images?page=${this.currentGridPage}&limit=50`);
-            if (!response.ok) {
-                throw new Error('Failed to fetch next page of images.');
-            }
-            const data = await response.json();
-            if (data.docs && data.docs.length > 0) {
-                this.addImagesToGrid(data.docs);
-            }
-        } catch (error) {
-            console.error('Error loading more images:', error);
-            this.currentGridPage--; // Revenir à la page précédente en cas d'erreur
-        } finally {
-            this.isLoadingMoreImages = false;
-        }
     }
 
     async handleRenameGallery(galleryId, currentName) {
@@ -5106,7 +5098,7 @@ class PublicationOrganizer {
         if (newWidth <= this.maxThumbSize.width && newHeight <= this.maxThumbSize.height) {
             this.currentThumbSize = { width: newWidth, height: newHeight };
             this.updateGridItemStyles();
-            this.saveAppState();
+            this.debouncedSaveAppState();
         }
     }
     zoomOut() {
@@ -5115,7 +5107,7 @@ class PublicationOrganizer {
         if (newWidth >= this.minThumbSize.width && newHeight >= this.minThumbSize.height) {
             this.currentThumbSize = { width: newWidth, height: newHeight };
             this.updateGridItemStyles();
-            this.saveAppState();
+            this.debouncedSaveAppState();
         }
     }
 
@@ -5157,7 +5149,7 @@ class PublicationOrganizer {
         // --- FIN DE LA CORRECTION ---
 
         this.updateGridUsage();
-        this.saveAppState();
+        this.debouncedSaveAppState();
     }
 
     onGridItemClick(gridItem) {
@@ -5354,7 +5346,7 @@ class PublicationOrganizer {
             this.setCurrentPublicationFrame(newPublicationFrame);
             this.recalculateNextPublicationIndex();
             this.updateStatsLabel();
-            this.saveAppState();
+            this.debouncedSaveAppState();
             if (this.calendarPage) {
                 const newJourContext = {
                     _id: newJourData._id,
@@ -5403,7 +5395,7 @@ class PublicationOrganizer {
             this.recalculateNextPublicationIndex();
             this.updateGridUsage();
             this.updateStatsLabel();
-            this.saveAppState();
+            this.debouncedSaveAppState();
             if (this.calendarPage) {
                 const datesToRemove = [];
                 for (const dateStr in this.scheduleContext.schedule) {
@@ -5475,7 +5467,7 @@ class PublicationOrganizer {
             this.recalculateNextPublicationIndex();
             this.updateGridUsage();
             this.updateStatsLabel();
-            this.saveAppState();
+            this.debouncedSaveAppState();
             this.refreshSidePanels();
 
             // Rafraîchir la sélection des publications dans l'AutoCropper
@@ -5562,7 +5554,17 @@ class PublicationOrganizer {
     }
 
     async saveAppState() {
-        if (!this.currentGalleryId || !this.csrfToken) return;
+        if (!this.currentGalleryId) return;
+        
+        // Attendre que le token CSRF soit disponible
+        if (!this.csrfToken) {
+            console.warn('Token CSRF non disponible, tentative de récupération...');
+            await this.fetchCsrfToken();
+            if (!this.csrfToken) {
+                console.error('Impossible de récupérer le token CSRF, sauvegarde annulée');
+                return;
+            }
+        }
         
         // Get the current active tab, ensuring it's a valid value
         const currentActiveTab = document.querySelector('.tab-button.active')?.dataset.tab;

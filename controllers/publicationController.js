@@ -352,7 +352,14 @@ exports.cleanupAndResequence = async (req, res) => {
         if (needsUpdate || idsToDelete.length > 0) {
             const gallery = await Gallery.findById(galleryId);
             if (gallery) {
-                gallery.nextPublicationIndex = fullPublications.length;
+                // CORRECTION : Trouver le PREMIER index libre après nettoyage
+                const finalIndices = new Set(fullPublications.map((_, index) => index));
+                let nextIndex = 0;
+                while (finalIndices.has(nextIndex)) {
+                    nextIndex++;
+                    if (nextIndex >= 26) break; // Sécurité
+                }
+                gallery.nextPublicationIndex = nextIndex;
                 await gallery.save();
             }
         }
