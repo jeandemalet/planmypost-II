@@ -209,4 +209,10 @@ router.get('/zip-exports/admin/stats', authMiddleware, adminAuthMiddleware, zipE
 // Export synchrone legacy (pour petites publications)
 router.get('/zip-exports/publications/:galleryId/:publicationId/sync', authMiddleware, validation.validateImageId, zipExportController.exportPublicationSync);
 
+// --- Routes Instagram (Squelette) ---
+const instagramController = require('../controllers/instagramController');
+router.get('/instagram/auth', authMiddleware, instagramController.startAuth);
+router.get('/instagram/callback', instagramController.handleCallback); // Géré par redirection, pas besoin de authMiddleware
+router.post('/instagram/publish', authMiddleware, instagramController.publishPost);
+
 module.exports = router;

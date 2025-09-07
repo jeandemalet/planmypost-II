@@ -2926,6 +2926,11 @@ class CalendarPage {
         if (reorganizeAllBtn) {
             reorganizeAllBtn.addEventListener('click', () => this.reorganizeAll());
         }
+        
+        const downloadAllScheduledBtn = document.getElementById('downloadAllScheduledBtn');
+        if (downloadAllScheduledBtn) {
+            downloadAllScheduledBtn.addEventListener('click', () => this.downloadAllScheduled());
+        }
     }
 
     reorganizeAll() {
@@ -2934,6 +2939,64 @@ class CalendarPage {
         }
         this.organizerApp.scheduleContext.schedule = {};
         this.saveSchedule();
+        this.buildCalendarUI();
+    }
+
+    downloadAllScheduled() {
+        // Récupérer toutes les publications planifiées
+        const schedule = this.organizerApp.scheduleContext.schedule;
+        const allUserPublications = this.organizerApp.scheduleContext.allUserPublications;
+        
+        let scheduledPublications = [];
+        for (const date in schedule) {
+            for (const letter in schedule[date]) {
+                const item = schedule[date][letter];
+                const fullPub = allUserPublications.find(p => 
+                    p._id === item.publicationId || 
+                    (p.galleryId === item.galleryId && p.letter === letter)
+                );
+                if (fullPub) {
+                    scheduledPublications.push({
+                        date: date,
+                        letter: letter,
+                        ...fullPub
+                    });
+                }
+            }
+        }
+        
+        if (scheduledPublications.length === 0) {
+            alert("Aucune publication planifiée à télécharger.");
+            return;
+        }
+        
+        // Trier par date
+        scheduledPublications.sort((a, b) => new Date(a.date) - new Date(b.date));
+        
+        // Créer et télécharger un fichier JSON avec le planning
+        const planningData = {
+            exportDate: new Date().toISOString(),
+            totalPublications: scheduledPublications.length,
+            schedule: scheduledPublications.map(pub => ({
+                date: pub.date,
+                letter: pub.letter,
+                galleryName: pub.galleryName || 'Galerie inconnue',
+                description: pub.descriptionText || '',
+                imageCount: pub.imagesData ? pub.imagesData.length : 0
+            }))
+        };
+        
+        const dataStr = JSON.stringify(planningData, null, 2);
+        const dataBlob = new Blob([dataStr], { type: 'application/json' });
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = `planning-instagram-${new Date().toISOString().split('T')[0]}.json`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        console.log(`✅ Planning téléchargé : ${scheduledPublications.length} publications`);
     }
 
     goToToday() {
@@ -3045,12 +3108,23 @@ class CalendarPage {
             // NOUVEAU : Cacher le sélecteur si aucune galerie n'est chargée
             this.monthSelectorElement.innerHTML = '';
             this.yearLabelElement.textContent = 'Calendrier';
-            this.populateJourList();
+            // --- CORRECTION : Supprimer l'appel à la construction du panneau latéral ---
+            // AVANT (Incorrect) :
+            // this.populateJourList(); // Cet appel construisait le panneau latéral
+            
+            // APRÈS (Correct) :
+            // On ne fait plus appel à this.populateJourList() depuis ici.
             this.buildUnscheduledPublicationsList();
             return;
         }
-        this.populateJourList();
-        this.buildUnscheduledPublicationsList();
+        
+        // --- CORRECTION : Supprimer l'appel à la construction du panneau latéral ---
+        // AVANT (Incorrect) :
+        // this.populateJourList(); // Cet appel construisait le panneau latéral
+        
+        // APRÈS (Correct) :
+        // On ne fait plus appel à this.populateJourList() depuis ici.
+        this.buildUnscheduledPublicationsList(); // On construit la liste de droite directement
 
         // --- MODIFICATION PRINCIPALE ---
         const year = this.currentDate.getFullYear();
@@ -3097,6 +3171,16 @@ class CalendarPage {
     }
 
     populateJourList() {
+        // --- CORRECTION : Conditionner l'affichage de ce panneau ---
+        // Cette fonction est toujours appelée par d'autres onglets,
+        // mais on s'assure qu'elle ne fait rien pour le calendrier.
+        const isCalendarActive = document.getElementById('calendar').classList.contains('active');
+        if (isCalendarActive) {
+            this.jourListElement.innerHTML = ''; // S'assurer que le panneau est vide
+            return; // Ne rien construire
+        }
+
+        // La logique existante pour les autres onglets reste inchangée
         this.organizerApp._populateSharedJourList(this.jourListElement, null, 'calendar');
     }
 
@@ -3634,6 +3718,9 @@ class PublicationOrganizer {
         // CORRECTION: Initialiser debouncedSaveAppState en premier pour éviter les erreurs d'ordre
         this.debouncedSaveAppState = Utils.debounce(() => this.saveAppState(), 1500);
 
+        // NOUVEAU : Définir les onglets qui fonctionnent en mode global
+        this.globalModeTabs = ['calendar', 'publication'];
+
         this.currentGalleryId = null;
         this.displayedGalleryId = null; // Galerie actuellement affichée dans les onglets principaux
         this.currentThumbSize = { width: 200, height: 200 };
@@ -3762,10 +3849,25 @@ class PublicationOrganizer {
             await this.descriptionManager.saveOnTabExit();
         }
 
-        // --- NOUVELLE LOGIQUE DE CHARGEMENT INTELLIGENT ---
+        // --- NOUVELLE LOGIQUE DE GESTION DE CONTEXTE ---
+        const isEnteringGlobalMode = this.globalModeTabs.includes(tabId);
+        
+        // 1. Si on entre en mode global, on s'assure d'avoir les données complètes
+        if (isEnteringGlobalMode && this.currentGalleryId) {
+            console.log("Activation d'un onglet global : chargement des données de toutes les galeries...");
+            await this.loadGlobalContext(); // Nouvelle fonction pour charger les données de toutes les galeries
+        }
+        
+        // 2. Si on quitte le mode global pour un onglet spécifique à une galerie
+        if (!isEnteringGlobalMode && !this.currentGalleryId) {
+            alert("Veuillez d'abord sélectionner une galerie dans l'onglet 'Galeries' pour la trier ou la modifier.");
+            return; // Bloque la navigation si aucune galerie n'est active
+        }
+
+        // --- LOGIQUE DE CHARGEMENT INTELLIGENT POUR LES ONGLETS GALERIE-SPÉCIFIQUES ---
         // Si on va vers un onglet principal ET que la galerie sélectionnée pour l'aperçu
         // n'est pas celle qui est déjà chargée et affichée...
-        const mainTabs = ['currentGallery', 'cropping', 'description', 'calendar'];
+        const mainTabs = ['currentGallery', 'cropping', 'description'];
         if (mainTabs.includes(tabId) && this.selectedGalleryForPreviewId && this.selectedGalleryForPreviewId !== this.displayedGalleryId) {
             // ... alors on lance le chargement complet de cette nouvelle galerie.
             console.log(`Changement de contexte détecté. Chargement de la galerie ${this.selectedGalleryForPreviewId}...`);
@@ -3773,32 +3875,6 @@ class PublicationOrganizer {
             return; // Le chargement s'occupe de la suite.
         }
         // --- FIN DE LA NOUVELLE LOGIQUE ---
-
-        // --- CORRECTION CRITIQUE POUR LE CALENDRIER ---
-        // Si on entre dans l'onglet calendrier, on force le rechargement des données globales
-        if (tabId === 'calendar' && this.currentGalleryId) {
-            console.log("Activation de l'onglet Calendrier : Rechargement des données globales...");
-            try {
-                // On appelle l'endpoint dédié qui renvoie TOUTES les publications
-                const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/calendar-data`);
-                if (!response.ok) throw new Error('Impossible de charger les données du calendrier');
-                const calendarData = await response.json();
-
-                // On met à jour le contexte avec des données fraîches et complètes
-                this.scheduleContext = {
-                    schedule: calendarData.schedule || {},
-                    allUserPublications: calendarData.scheduleContext.allUserPublications || []
-                };
-                console.log(`Données globales du calendrier mises à jour : ${this.scheduleContext.allUserPublications.length} publications trouvées.`);
-
-            } catch (error) {
-                console.error("Erreur lors du rechargement des données du calendrier :", error);
-                // On ne bloque pas l'UI, on affiche simplement un message
-                if (this.calendarPage) {
-                    this.calendarPage.calendarGridElement.innerHTML = '<p>Erreur de chargement des données globales.</p>';
-                }
-            }
-        }
 
         // Gestion des onglets
         this.tabs.forEach(t => t.classList.remove('active'));
@@ -3837,6 +3913,8 @@ class PublicationOrganizer {
             } else if (tabId === 'calendar') {
                 if (!this.calendarPage) this.calendarPage = new CalendarPage(tabContent, this);
                 if (this.currentGalleryId) this.calendarPage.buildCalendarUI();
+            } else if (tabId === 'publication') {
+                this.showPublicationTab(); // Nouvelle fonction pour le nouvel onglet
             }
         } else {
             this.tabs[0]?.classList.add('active');
@@ -3846,6 +3924,11 @@ class PublicationOrganizer {
                 if (firstTabId === 'galleries') this.loadGalleriesList();
             }
         }
+        
+        // --- RENFORCEMENT POUR LA COHÉRENCE ---
+        // S'assurer que les panneaux latéraux sont correctement mis à jour
+        this.refreshSidePanels();
+        
         this.updateUIToNoGalleryState();
         this.debouncedSaveAppState();
     }
@@ -4032,6 +4115,10 @@ class PublicationOrganizer {
         if (this.descriptionManager && document.getElementById('description').classList.contains('active')) {
             this.descriptionManager.populateLists();
         }
+        // CORRECTION : Le calendrier ne met plus à jour le panneau de gauche
+        // if (this.calendarPage && document.getElementById('calendar').classList.contains('active')) {
+        //     this.calendarPage.populateJourList();
+        // }
     }
 
     async downloadAllScheduledPublications() {
@@ -4569,6 +4656,26 @@ class PublicationOrganizer {
         }
     }
 
+    // NOUVELLE FONCTION pour charger/recharger le contexte global
+    async loadGlobalContext() {
+        if (!this.currentGalleryId) return; // Il faut au moins une galerie de référence pour trouver l'utilisateur
+        
+        try {
+            const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/calendar-data`);
+            if (!response.ok) throw new Error('Impossible de charger les données globales');
+            const globalData = await response.json();
+            
+            this.scheduleContext = {
+                schedule: globalData.schedule || {},
+                allUserPublications: globalData.scheduleContext.allUserPublications || []
+            };
+            console.log(`Contexte global mis à jour : ${this.scheduleContext.allUserPublications.length} publications de toutes les galeries.`);
+        } catch (error) {
+            console.error("Erreur lors du chargement du contexte global :", error);
+            errorHandler.showError("Erreur Réseau", "Impossible de charger les données de toutes les galeries.");
+        }
+    }
+
     async handleLoadGallery(galleryId, targetTabId = 'currentGallery') {
         if (this.currentGalleryId === galleryId && document.getElementById(targetTabId).classList.contains('active')) {
             this.activateTab(targetTabId);
@@ -4598,7 +4705,7 @@ class PublicationOrganizer {
         await this.loadState(targetTabId);
     }
 
-    async loadState(targetTabId = 'currentGallery') {
+    async loadState(targetTabId = 'galleries') {
         if (!this.currentGalleryId) {
             this.updateUIToNoGalleryState();
             return;
@@ -5710,6 +5817,79 @@ class PublicationOrganizer {
         }
         return null;
     }
+
+    // Méthode appelée par activateTab
+    showPublicationTab() {
+        if (!this.currentGalleryId) {
+            // Afficher un message si aucune galerie n'est chargée
+            const controlPanel = document.getElementById('publication-control-panel');
+            if (controlPanel) {
+                controlPanel.innerHTML = '<p>Veuillez charger une galerie pour utiliser cette fonctionnalité.</p>';
+            }
+            return;
+        }
+        this.renderInstagramMockup();
+        this.setupInstagramLogin();
+    }
+
+    renderInstagramMockup() {
+        const gridContainer = document.getElementById('ig-feed-grid');
+        if (!gridContainer) return;
+
+        gridContainer.innerHTML = ''; // Vider la grille
+
+        // Utiliser la source de données GLOBALE
+        const allPublications = this.scheduleContext.allUserPublications || [];
+        const schedule = this.scheduleContext.schedule || {};
+
+        // 1. Filtrer et mapper les publications planifiées
+        let scheduledItems = [];
+        for (const date in schedule) {
+            for (const letter in schedule[date]) {
+                const item = schedule[date][letter];
+                const fullPub = allPublications.find(p => p._id === item.publicationId || (p.galleryId === item.galleryId && p.letter === letter));
+                if (fullPub) {
+                    scheduledItems.push({
+                        date: date,
+                        ...fullPub
+                    });
+                }
+            }
+        }
+
+        // 2. Trier par date
+        scheduledItems.sort((a, b) => new Date(a.date) - new Date(b.date));
+
+        // 3. Afficher dans la grille
+        if (scheduledItems.length === 0) {
+            gridContainer.innerHTML = '<p style="padding:15px; text-align:center; grid-column: 1 / -1;">Aucune publication planifiée à afficher.</p>';
+            return;
+        }
+        
+        scheduledItems.forEach(pub => {
+            const feedItem = document.createElement('div');
+            feedItem.className = 'ig-feed-item';
+            if (pub.firstImageThumbnail) {
+                const thumbFilename = Utils.getFilenameFromURL(pub.firstImageThumbnail);
+                const thumbUrl = `${BASE_API_URL}/api/uploads/${pub.galleryId}/${thumbFilename}`;
+                feedItem.style.backgroundImage = `url('${thumbUrl}')`;
+            }
+            gridContainer.appendChild(feedItem);
+        });
+    }
+
+    setupInstagramLogin() {
+        const loginBtn = document.getElementById('instagram-login-btn');
+        if (loginBtn) {
+            loginBtn.onclick = () => {
+                alert("La connexion à l'API Instagram est en cours de développement.\nCette action redirigera l'utilisateur vers la page d'authentification de Meta.");
+                // Logique future :
+                // fetch('/api/instagram/auth').then(res => res.json()).then(data => {
+                //     window.location.href = data.authUrl;
+                // });
+            };
+        }
+    }
 }
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -5754,29 +5934,25 @@ async function startApp() {
 
     try {
         if (!app) {
-            // ===== NOUVELLE INTÉGRATION MODULAIRE =====
-            // Create PublicationOrganizer instance first
+            // ===== CORRECTION DE L'ORDRE D'INITIALISATION =====
+            // 1. Créer l'instance de l'application principale
             app = new PublicationOrganizer();
+            window.pubApp = app;
 
-            // Initialize ComponentLoader for gradual migration
+            // 2. Initialiser les composants internes de l'application (comme croppingPage)
+            app.initializeModules();
+
+            // 3. SEULEMENT MAINTENANT, initialiser le ComponentLoader qui en dépend
             if (typeof ComponentLoader !== 'undefined') {
                 console.log('🔧 Initializing modular architecture with ComponentLoader...');
-                // CORRECTION: Passer l'instance app au ComponentLoader
                 window.componentLoader = new ComponentLoader(app);
-
-                // Load modular components using the correct method name
                 await window.componentLoader.initialize();
-
                 console.log('✅ ComponentLoader initialized successfully');
             } else {
                 console.warn('⚠️ ComponentLoader not available, using original PublicationOrganizer');
             }
-            // ===== FIN DE L'INTÉGRATION MODULAIRE =====
 
-            window.pubApp = app;
-            // Initialiser les modules maintenant que app est défini
-            app.initializeModules();
-            // Récupérer le token CSRF pour sécuriser les requêtes
+            // 4. Récupérer le token CSRF
             await app.fetchCsrfToken();
         }
         let galleryIdToLoad = localStorage.getItem('publicationOrganizer_lastGalleryId');

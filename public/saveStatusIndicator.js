@@ -286,5 +286,9 @@ const saveStatusIndicator = new SaveStatusIndicator();
 // Export for use in other modules
 window.saveStatusIndicator = saveStatusIndicator;
 
+// --- CORRECTION AJOUTÉE ---
+// Exposer également la CLASSE pour le ComponentLoader
+window.SaveStatusIndicator = SaveStatusIndicator;
+
 // Also export for ES6 imports
 export default saveStatusIndicator;

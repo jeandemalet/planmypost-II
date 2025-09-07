@@ -3732,3 +3732,112 @@ LES POUR LA LISTE DES PUBLICATIONS REGROUPÉES PAR GALERIE --- */
 .unscheduled-publication-item-gallery {
     display: none;
 }
+/* ========
+=======================
+   STYLES POUR LE NOUVEL ONGLET PUBLICATION
+   =============================== */
+
+.publication-layout {
+    display: flex;
+    gap: 30px;
+    height: calc(100vh - 180px);
+}
+
+#publication-preview-panel {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    padding: 20px;
+}
+
+#publication-control-panel {
+    width: 400px;
+    min-width: 350px;
+    padding: 20px;
+    border-left: 1px solid #ddd;
+    overflow-y: auto;
+}
+
+.control-section {
+    margin-bottom: 30px;
+}
+
+/* Mockup Smartphone */
+.smartphone-mockup {
+    width: 320px;
+    height: 680px;
+    background: #111;
+    border-radius: 40px;
+    padding: 15px;
+    box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+}
+
+.screen {
+    background: white;
+    height: 100%;
+    width: 100%;
+    border-radius: 25px;
+    overflow-y: auto;
+}
+
+/* Mockup Profil Instagram */
+.ig-profile-header {
+    padding: 15px;
+    border-bottom: 1px solid #dbdbdb;
+}
+
+.ig-pfp {
+    width: 80px;
+    height: 80px;
+    background: #eee;
+    border-radius: 50%;
+    margin-bottom: 10px;
+}
+
+.ig-stats {
+    display: flex;
+    justify-content: space-around;
+    margin-bottom: 10px;
+    font-size: 0.9em;
+}
+
+.ig-bio {
+    font-size: 0.9em;
+}
+
+/* Grille Instagram - STYLE VERTICAL */
+.ig-grid-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2px;
+}
+
+.ig-feed-item {
+    position: relative;
+    background-color: #eee;
+    /* C'est la propriété clé pour le format vertical des Reels */
+    aspect-ratio: 9 / 16;
+    background-size: cover;
+    background-position: center;
+}
+
+/* ===============================
+   CORRECTION : Masquer le panneau latéral dans Calendrier
+   =============================== */
+
+#calendar .publication-list-item,
+#calendar #calendarPublicationListPanel {
+    display: none !important;
+}
+
+/* Ajuster la mise en page pour que le calendrier prenne toute la place */
+#calendar .calendar-layout {
+    /* Supprimer le gap qui était prévu pour le panneau */
+    gap: 15px;
+}
+
+#calendar #calendar-main-content {
+    /* Le contenu principal prend toute la largeur maintenant */
+    flex-grow: 1;
+}

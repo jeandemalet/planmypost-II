@@ -31,6 +31,10 @@
                 <button class="tab-button" data-tab="cropping" data-i18n="tabs.cropping"><img src="/assets/crop.png?v=1.1" alt="Recadrage" class="tab-icon"> Recadrage</button>
                 <button class="tab-button" data-tab="description" data-i18n="tabs.description"><img src="/assets/description.png?v=1.1" alt="Description" class="tab-icon"> Description</button>
                 <button class="tab-button" data-tab="calendar" data-i18n="tabs.calendar"><img src="/assets/calendar.png?v=1.1" alt="Calendrier" class="tab-icon"> Calendrier</button>
+                <!-- NOUVEAU BOUTON CI-DESSOUS -->
+                <button class="tab-button" data-tab="publication">
+                    Publication
+                </button>
             </div>
 
             <nav id="userActionsPlaceholder">
@@ -441,11 +445,69 @@
                         <p id="auto-schedule-info" class="sidebar-info"></p>
                     </div>
 
+                    <!-- ▼▼▼ CORRECTION : SECTION PUBLICATIONS À PLANIFIER RESTAURÉE ▼▼▼ -->
+                    <div id="unscheduledPublicationsContainer" class="sidebar-section">
+                        <h4 data-i18n="labels.unscheduledPublications">Publications à Planifier</h4>
+                        <div id="unscheduledPublicationsList">
+                            <!-- La liste des publications est générée ici -->
+                        </div>
+                        
+                        <!-- ▼▼▼ CORRECTION : BOUTONS RESTAURÉS ▼▼▼ -->
+                        <button id="reorganizeAllBtn" class="secondary-action" style="margin-top: 10px;" data-i18n="buttons.reorganizeAll">Tout Réorganiser</button>
+                        <button id="downloadAllScheduledBtn" class="primary-action" style="margin-top: 5px;" data-i18n="buttons.downloadAll">Tout Télécharger</button>
+                    </div>
+
                 </div>
             </div>
             <div id="calendarContextPreviewModal" class="modal-preview">
                 <h4 id="calendarContextTitle" data-i18n="messages.preview">Aperçu</h4>
                 <div id="calendarContextImages"></div>
+            </div>
+        </div>
+
+        <!-- A la fin, après la div de l'onglet calendrier -->
+        <div id="publication" class="tab-content">
+            <div class="publication-layout">
+                <!-- PARTIE GAUCHE : MOCKUP INSTAGRAM -->
+                <div id="publication-preview-panel">
+                    <div class="smartphone-mockup">
+                        <div class="screen">
+                            <div class="ig-profile-header">
+                                <!-- Ici, on simulera l'en-tête du profil Instagram -->
+                                <div class="ig-pfp"></div>
+                                <div class="ig-stats">
+                                    <div><strong>152</strong> publications</div>
+                                    <div><strong>1.2k</strong> abonnés</div>
+                                    <div><strong>342</strong> abonnements</div>
+                                </div>
+                                <div class="ig-bio">
+                                    <strong>Votre Nom</strong>
+                                    <p>Photographe Professionnel</p>
+                                </div>
+                            </div>
+                            <div id="ig-feed-grid" class="ig-grid-container">
+                                <!-- La grille des publications sera générée ici par JavaScript -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- PARTIE DROITE : PANNEAU DE CONTRÔLE -->
+                <div id="publication-control-panel">
+                    <div class="control-section">
+                        <h3>Connexion Instagram</h3>
+                        <p>Connectez votre compte pour publier directement.</p>
+                        <button id="instagram-login-btn" class="primary-action">Se connecter à Instagram</button>
+                        <div id="instagram-user-info" style="display:none;"></div>
+                    </div>
+                    <div class="control-section">
+                        <h3>Statut des Publications</h3>
+                        <ul id="instagram-status-list">
+                            <!-- Les statuts des publications s'afficheront ici -->
+                            <li>Aucune publication en attente.</li>
+                        </ul>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
