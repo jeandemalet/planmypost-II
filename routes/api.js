@@ -29,7 +29,8 @@ const {
 // Rate limiting global pour toutes les routes API
 const globalApiLimiter = rateLimit({
     windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 500, // Limite chaque IP à 500 requêtes par fenêtre
+    // CORRECTION : Augmentation de la limite pour une application riche en images
+    max: 5000, // Limite chaque IP à 5000 requêtes par fenêtre (au lieu de 500)
     standardHeaders: true,
     legacyHeaders: false,
     message: {

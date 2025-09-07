@@ -2726,6 +2726,7 @@ class DescriptionManager {
                 const previewDiv = document.createElement('div');
                 previewDiv.className = 'img-preview';
                 const imgElement = document.createElement('img');
+                imgElement.loading = 'lazy'; // Optimisation lazy loading
                 imgElement.src = imgData.dataURL;
                 previewDiv.appendChild(imgElement);
                 this.imagesPreviewBanner.appendChild(previewDiv);
@@ -3762,14 +3763,14 @@ class PublicationOrganizer {
         }
 
         // --- NOUVELLE LOGIQUE DE CHARGEMENT INTELLIGENT ---
-        // Si on va vers un onglet principal ET que la galerie sélectionnée 
-        // n'est pas celle qui est déjà affichée...
+        // Si on va vers un onglet principal ET que la galerie sélectionnée pour l'aperçu
+        // n'est pas celle qui est déjà chargée et affichée...
         const mainTabs = ['currentGallery', 'cropping', 'description', 'calendar'];
-        if (mainTabs.includes(tabId) && this.currentGalleryId !== this.displayedGalleryId) {
-            // ... alors on lance le chargement complet des données avant de continuer.
-            await this.loadState();
-            // Pas besoin d'aller plus loin, car loadState() rappelle déjà activateTab à la fin.
-            return;
+        if (mainTabs.includes(tabId) && this.selectedGalleryForPreviewId && this.selectedGalleryForPreviewId !== this.displayedGalleryId) {
+            // ... alors on lance le chargement complet de cette nouvelle galerie.
+            console.log(`Changement de contexte détecté. Chargement de la galerie ${this.selectedGalleryForPreviewId}...`);
+            await this.handleLoadGallery(this.selectedGalleryForPreviewId, tabId);
+            return; // Le chargement s'occupe de la suite.
         }
         // --- FIN DE LA NOUVELLE LOGIQUE ---
 
@@ -4162,17 +4163,15 @@ class PublicationOrganizer {
                     countSpan.textContent = `(${gallery.imageCount})`;
                     nameSpan.appendChild(countSpan);
                 }
+                // PHASE 1 : SÉLECTION LÉGÈRE
                 nameSpan.onclick = () => {
-                    // 1. Mettre à jour la galerie active "en attente"
-                    this.currentGalleryId = gallery._id;
-                    localStorage.setItem('publicationOrganizer_lastGalleryId', this.currentGalleryId);
-
-                    // 2. Simplement rafraîchir l'aperçu
+                    // On met juste à jour la sélection pour l'aperçu et on note le choix.
+                    this.selectedGalleryForPreviewId = gallery._id;
                     this.showGalleryPreview(gallery._id, gallery.name);
-
-                    // 3. Mettre à jour le nom dans la barre de l'onglet "Tri" pour la cohérence
+                    
+                    // Mettre à jour le nom dans la barre de l'onglet "Tri" pour un feedback visuel
                     if (this.currentGalleryNameDisplay) {
-                        this.currentGalleryNameDisplay.textContent = this.getCurrentGalleryName();
+                        this.currentGalleryNameDisplay.textContent = gallery.name;
                     }
                 };
                 const actionsDiv = document.createElement('div');
@@ -4193,6 +4192,7 @@ class PublicationOrganizer {
                 li.appendChild(actionsDiv);
                 this.galleriesListElement.appendChild(li);
             });
+            // CORRECTION : Charger l'aperçu uniquement pour la première galerie ou la galerie sélectionnée
             if (!this.selectedGalleryForPreviewId && galleries.length > 0) {
                 this.showGalleryPreview(galleries[0]._id, galleries[0].name);
             }
@@ -4208,6 +4208,10 @@ class PublicationOrganizer {
     }
 
     async showGalleryPreview(galleryId, galleryName, isNewGallery = false) {
+        // CORRECTION : Ajouter un verrou pour empêcher les appels multiples pendant le chargement
+        if (this.isLoadingPreview) return;
+        this.isLoadingPreview = true;
+
         this.selectedGalleryForPreviewId = galleryId;
         this.galleryPreviewPlaceholder.style.display = 'none';
         
@@ -4306,6 +4310,8 @@ class PublicationOrganizer {
             console.error("Erreur lors du chargement de l'aperçu de la galerie:", error);
             this.galleryPreviewGridElement.innerHTML = `<p>Erreur: ${error.message}</p>`;
             this.galleryStatsLabelText.textContent = "Grille: ? | Publications: ?";
+        } finally {
+            this.isLoadingPreview = false; // Libérer le verrou
         }
     }
 
@@ -4537,16 +4543,19 @@ class PublicationOrganizer {
         }
     }
 
-    async handleLoadGallery(galleryId) {
-        if (this.currentGalleryId === galleryId && document.getElementById('currentGallery').classList.contains('active')) {
-            this.activateTab('currentGallery');
+    async handleLoadGallery(galleryId, targetTabId = 'currentGallery') {
+        if (this.currentGalleryId === galleryId && document.getElementById(targetTabId).classList.contains('active')) {
+            this.activateTab(targetTabId);
             return;
         }
         if (this.currentGalleryId && this.currentGalleryId !== galleryId) {
             await this.saveAppState(); // Garder synchrone pour la sauvegarde avant changement de galerie
         }
         this.currentGalleryId = galleryId;
+        this.selectedGalleryForPreviewId = galleryId; // Synchroniser la sélection
         localStorage.setItem('publicationOrganizer_lastGalleryId', this.currentGalleryId);
+        
+        // Réinitialisation de l'état
         this.gridItems = [];
         this.gridItemsDict = {};
         this.imageGridElement.innerHTML = '';
@@ -4557,14 +4566,13 @@ class PublicationOrganizer {
         if (this.croppingPage) this.croppingPage.clearEditor();
         if (this.galleriesUploadProgressContainer) this.galleriesUploadProgressContainer.style.display = 'none';
         if (this.currentGalleryUploadProgressContainer) this.currentGalleryUploadProgressContainer.style.display = 'none';
-        await this.loadState();
-        // Bouton "Trier" retiré
-        this.activateTab('currentGallery');
-        await this.loadGalleriesList();
-        this.updateUIToNoGalleryState();
+        
+        // loadState va charger toutes les données et à la fin, il appellera activateTab
+        // avec l'onglet cible (targetTabId) pour finaliser la navigation.
+        await this.loadState(targetTabId);
     }
 
-    async loadState() {
+    async loadState(targetTabId = 'currentGallery') {
         if (!this.currentGalleryId) {
             this.updateUIToNoGalleryState();
             return;
@@ -4708,7 +4716,8 @@ class PublicationOrganizer {
             this.updateGridItemStyles();
             this.updateUIToNoGalleryState();
             if (this.croppingPage && this.croppingPage.autoCropper) { this.croppingPage.autoCropper.refreshJourSelection(); }
-            this.activateTab(galleryState.activeTab || 'currentGallery');
+            // CORRECTION : Activer l'onglet CIBLE après le chargement
+            this.activateTab(targetTabId);
             this.displayedGalleryId = this.currentGalleryId; // Marquer cette galerie comme affichée
 
         } catch (error) {
@@ -4722,10 +4731,38 @@ class PublicationOrganizer {
         }
     }
 
+    // CORRECTION : Réactivation et amélioration du scroll infini
     async loadMoreImages() {
-        // ✅ CORRECTION: Désactiver le chargement infini pour afficher toutes les images d'un coup
-        // Cette fonction ne fait plus rien, toutes les images sont chargées au démarrage
-        return;
+        // Vérifier s'il y a plus de pages à charger et si un chargement n'est pas déjà en cours
+        if (this.currentGridPage >= this.totalGridPages || this.isLoadingMoreImages) {
+            return;
+        }
+
+        this.isLoadingMoreImages = true; // Verrouiller
+        console.log(`Chargement de la page ${this.currentGridPage + 1}...`);
+
+        try {
+            const nextPage = this.currentGridPage + 1;
+            const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/images?page=${nextPage}&limit=200`);
+            
+            if (!response.ok) {
+                throw new Error(`Erreur HTTP lors du chargement de la page ${nextPage}: ${response.status}`);
+            }
+
+            const data = await response.json();
+            if (data.docs && data.docs.length > 0) {
+                this.addImagesToGrid(data.docs);
+                this.currentGridPage = data.page; // Mettre à jour la page actuelle
+                this.sortGridItemsAndReflow(); // Appliquer le tri actuel
+            } else {
+                // S'il n'y a plus d'images, on met à jour pour ne plus essayer de charger
+                this.currentGridPage = this.totalGridPages;
+            }
+        } catch (error) {
+            console.error("Erreur lors du chargement de plus d'images:", error);
+        } finally {
+            this.isLoadingMoreImages = false; // Libérer le verrou
+        }
     }
 
     async handleRenameGallery(galleryId, currentName) {

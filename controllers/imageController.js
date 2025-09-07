@@ -198,7 +198,7 @@ exports.getImagesForGallery = async (req, res) => {
     // Détecter si une pagination est demandée
     const usePagination = req.query.limit || req.query.page;
     const page = parseInt(req.query.page) || 1;
-    const limit = parseInt(req.query.limit) || 50;
+    const limit = parseInt(req.query.limit) || 200; // Augmentation de la limite par défaut à 200
     const skip = (page - 1) * limit;
 
     try {
