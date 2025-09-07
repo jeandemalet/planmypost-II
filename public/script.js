@@ -3179,9 +3179,12 @@ class CalendarPage {
         }
 
         // --- AJOUTER CETTE PARTIE À LA FIN DE LA FONCTION ---
-        // Lancer l'observation sur toutes les nouvelles vignettes à charger
-        const lazyImages = this.calendarGridElement.querySelectorAll('.lazy-load-thumb');
-        lazyImages.forEach(img => this.imageObserver.observe(img));
+        // Lancer l'observation sur TOUTES les nouvelles vignettes à charger (grille + barre latérale)
+        const lazyImagesInGrid = this.calendarGridElement.querySelectorAll('.lazy-load-thumb');
+        const lazyImagesInSidebar = this.unscheduledPublicationsListElement.querySelectorAll('.lazy-load-thumb');
+
+        lazyImagesInGrid.forEach(img => this.imageObserver.observe(img));
+        lazyImagesInSidebar.forEach(img => this.imageObserver.observe(img));
     }
 
     populateJourList() {
@@ -3368,16 +3371,14 @@ class CalendarPage {
                 if (publication.firstImageThumbnail) {
                     const thumbFilename = Utils.getFilenameFromURL(publication.firstImageThumbnail);
                     const thumbUrl = `${BASE_API_URL}/api/uploads/${publication.galleryId}/${thumbFilename}`;
-
-                    const img = new Image();
-                    img.src = thumbUrl;
-                    img.loading = 'lazy';
-                    img.onload = () => {
-                        thumbDiv.style.backgroundImage = `url(${thumbUrl})`;
-                        thumbDiv.textContent = '';
-                    };
+                    
+                    // On ne charge PAS l'image directement.
+                    // On prépare le lazy loading en utilisant la même méthode que pour la grille principale.
+                    thumbDiv.dataset.src = thumbUrl; // Stocker l'URL dans un attribut data
+                    thumbDiv.classList.add('lazy-load-thumb'); // Ajouter la classe pour que l'observateur la trouve
+                    thumbDiv.textContent = '';
                 } else {
-                    thumbDiv.textContent = '...';
+                    thumbDiv.textContent = '...'; // Fallback si pas de miniature
                 }
 
                 const publicationLabelSpan = document.createElement('span');
@@ -3412,39 +3413,37 @@ class CalendarPage {
         lazyImages.forEach(img => this.imageObserver.observe(img));
     }
 
-    // NOUVELLE VERSION CORRIGÉE de loadCalendarThumb
+    // NOUVELLE VERSION CORRIGÉE et ROBUSTE de loadCalendarThumb
     async loadCalendarThumb(thumbElement, jourLetter, galleryIdForJour) {
         let imageUrl = null;
+        
+        // CORRECTION : S'assurer que jourLetter n'est pas undefined
+        if (typeof jourLetter !== 'string' || !galleryIdForJour) {
+            thumbElement.textContent = "ERR";
+            return;
+        }
 
-        // --- LOGIQUE HYBRIDE (inchangée) ---
-        // 1. SI la publication appartient à la GALERIE ACTUELLEMENT CHARGÉE
-        if (galleryIdForJour === this.organizerApp.currentGalleryId) {
-            // On utilise les données "en direct" de l'application, qui sont toujours à jour.
+        const allUserPublications = this.organizerApp.scheduleContext.allUserPublications;
+        const publicationData = allUserPublications.find(j => j.letter === jourLetter && j.galleryId === galleryIdForJour);
+
+        if (publicationData && publicationData.firstImageThumbnail) {
+            // Cas idéal : la miniature est déjà dans les données globales
+            const thumbFilename = Utils.getFilenameFromURL(publicationData.firstImageThumbnail);
+            imageUrl = `${BASE_API_URL}/api/uploads/${publicationData.galleryId}/${thumbFilename}`;
+        }
+
+        // --- FALLBACK DE SÉCURITÉ ---
+        else if (galleryIdForJour === this.organizerApp.currentGalleryId) {
             const publicationFrame = this.organizerApp.publicationFrames.find(pf => pf.letter === jourLetter);
-
             if (publicationFrame && publicationFrame.imagesData.length > 0) {
-                // On prend la première image de la publication, c'est la source la plus fiable.
                 imageUrl = publicationFrame.imagesData[0].dataURL;
-            }
-        } else {
-            // 2. SINON (pour toutes les autres galeries)
-            // On utilise les données "snapshot" chargées initialement.
-            const allUserPublications = this.organizerApp.scheduleContext.allUserPublications;
-            if (allUserPublications) {
-                const publicationData = allUserPublications.find(j => j.letter === jourLetter && j.galleryId === galleryIdForJour);
-
-                if (publicationData && publicationData.firstImageThumbnail) {
-                    const thumbFilename = Utils.getFilenameFromURL(publicationData.firstImageThumbnail);
-                    imageUrl = `${BASE_API_URL}/api/uploads/${publicationData.galleryId}/${thumbFilename}`;
-                }
             }
         }
 
-        // --- NOUVELLE LOGIQUE DE LAZY LOADING ---
+        // Le reste de la logique de lazy loading reste inchangée
         if (imageUrl) {
-            // On ne charge pas l'image, on prépare pour le lazy loading
             thumbElement.dataset.src = imageUrl;
-            thumbElement.classList.add('lazy-load-thumb'); // Ajout d'une classe cible
+            thumbElement.classList.add('lazy-load-thumb');
             thumbElement.textContent = "";
         } else {
             thumbElement.style.backgroundImage = 'none';
@@ -4719,6 +4718,7 @@ class PublicationOrganizer {
                 schedule: globalData.schedule || {},
                 allUserPublications: globalData.scheduleContext.allUserPublications || []
             };
+
             console.log(`Contexte global mis à jour : ${this.scheduleContext.allUserPublications.length} publications de toutes les galeries.`);
         } catch (error) {
             console.error("Erreur lors du chargement du contexte global :", error);
@@ -5763,22 +5763,37 @@ class PublicationOrganizer {
     }
 
     ensureJourInAllUserPublications(publicationFrame) {
-        const jourKey = `${publicationFrame.galleryId}-${publicationFrame.letter}`;
-        const existingPublication = this.scheduleContext.allUserPublications.find(j =>
-            j.galleryId === publicationFrame.galleryId && j.letter === publicationFrame.letter
-        );
+        const globalList = this.scheduleContext.allUserPublications;
+        const existingIndex = globalList.findIndex(j => j._id === publicationFrame.id);
 
-        if (!existingPublication) {
-            console.log(`➕ Ajout du publication ${publicationFrame.letter} à allUserPublications`);
+        if (existingIndex === -1) {
+            // La publication n'existe pas du tout, on la crée avec toutes ses informations
+            console.log(`➕ Ajout de la nouvelle publication ${publicationFrame.letter} à allUserPublications`);
+            const firstImage = publicationFrame.imagesData && publicationFrame.imagesData.length > 0 ? publicationFrame.imagesData[0] : null;
+
             const newJourContext = {
                 _id: publicationFrame.id,
                 letter: publicationFrame.letter,
                 galleryId: publicationFrame.galleryId.toString(),
-                galleryName: this.getCurrentGalleryName()
+                galleryName: this.getCachedGalleryName(publicationFrame.galleryId) || 'Galerie?',
+                firstImageThumbnail: firstImage ? (firstImage.mainImagePath || firstImage.dataURL) : null
             };
-            this.scheduleContext.allUserPublications.push(newJourContext);
+            globalList.push(newJourContext);
         } else {
-            console.log(`✅ Publication ${publicationFrame.letter} déjà dans allUserPublications`);
+            // La publication existe déjà. On ne la remplace PAS.
+            // On met à jour ses informations de manière ciblée pour éviter d'effacer des données.
+            const existingPublication = globalList[existingIndex];
+            
+            // Mise à jour du nom de la galerie (peut changer)
+            existingPublication.galleryName = this.getCachedGalleryName(publicationFrame.galleryId) || existingPublication.galleryName;
+
+            // CORRECTION PRINCIPALE : On met à jour la miniature SEULEMENT si elle est manquante
+            // ou si la publication active a maintenant une image alors qu'elle n'en avait pas.
+            if (!existingPublication.firstImageThumbnail && publicationFrame.imagesData.length > 0) {
+                const firstImage = publicationFrame.imagesData[0];
+                existingPublication.firstImageThumbnail = firstImage.mainImagePath || firstImage.dataURL;
+                console.log(`🔧 Mise à jour de la miniature pour la publication existante ${publicationFrame.letter}`);
+            }
         }
     }
 
