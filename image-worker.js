@@ -18,9 +18,12 @@ parentPort.on('message', async (task) => {
 
         // Traitement parallèle optimisé
         await Promise.all([
-            // Miniature JPEG avec compression avancée
+            // Miniature JPEG avec letterboxing (fond blanc)
             sharp(imageBuffer)
-                .resize(thumbSize, thumbSize, { fit: 'inside', withoutEnlargement: true })
+                .resize(thumbSize, thumbSize, {
+                    fit: sharp.fit.contain, // Fait tenir l'image à l'intérieur du carré
+                    background: { r: 255, g: 255, b: 255, alpha: 1 } // Fond blanc
+                })
                 .jpeg({
                     quality: 85,
                     mozjpeg: true,
@@ -29,9 +32,12 @@ parentPort.on('message', async (task) => {
                 })
                 .toFile(thumbPath),
 
-            // Miniature WebP avec qualité réduite
+            // Miniature WebP avec letterboxing (fond blanc)
             sharp(imageBuffer)
-                .resize(thumbSize, thumbSize, { fit: 'inside', withoutEnlargement: true })
+                .resize(thumbSize, thumbSize, {
+                    fit: sharp.fit.contain, // Fait tenir l'image à l'intérieur du carré
+                    background: { r: 255, g: 255, b: 255, alpha: 1 } // Fond blanc
+                })
                 .webp({
                     quality: 75,
                     effort: 6  // Meilleure compression

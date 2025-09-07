@@ -1042,7 +1042,8 @@ button.small-cancel-btn:hover {
 .unscheduled-publication-item-thumb {
     width: 22px;
     height: 22px;
-    background-size: cover;
+    background-size: contain;
+    background-repeat: no-repeat;
     background-position: center;
     border: 1px solid rgba(0,0,0,0.1);
     font-size: 0.7em;
@@ -1223,7 +1224,8 @@ button.small-cancel-btn:hover {
 .scheduled-item-thumb {
     width: 32px;
     height: 32px;
-    background-size: cover;
+    background-size: contain;
+    background-repeat: no-repeat;
     background-position: center;
     border: 1px solid #ced4da;
     border-radius: 5px;
