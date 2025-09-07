@@ -514,19 +514,27 @@
     <script src="script.js?v=1.1"></script>
     <script type="module" src="constants.js"></script> <!-- Centralized constants -->
     <script type="module" src="errorHandler.js"></script> <!-- Error handling system -->
-    <script type="module" src="saveStatusIndicator.js"></script> <!-- Save status feedback system -->
     
-    <!-- Modular Architecture Components -->
+    <!-- === DÉBUT DE LA CORRECTION : ORDRE DES SCRIPTS MODULAIRES === -->
+    
+    <!-- 1. Charger la classe de base en PREMIER -->
     <script type="module" src="modules/base/BaseComponent.js"></script>
+    
+    <!-- 2. Charger les services centraux -->
     <script type="module" src="modules/core/EventBus.js"></script>
     <script type="module" src="modules/core/StateManager.js"></script>
+    
+    <!-- 3. Charger les composants qui héritent de BaseComponent -->
     <script type="module" src="modules/components/CroppingManager.js"></script>
     <script type="module" src="modules/components/DescriptionManager.js"></script>
-    <script type="module" src="modules/modular-integration-example.js"></script>
+    <script type="module" src="saveStatusIndicator.js"></script> <!-- Déplacé ici -->
     
-    <!-- Modular Integration for Gradual Migration -->
+    <!-- 4. Charger les scripts d'intégration en DERNIER -->
     <script type="module" src="modules/integration/ComponentLoader.js"></script>
     <script type="module" src="modules/integration/ModularPublicationOrganizer.js"></script>
+    <script type="module" src="modules/modular-integration-example.js"></script>
+    
+    <!-- === FIN DE LA CORRECTION === -->
     
     <script src="zipExportManager.js"></script> <!-- Background ZIP export manager -->
 

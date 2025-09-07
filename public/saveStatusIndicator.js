@@ -1,26 +1,45 @@
 // ===============================
-// File: public/saveStatusIndicator.js
-// Visual feedback system for automatic saves
+// File: public/saveStatusIndicator.js (Corrigé et Intégré)
+// Système de feedback visuel pour les sauvegardes automatiques
 // ===============================
 
-class SaveStatusIndicator {
-    constructor() {
+// Assurez-vous que BaseComponent est chargé avant ce script dans votre index.html
+// import BaseComponent from './modules/base/BaseComponent.js';
+
+class SaveStatusIndicator extends BaseComponent {
+    constructor(dependencies = {}) {
+        // Appel du constructeur parent avec le nom du composant et ses dépendances
+        super('SaveStatusIndicator', dependencies);
+
+        // Initialisation de l'état local du composant
         this.indicator = null;
         this.timeoutId = null;
         this.currentStatus = 'idle';
+    }
+
+    /**
+     * Méthode du cycle de vie appelée par le ComponentLoader.
+     * Remplace la logique de l'ancien constructeur et de init().
+     */
+    async onInitialize() {
+        this.logger.info('Initializing SaveStatusIndicator component');
         this.initializeIndicator();
     }
 
+    /**
+     * Crée les éléments DOM et les styles nécessaires pour l'indicateur.
+     */
     initializeIndicator() {
-        // Create indicator element
+        // Créer l'élément indicateur
         this.indicator = document.createElement('div');
         this.indicator.id = 'save-status-indicator';
         this.indicator.className = 'save-status-indicator idle';
         
-        // Add to DOM (will be positioned by CSS)
+        // Ajouter au DOM et stocker la référence pour un nettoyage propre
         document.body.appendChild(this.indicator);
+        this.addElement('indicator', this.indicator);
         
-        // Add CSS if not already present
+        // Ajouter les styles si non présents
         if (!document.getElementById('save-status-styles')) {
             this.addStyles();
         }
@@ -115,7 +134,10 @@ class SaveStatusIndicator {
             }
         `;
         document.head.appendChild(styles);
+        this.addElement('styles', styles);
     }
+
+    // --- Les méthodes existantes (show, hide, etc.) restent inchangées ---
 
     show(status, message, duration = null) {
         if (!this.indicator) return;
@@ -155,13 +177,9 @@ class SaveStatusIndicator {
         this.indicator.classList.add('visible');
 
         // Auto-hide after duration (except for errors)
-        if (duration !== null || (status !== 'error' && status !== 'idle')) {
-            const hideDelay = duration || this.getDefaultDuration(status);
-            if (hideDelay > 0) {
-                this.timeoutId = setTimeout(() => {
-                    this.hide();
-                }, hideDelay);
-            }
+        const hideDelay = duration ?? (status === 'saved' ? 2000 : 0);
+        if (hideDelay > 0) {
+            this.timeoutId = setTimeout(() => this.hide(), hideDelay);
         }
     }
 
@@ -185,21 +203,6 @@ class SaveStatusIndicator {
         }, 300);
     }
 
-    getDefaultDuration(status) {
-        switch (status) {
-            case 'typing':
-                return 0; // Don't auto-hide typing indicator
-            case 'saving':
-                return 0; // Don't auto-hide saving indicator
-            case 'saved':
-                return 2000; // Hide success after 2 seconds
-            case 'error':
-                return 0; // Don't auto-hide errors
-            default:
-                return 3000;
-        }
-    }
-
     // Convenience methods
     showTyping(message) {
         this.show('typing', message);
@@ -221,16 +224,16 @@ class SaveStatusIndicator {
     wrapSaveFunction(saveFunction, context = '') {
         return async (...args) => {
             try {
-                this.showSaving(context ? `Sauvegarde ${context}...` : undefined);
+                this.show('saving', context ? `Sauvegarde ${context}...` : undefined);
                 
-                const result = await saveFunction.apply(this, args);
+                const result = await saveFunction(...args);
                 
-                this.showSaved(context ? `${context} enregistré` : undefined);
+                this.show('saved', context ? `${context} enregistré` : undefined);
                 
                 return result;
             } catch (error) {
-                console.error('Save function failed:', error);
-                this.showError(context ? `Erreur: ${context}` : 'Erreur de sauvegarde');
+                this.logger.error('Save function failed', error);
+                this.show('error', context ? `Erreur: ${context}` : 'Erreur de sauvegarde');
                 throw error;
             }
         };
@@ -263,32 +266,17 @@ class SaveStatusIndicator {
         };
     }
 
-    // Clean up method
-    destroy() {
+    /**
+     * Méthode de nettoyage appelée par l'architecture modulaire.
+     */
+    onDestroy() {
+        this.logger.info('Destroying SaveStatusIndicator');
         if (this.timeoutId) {
             clearTimeout(this.timeoutId);
         }
-        
-        if (this.indicator && this.indicator.parentNode) {
-            this.indicator.parentNode.removeChild(this.indicator);
-        }
-        
-        const styles = document.getElementById('save-status-styles');
-        if (styles && styles.parentNode) {
-            styles.parentNode.removeChild(styles);
-        }
+        // Le nettoyage des éléments DOM est géré automatiquement par BaseComponent
     }
 }
 
-// Create global instance
-const saveStatusIndicator = new SaveStatusIndicator();
-
-// Export for use in other modules
-window.saveStatusIndicator = saveStatusIndicator;
-
-// --- CORRECTION AJOUTÉE ---
-// Exposer également la CLASSE pour le ComponentLoader
+// Exposer la CLASSE pour que le ComponentLoader puisse la trouver et l'instancier
 window.SaveStatusIndicator = SaveStatusIndicator;
-
-// Also export for ES6 imports
-export default saveStatusIndicator;

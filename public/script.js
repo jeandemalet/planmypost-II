@@ -318,7 +318,15 @@ class GridItemBackend {
         this.element = document.createElement('div');
         this.element.className = 'grid-item';
         this.imgElement = document.createElement('img');
-        this.imgElement.loading = 'lazy';
+        
+        // MODIFICATION : Remplacer le chargement natif par la préparation pour l'observateur
+        // AVANT :
+        // this.imgElement.loading = 'lazy';
+        // this.imgElement.src = this.thumbnailPath;
+        
+        // APRÈS :
+        this.imgElement.dataset.src = this.thumbnailPath; // Stocker l'URL dans data-src
+        organizerRef.imageObserver.observe(this.imgElement); // Demander à l'observateur de surveiller cette image
 
         this.singleDayOverlay = document.createElement('span');
         this.singleDayOverlay.className = 'order-text';
@@ -334,8 +342,6 @@ class GridItemBackend {
             e.stopPropagation();
             organizerRef.deleteImageFromGrid(this.id);
         };
-
-        this.imgElement.src = this.thumbnailPath;
         this.imgElement.alt = this.basename;
         this.imgElement.style.width = '100%';
         this.imgElement.style.height = '100%';
@@ -2726,8 +2732,16 @@ class DescriptionManager {
                 const previewDiv = document.createElement('div');
                 previewDiv.className = 'img-preview';
                 const imgElement = document.createElement('img');
-                imgElement.loading = 'lazy'; // Optimisation lazy loading
-                imgElement.src = imgData.dataURL;
+                
+                // MODIFICATION :
+                // AVANT :
+                // imgElement.loading = 'lazy';
+                // imgElement.src = imgData.dataURL;
+                
+                // APRÈS :
+                imgElement.dataset.src = imgData.dataURL; // Stocker l'URL
+                this.imageObserver.observe(imgElement); // Observer l'image
+                
                 previewDiv.appendChild(imgElement);
                 this.imagesPreviewBanner.appendChild(previewDiv);
             });
@@ -3391,6 +3405,11 @@ class CalendarPage {
             });
         });
         // --- FIN DE LA NOUVELLE LOGIQUE ---
+        
+        // --- AJOUTER CETTE PARTIE À LA FIN DE LA FONCTION ---
+        // Lancer l'observation sur toutes les nouvelles vignettes à charger
+        const lazyImages = this.calendarGridElement.querySelectorAll('.lazy-load-thumb');
+        lazyImages.forEach(img => this.imageObserver.observe(img));
     }
 
     // NOUVELLE VERSION CORRIGÉE de loadCalendarThumb
@@ -3792,6 +3811,28 @@ class PublicationOrganizer {
         // Éléments des onglets
         this.tabs = document.querySelectorAll('.tab-button');
         this.tabContents = document.querySelectorAll('.tab-content');
+
+        // NOUVEAU : Observateur d'intersection global pour le lazy loading
+        this.imageObserver = new IntersectionObserver((entries, observer) => {
+            entries.forEach(entry => {
+                if (entry.isIntersecting) {
+                    const imgElement = entry.target;
+                    const imageUrl = imgElement.dataset.src;
+
+                    if (imageUrl) {
+                        imgElement.src = imageUrl; // Lancer le chargement
+                    }
+
+                    // Nettoyage : retirer l'attribut et arrêter d'observer
+                    imgElement.removeAttribute('data-src');
+                    observer.unobserve(imgElement);
+                }
+            });
+        }, {
+            rootMargin: '200px', // Charger les images 200px avant qu'elles ne deviennent visibles
+            threshold: 0.01
+        });
+
         this._initListeners();
         this.updateAddPhotosPlaceholderVisibility();
         this.updateUIToNoGalleryState();
@@ -3860,8 +3901,8 @@ class PublicationOrganizer {
         
         // 2. Si on quitte le mode global pour un onglet spécifique à une galerie
         if (!isEnteringGlobalMode && !this.currentGalleryId) {
-            alert("Veuillez d'abord sélectionner une galerie dans l'onglet 'Galeries' pour la trier ou la modifier.");
-            return; // Bloque la navigation si aucune galerie n'est active
+            console.warn("Navigation vers un onglet de galerie sans galerie active. L'interface utilisateur sera en mode 'aucune galerie'.");
+            // On supprime l'alerte et le return - l'interface se mettra automatiquement en mode "aucune galerie"
         }
 
         // --- LOGIQUE DE CHARGEMENT INTELLIGENT POUR LES ONGLETS GALERIE-SPÉCIFIQUES ---
@@ -4378,8 +4419,17 @@ class PublicationOrganizer {
                     itemDiv.style.width = `150px`;
                     itemDiv.style.height = `150px`;
                     const imgElement = document.createElement('img');
-                    imgElement.loading = 'lazy';
-                    imgElement.src = `${BASE_API_URL}/api/uploads/${imgData.galleryId}/${Utils.getFilenameFromURL(imgData.thumbnailPath)}`;
+                    
+                    // MODIFICATION :
+                    // AVANT :
+                    // imgElement.loading = 'lazy';
+                    // imgElement.src = `${BASE_API_URL}/api/uploads/${imgData.galleryId}/${Utils.getFilenameFromURL(imgData.thumbnailPath)}`;
+                    
+                    // APRÈS :
+                    const thumbnailUrl = `${BASE_API_URL}/api/uploads/${imgData.galleryId}/${Utils.getFilenameFromURL(imgData.thumbnailPath)}`;
+                    imgElement.dataset.src = thumbnailUrl; // Stocker l'URL
+                    this.imageObserver.observe(imgElement); // Observer l'image
+                    
                     imgElement.alt = imgData.originalFilename;
                     imgElement.style.objectFit = 'contain';
                     imgElement.style.width = '100%';
@@ -4672,7 +4722,10 @@ class PublicationOrganizer {
             console.log(`Contexte global mis à jour : ${this.scheduleContext.allUserPublications.length} publications de toutes les galeries.`);
         } catch (error) {
             console.error("Erreur lors du chargement du contexte global :", error);
-            errorHandler.showError("Erreur Réseau", "Impossible de charger les données de toutes les galeries.");
+            // Afficher une erreur à l'utilisateur via le système de notification
+            if (window.errorHandler) {
+                window.errorHandler.showError("Erreur Réseau", "Impossible de charger les données de toutes les galeries.");
+            }
         }
     }
 
@@ -5966,6 +6019,14 @@ async function startApp() {
                 }
             }
         }
+        
+        // CORRECTION N°1 : Pré-sélectionner la galerie pour l'aperçu
+        // Cela garantit que même si on démarre sur l'onglet "Galeries",
+        // l'aperçu de la bonne galerie sera affiché.
+        if (galleryIdToLoad) {
+            app.selectedGalleryForPreviewId = galleryIdToLoad;
+        }
+        
         app.currentGalleryId = galleryIdToLoad;
         await app.loadState();
     } catch (error) {
