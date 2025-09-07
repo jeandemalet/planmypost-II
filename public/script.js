@@ -19,22 +19,22 @@ const SecurityUtils = {
     // Sécurise le HTML en utilisant DOMPurify
     sanitizeHTML(dirty, options = {}) {
         if (!dirty) return '';
-        
+
         const defaultOptions = {
             ALLOWED_TAGS: ['br', 'p', 'div', 'span', 'strong', 'em', 'u', 'b', 'i', 'ul', 'ol', 'li'],
             ALLOWED_ATTR: ['class', 'contenteditable', 'data-zone'],
             KEEP_CONTENT: true
         };
-        
+
         const finalOptions = { ...defaultOptions, ...options };
         return DOMPurify.sanitize(dirty, finalOptions);
     },
-    
+
     // Sécurise les attributs de texte
     sanitizeText(text) {
         if (!text) return '';
-        return text.replace(/[<>"'&]/g, function(match) {
-            switch(match) {
+        return text.replace(/[<>"'&]/g, function (match) {
+            switch (match) {
                 case '<': return '&lt;';
                 case '>': return '&gt;';
                 case '"': return '&quot;';
@@ -73,7 +73,7 @@ class I18nManager {
     t(key, replacements = {}) {
         const lang = this.currentLang;
         let translation = key.split('.').reduce((obj, k) => obj && obj[k], this.translations[lang]);
-        
+
         if (!translation) {
             console.warn(`Missing translation for key: ${key}`);
             return key; // Retourne la clé si la traduction n'est pas trouvée
@@ -95,12 +95,12 @@ class I18nManager {
 
     async translateUI() {
         await this.loadLanguage(this.currentLang);
-        
+
         // Traduire les éléments avec data-i18n
         document.querySelectorAll('[data-i18n]').forEach(el => {
             el.textContent = this.t(el.dataset.i18n);
         });
-        
+
         // Traduire les attributs title et aria-label avec data-i18n-title
         document.querySelectorAll('[data-i18n-title]').forEach(el => {
             const translation = this.t(el.dataset.i18nTitle);
@@ -109,7 +109,7 @@ class I18nManager {
                 el.setAttribute('aria-label', translation);
             }
         });
-        
+
         // Traduire les placeholders avec data-i18n-placeholder
         document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
             const translation = this.t(el.dataset.i18nPlaceholder);
@@ -123,13 +123,13 @@ class I18nManager {
     async setLanguage(lang) {
         this.currentLang = lang;
         localStorage.setItem('preferredLang', lang);
-        
+
         // Mettre à jour l'attribut lang du HTML
         const htmlRoot = document.getElementById('htmlRoot') || document.documentElement;
         htmlRoot.setAttribute('lang', lang);
-        
+
         await this.translateUI();
-        
+
         // Mettre à jour le menu de langues
         if (typeof initializeLanguageMenu === 'function') {
             initializeLanguageMenu();
@@ -155,11 +155,11 @@ const AVAILABLE_LANGUAGES = {
 function initializeLanguageMenu() {
     const languageOptionsContainer = document.getElementById('languageOptions');
     const currentLangDisplay = document.getElementById('currentLangDisplay');
-    
+
     if (languageOptionsContainer && currentLangDisplay) {
         // Mettre à jour l'affichage de la langue actuelle
         currentLangDisplay.textContent = AVAILABLE_LANGUAGES[i18n.currentLang];
-        
+
         // Mettre à jour la classe active
         const activeLink = languageOptionsContainer.querySelector(`[data-lang="${i18n.currentLang}"]`);
         if (activeLink) {
@@ -777,26 +777,26 @@ class PublicationFrameBackend {
 
         const imageCount = this.imagesData.length;
         const originalButtonText = this.exportPublicationImagesBtn.textContent;
-        
+
         // For large publications (>= 10 images), use background processing
         if (imageCount >= 10) {
             this.exportPublicationImagesBtn.textContent = 'Mise en file...';
             this.exportPublicationImagesBtn.disabled = true;
-            
+
             try {
                 // Start background export job
                 const jobId = await zipExportManager.startExport(
-                    this.galleryId, 
-                    this.id, 
+                    this.galleryId,
+                    this.id,
                     this.letter,
                     { priority: 3 } // Medium priority for user-initiated exports
                 );
-                
+
                 // Show success message
                 alert(`Export de la Publication ${this.letter} ajouté à la file d'attente.\nVous recevrez une notification quand le ZIP sera prêt.`);
-                
+
                 console.log(`📦 Background export started for Publication ${this.letter} (${imageCount} images) - Job ID: ${jobId}`);
-                
+
             } catch (error) {
                 console.error(`Erreur lors du démarrage de l'export en arrière-plan pour Publication ${this.letter}:`, error);
                 alert(`Erreur: ${error.message}`);
@@ -811,7 +811,7 @@ class PublicationFrameBackend {
         const exportUrl = `${BASE_API_URL}/api/galleries/${this.galleryId}/publications/${this.id}/export`;
         this.exportPublicationImagesBtn.textContent = 'Préparation...';
         this.exportPublicationImagesBtn.disabled = true;
-        
+
         try {
             const response = await fetch(exportUrl);
             if (!response.ok) {
@@ -850,7 +850,7 @@ class PublicationFrameBackend {
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/publications/${this.id}`, {
                 method: 'PUT',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-Token': app.csrfToken
                 },
@@ -943,7 +943,7 @@ class PublicationFrameBackend {
     async destroy() {
         if (this.id && app.currentGalleryId && app.csrfToken) {
             try {
-                await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/publications/${this.id}`, { 
+                await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/publications/${this.id}`, {
                     method: 'DELETE',
                     headers: {
                         'X-CSRF-Token': app.csrfToken
@@ -1309,7 +1309,7 @@ class AutoCropper {
                     if (dataURL) {
                         const response = await fetch(`${BASE_API_URL}/api/galleries/${publication.galleryId}/images/${originalGridItem.id}/crop`, {
                             method: 'POST',
-                            headers: { 
+                            headers: {
                                 'Content-Type': 'application/json',
                                 'X-CSRF-Token': app.csrfToken
                             },
@@ -1459,13 +1459,13 @@ class CroppingManager {
 
     _waitForContainerAndResize(attempts = 0) {
         const container = this.canvasElement.parentElement;
-        
+
         // Si le conteneur a une taille suffisante, procéder
         if (container && container.clientHeight >= 100) {
             this._handleResize();
             return;
         }
-        
+
         // Sinon, réessayer jusqu'à 10 fois avec un délai croissant
         if (attempts < 10) {
             const delay = Math.min(50 + attempts * 20, 200); // 50ms à 200ms max
@@ -1544,7 +1544,7 @@ class CroppingManager {
                 this.redrawCanvasOnly();
                 this.debouncedUpdatePreview();
 
-            // 2. SI PAS DE CACHE, ALORS LANCER SMARTCROP
+                // 2. SI PAS DE CACHE, ALORS LANCER SMARTCROP
             } else {
                 console.log('[CroppingManager] Pas de recadrage en cache, initialisation avec smartcrop.');
                 this.initializeCropWithSmartCrop();
@@ -1563,7 +1563,7 @@ class CroppingManager {
 
         // Create cache key: image src + aspect ratio
         const cacheKey = `${this.currentImageObject.src}_${this.aspectRatioSelect.value}`;
-        
+
         // Check cache first
         if (this.smartcropCache && this.smartcropCache[cacheKey]) {
             console.log(`[Smartcrop] Using cached result for ${cacheKey}`);
@@ -1622,12 +1622,12 @@ class CroppingManager {
             }
             const result = await smartcrop.crop(this.currentImageObject, cropOptionsForSmartcrop);
             const bestCrop = result.topCrop;
-            
+
             // Store result in cache
             if (!this.smartcropCache) this.smartcropCache = {};
             this.smartcropCache[cacheKey] = bestCrop;
             console.log(`[Smartcrop] Cached result for ${cacheKey}`);
-            
+
             const { displayX, displayY, imageScale } = this.getImageDisplayDimensions();
             if (imageScale > 0) {
                 this.cropRectDisplay = {
@@ -1991,17 +1991,17 @@ class CroppingManager {
 
     updatePreview() {
         this.previewContainer.classList.remove('split-active', 'double-split-active');
-        
+
         // Cacher les previews pour éviter les erreurs "about:blank"
         this.previewLeft.style.display = 'none';
         this.previewCenter.style.display = 'none';
         this.previewRight.style.display = 'none';
-        
+
         // Effacer les sources
         this.previewLeft.src = 'about:blank';
         this.previewCenter.src = 'about:blank';
         this.previewRight.src = 'about:blank';
-        
+
         if (!this.currentImageObject) return;
 
         const tempCanvas = document.createElement('canvas'), tempCtx = tempCanvas.getContext('2d');
@@ -2279,7 +2279,7 @@ class CroppingManager {
                     if (!opPayload.imageDataUrl || !opPayload.imageDataUrl.startsWith('data:image/jpeg;base64,')) { continue; }
                     const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryIdForAPI}/images/${originalImageId}/crop`, {
                         method: 'POST',
-                        headers: { 
+                        headers: {
                             'Content-Type': 'application/json',
                             'X-CSRF-Token': app.csrfToken
                         },
@@ -2476,14 +2476,14 @@ class DescriptionManager {
                 'description publication'
             )();
         }, 1500);
-        
+
         this.debouncedSaveCommon = Utils.debounce(() => {
             window.saveStatusIndicator.wrapSaveFunction(
                 () => this.saveCommonDescription(true),
                 'description commune'
             )();
         }, 1500);
-        
+
         this._initListeners();
     }
 
@@ -2776,7 +2776,7 @@ class DescriptionManager {
     async saveCommonDescription(isDebounced = false) {
         if (!app.currentGalleryId) return;
         if (!isDebounced) this.debouncedSaveCommon.cancel();
-        
+
         // Attendre que le token CSRF soit disponible
         if (!app.csrfToken) {
             console.warn('Token CSRF non disponible pour saveCommonDescription, tentative de récupération...');
@@ -2790,13 +2790,13 @@ class DescriptionManager {
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${app.currentGalleryId}/state`, {
                 method: 'PUT',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-Token': app.csrfToken
                 },
                 body: JSON.stringify({ commonDescriptionText: this.commonDescriptionText })
             });
-            
+
             if (!response.ok) {
                 throw new Error(`HTTP ${response.status}: ${response.statusText}`);
             }
@@ -2848,7 +2848,7 @@ class CalendarPage {
                     if (imageUrl) {
                         // Appliquer l'image de fond
                         thumbElement.style.backgroundImage = `url(${imageUrl})`;
-                        
+
                         // Nettoyage : retirer la classe et arrêter d'observer cet élément
                         thumbElement.classList.remove('lazy-load-thumb');
                         observer.unobserve(thumbElement);
@@ -2888,7 +2888,7 @@ class CalendarPage {
 
     _initListeners() {
         this.parentElement.querySelector('#todayBtn').addEventListener('click', () => this.goToToday());
-        
+
         // NOUVEAU : Gérer les clics sur le sélecteur de mois
         this.monthSelectorElement.addEventListener('click', (event) => {
             const target = event.target.closest('li');
@@ -3035,7 +3035,7 @@ class CalendarPage {
     buildCalendarUI() {
         // Nettoyer les publications inexistants du calendrier avant de construire l'UI
         this.cleanupNonExistentPublications();
-        
+
         // Corriger automatiquement les noms de galerie manquants
         this.fixMissingGalleryNames();
 
@@ -3057,7 +3057,7 @@ class CalendarPage {
         const month = this.currentDate.getMonth();
         // On met à publication le sélecteur de mois (qui gère aussi le style "active")
         this._buildMonthSelector();
-        
+
         // On met à publication l'affichage de l'année
         this.yearLabelElement.textContent = year;
         // --- FIN DE LA MODIFICATION ---
@@ -3089,7 +3089,7 @@ class CalendarPage {
             const nextMonthDay = new Date(year, month + 1, i);
             this.createDayCell(nextMonthDay, true, false, nextMonthDay < today);
         }
-        
+
         // --- AJOUTER CETTE PARTIE À LA FIN DE LA FONCTION ---
         // Lancer l'observation sur toutes les nouvelles vignettes à charger
         const lazyImages = this.calendarGridElement.querySelectorAll('.lazy-load-thumb');
@@ -3201,7 +3201,7 @@ class CalendarPage {
         const allUserPublications = this.organizerApp.scheduleContext.allUserPublications;
 
         if (!allUserPublications || allUserPublications.length === 0) {
-            this.unscheduledPublicationsListElement.innerHTML = '<p class="sidebar-info">Aucun publication à planifier.</p>';
+            this.unscheduledPublicationsListElement.innerHTML = '<p class="sidebar-info">Aucune publication à planifier.</p>';
             return;
         }
 
@@ -3216,7 +3216,7 @@ class CalendarPage {
         const unscheduled = allUserPublications.filter(publication => !scheduledSet.has(`${publication.galleryId}-${publication.letter}`));
 
         if (unscheduled.length === 0) {
-            this.unscheduledPublicationsListElement.innerHTML = '<p class="sidebar-info">Tous les publications sont planifiés !</p>';
+            this.unscheduledPublicationsListElement.innerHTML = '<p class="sidebar-info">Toutes les publications sont planifiées !</p>';
             return;
         }
 
@@ -3270,7 +3270,7 @@ class CalendarPage {
                 if (publication.firstImageThumbnail) {
                     const thumbFilename = Utils.getFilenameFromURL(publication.firstImageThumbnail);
                     const thumbUrl = `${BASE_API_URL}/api/uploads/${publication.galleryId}/${thumbFilename}`;
-                    
+
                     const img = new Image();
                     img.src = thumbUrl;
                     img.loading = 'lazy';
@@ -3329,7 +3329,7 @@ class CalendarPage {
             const allUserPublications = this.organizerApp.scheduleContext.allUserPublications;
             if (allUserPublications) {
                 const publicationData = allUserPublications.find(j => j.letter === jourLetter && j.galleryId === galleryIdForJour);
-                
+
                 if (publicationData && publicationData.firstImageThumbnail) {
                     const thumbFilename = Utils.getFilenameFromURL(publicationData.firstImageThumbnail);
                     imageUrl = `${BASE_API_URL}/api/uploads/${publicationData.galleryId}/${thumbFilename}`;
@@ -3467,13 +3467,13 @@ class CalendarPage {
         Object.keys(scheduleData).forEach(dateStr => {
             Object.keys(scheduleData[dateStr]).forEach(letter => {
                 const item = scheduleData[dateStr][letter];
-                
+
                 // Si le nom de galerie est manquant ou vide
                 if (!item.galleryName) {
                     const jourInfo = allUserPublications.find(
                         j => j.galleryId === item.galleryId && j.letter === letter
                     );
-                    
+
                     if (jourInfo && jourInfo.galleryName) {
                         item.galleryName = jourInfo.galleryName;
                         fixedCount++;
@@ -3503,7 +3503,7 @@ class CalendarPage {
 
         // --- CORRECTION : S'assurer que le nom de la galerie est toupublications présent ---
         let finalGalleryName = galleryName;
-        
+
         // Si le nom n'a pas été fourni, on le recherche dans allUserPublications
         if (!finalGalleryName) {
             const jourInfo = this.organizerApp.scheduleContext.allUserPublications.find(
@@ -3513,10 +3513,10 @@ class CalendarPage {
                 finalGalleryName = jourInfo.galleryName;
             }
         }
-        
-        scheduleData[dateStr][jourLetter] = { 
-            label: `Publication ${jourLetter}`, 
-            galleryId: galleryId, 
+
+        scheduleData[dateStr][jourLetter] = {
+            label: `Publication ${jourLetter}`,
+            galleryId: galleryId,
             galleryName: finalGalleryName || 'Galerie?' // Fallback au cas où
         };
         this.saveSchedule();
@@ -3630,10 +3630,10 @@ class CalendarPage {
 class PublicationOrganizer {
     constructor() {
         this.csrfToken = null; // Pour stocker le token CSRF
-        
+
         // CORRECTION: Initialiser debouncedSaveAppState en premier pour éviter les erreurs d'ordre
         this.debouncedSaveAppState = Utils.debounce(() => this.saveAppState(), 1500);
-        
+
         this.currentGalleryId = null;
         this.displayedGalleryId = null; // Galerie actuellement affichée dans les onglets principaux
         this.currentThumbSize = { width: 200, height: 200 };
@@ -3657,7 +3657,7 @@ class PublicationOrganizer {
         this.addNewImagesBtn = document.getElementById('addNewImagesBtn');
         // Remplace l'ancien bouton d'ajout dans l'aperçu
         this.galleryPreviewAddNewImagesBtn = document.getElementById('galleryPreviewAddNewImagesBtn');
-        
+
         // Vérification de sécurité pour les éléments critiques
         if (!this.galleryPreviewAddNewImagesBtn) {
             console.error('Élément galleryPreviewAddNewImagesBtn non trouvé dans le DOM');
@@ -3701,7 +3701,7 @@ class PublicationOrganizer {
         this.calendarPage = null;
         this.descriptionManager = null;
         this.croppingPage = null;
-        
+
         // Éléments des onglets
         this.tabs = document.querySelectorAll('.tab-button');
         this.tabContents = document.querySelectorAll('.tab-content');
@@ -3774,6 +3774,32 @@ class PublicationOrganizer {
         }
         // --- FIN DE LA NOUVELLE LOGIQUE ---
 
+        // --- CORRECTION CRITIQUE POUR LE CALENDRIER ---
+        // Si on entre dans l'onglet calendrier, on force le rechargement des données globales
+        if (tabId === 'calendar' && this.currentGalleryId) {
+            console.log("Activation de l'onglet Calendrier : Rechargement des données globales...");
+            try {
+                // On appelle l'endpoint dédié qui renvoie TOUTES les publications
+                const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/calendar-data`);
+                if (!response.ok) throw new Error('Impossible de charger les données du calendrier');
+                const calendarData = await response.json();
+
+                // On met à jour le contexte avec des données fraîches et complètes
+                this.scheduleContext = {
+                    schedule: calendarData.schedule || {},
+                    allUserPublications: calendarData.scheduleContext.allUserPublications || []
+                };
+                console.log(`Données globales du calendrier mises à jour : ${this.scheduleContext.allUserPublications.length} publications trouvées.`);
+
+            } catch (error) {
+                console.error("Erreur lors du rechargement des données du calendrier :", error);
+                // On ne bloque pas l'UI, on affiche simplement un message
+                if (this.calendarPage) {
+                    this.calendarPage.calendarGridElement.innerHTML = '<p>Erreur de chargement des données globales.</p>';
+                }
+            }
+        }
+
         // Gestion des onglets
         this.tabs.forEach(t => t.classList.remove('active'));
         this.tabContents.forEach(tc => tc.classList.remove('active'));
@@ -3783,7 +3809,7 @@ class PublicationOrganizer {
         if (tabButton && tabContent) {
             tabButton.classList.add('active');
             tabContent.classList.add('active');
-            
+
             if (tabId === 'galleries') {
                 this.loadGalleriesList();
                 if (!this.selectedGalleryForPreviewId) {
@@ -3839,7 +3865,7 @@ class PublicationOrganizer {
         if (this.croppingPage) {
             this.croppingPage.renderAllPhotosGroupedView();
         }
-            
+
         // Met à jour les indicateurs d'utilisation sur la grille principale
         this.updateGridUsage();
     }
@@ -4037,7 +4063,7 @@ class PublicationOrganizer {
         try {
             const response = await fetch(`${BASE_API_URL}/api/publications/export-all-scheduled`, {
                 method: 'POST',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-Token': app.csrfToken
                 },
@@ -4168,7 +4194,7 @@ class PublicationOrganizer {
                     // On met juste à jour la sélection pour l'aperçu et on note le choix.
                     this.selectedGalleryForPreviewId = gallery._id;
                     this.showGalleryPreview(gallery._id, gallery.name);
-                    
+
                     // Mettre à jour le nom dans la barre de l'onglet "Tri" pour un feedback visuel
                     if (this.currentGalleryNameDisplay) {
                         this.currentGalleryNameDisplay.textContent = gallery.name;
@@ -4214,7 +4240,7 @@ class PublicationOrganizer {
 
         this.selectedGalleryForPreviewId = galleryId;
         this.galleryPreviewPlaceholder.style.display = 'none';
-        
+
         // Utilise la nouvelle barre de contrôles au lieu de l'ancien header
         const controlsBar = document.getElementById('galleryPreviewControlsBar');
         const nameDisplay = document.getElementById('galleryPreviewNameDisplay');
@@ -4238,7 +4264,7 @@ class PublicationOrganizer {
                 item.classList.add('selected-for-preview');
             }
         });
-        
+
         document.getElementById('galleryPreviewAddNewImagesBtn').disabled = false;
         try {
             // NOUVEAU : Récupère la valeur de tri et l'ajoute à l'URL
@@ -4246,14 +4272,14 @@ class PublicationOrganizer {
             // Note: L'endpoint API doit être capable de gérer ce paramètre de tri
             // --- MODIFICATION PRINCIPALE : Le "&limit=50" a été supprimé ---
             const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryId}/images?sort=${sortValue}`);
-            
+
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status}`);
-            
+
             // La route /images renvoie directement l'objet de pagination
             const imagesResult = await response.json();
             this.galleryCache[galleryId] = galleryName; // On garde le nom en cache
             this.galleryPreviewGridElement.innerHTML = '';
-            
+
             const imagesToDisplay = imagesResult.docs || [];
 
             if (imagesToDisplay.length > 0) {
@@ -4303,7 +4329,7 @@ class PublicationOrganizer {
                 // Marquer la grille comme vide pour les styles CSS
                 this.galleryPreviewGridElement.classList.remove('has-photos');
             }
-            
+
             // Mettre à jour les statistiques de la galerie avec le nombre total d'images
             this.updateGalleryStatsLabel(galleryId, imagesResult.total);
         } catch (error) {
@@ -4355,14 +4381,14 @@ class PublicationOrganizer {
     clearGalleryPreview() {
         this.selectedGalleryForPreviewId = null;
         this.galleryPreviewPlaceholder.style.display = 'block';
-        
+
         // Cache la nouvelle barre de contrôles
         document.getElementById('galleryPreviewControlsBar').style.display = 'none';
 
         this.galleryPreviewGridElement.innerHTML = '';
         this.galleryStatsLabelText.textContent = "Grille: 0 | Publications: 0";
         if (this.galleriesUploadProgressContainer) this.galleriesUploadProgressContainer.style.display = 'none';
-        
+
         this.galleriesListElement.querySelectorAll('.gallery-list-item.selected-for-preview').forEach(item => {
             item.classList.remove('selected-for-preview');
         });
@@ -4455,12 +4481,12 @@ class PublicationOrganizer {
                 body: JSON.stringify({ name: finalName })
             });
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status} - ${await response.text()}`);
-            
+
             // CORRECTION RACE CONDITION: Gérer la nouvelle réponse complète du serveur
             const creationResult = await response.json();
             const newGallery = creationResult.gallery || creationResult; // Compatibilité avec l'ancien format
             const initialPublication = creationResult.initialPublication;
-            
+
             this.galleryCache[newGallery._id] = newGallery.name;
 
             // CORRECTION: Si on a reçu la publication initiale, l'ajouter immédiatement au cache
@@ -4511,12 +4537,12 @@ class PublicationOrganizer {
                 body: JSON.stringify({ name: galleryName })
             });
             if (!response.ok) throw new Error(`Erreur HTTP: ${response.status} - ${await response.text()}`);
-            
+
             // CORRECTION RACE CONDITION: Gérer la nouvelle réponse complète du serveur
             const creationResult = await response.json();
             const newGallery = creationResult.gallery || creationResult; // Compatibilité avec l'ancien format
             const initialPublication = creationResult.initialPublication;
-            
+
             this.galleryCache[newGallery._id] = newGallery.name;
 
             // CORRECTION: Si on a reçu la publication initiale, l'ajouter immédiatement au cache
@@ -4554,7 +4580,7 @@ class PublicationOrganizer {
         this.currentGalleryId = galleryId;
         this.selectedGalleryForPreviewId = galleryId; // Synchroniser la sélection
         localStorage.setItem('publicationOrganizer_lastGalleryId', this.currentGalleryId);
-        
+
         // Réinitialisation de l'état
         this.gridItems = [];
         this.gridItemsDict = {};
@@ -4566,7 +4592,7 @@ class PublicationOrganizer {
         if (this.croppingPage) this.croppingPage.clearEditor();
         if (this.galleriesUploadProgressContainer) this.galleriesUploadProgressContainer.style.display = 'none';
         if (this.currentGalleryUploadProgressContainer) this.currentGalleryUploadProgressContainer.style.display = 'none';
-        
+
         // loadState va charger toutes les données et à la fin, il appellera activateTab
         // avec l'onglet cible (targetTabId) pour finaliser la navigation.
         await this.loadState(targetTabId);
@@ -4610,14 +4636,14 @@ class PublicationOrganizer {
 
             // CORRECTION 1: Utiliser data.jours au lieu de data.publications
             let loadedPublications = (data.jours || []).sort((a, b) => a.index - b.index);
-                
+
             // LOG 1: Voir les données brutes des publications reçues du serveur
             console.log('[LOG 1] Données brutes des publications reçues du serveur:', JSON.parse(JSON.stringify(loadedPublications)));
 
             // CORRECTION 3: Logique de réparation simplifiée et robuste
             const highestIndex = loadedPublications.length > 0 ? loadedPublications[loadedPublications.length - 1].index : -1;
             console.log(`[LOG 2] Analyse de la séquence. Index Max trouvé: ${highestIndex}. La séquence sera vérifiée de 0 à ${highestIndex}.`);
-                
+
             const repairedPublications = [];
 
             if (highestIndex > -1) {
@@ -4631,7 +4657,7 @@ class PublicationOrganizer {
                     } else {
                         console.warn(`[LOG 3B - index ${i}] MANQUANT. Tentative de création...`);
                         try {
-                            const createResponse = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/publications`, { 
+                            const createResponse = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/publications`, {
                                 method: 'POST',
                                 headers: {
                                     'X-CSRF-Token': this.csrfToken
@@ -4645,16 +4671,16 @@ class PublicationOrganizer {
                                 console.error(`[LOG 3D - index ${i}] ❌ ÉCHEC de la création. Le serveur a répondu ${createResponse.status}.`);
                             }
                         } catch (error) {
-                             console.error(`[LOG 3E - index ${i}] ❌ ERREUR API lors de la recréation:`, error);
+                            console.error(`[LOG 3E - index ${i}] ❌ ERREUR API lors de la recréation:`, error);
                         }
                     }
                 }
             }
-                
+
             // Si la galerie était/est complètement vide, on crée 'A'
             if (repairedPublications.length === 0) {
                 console.log("[INFO] La galerie était/est vide. Création de 'A' par défaut.");
-                const createResponse = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/publications`, { 
+                const createResponse = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/publications`, {
                     method: 'POST',
                     headers: {
                         'X-CSRF-Token': this.csrfToken
@@ -4689,15 +4715,15 @@ class PublicationOrganizer {
                     this.setCurrentPublicationFrame(firstAvailable);
                 }
             }
-                
+
             // ... (suite de la fonction loadState pour charger les images, le calendrier, etc.)
             const galleryState = data.galleryState || {};
-            
+
             // Mise à jour du nom de galerie dans l'onglet Tri
             if (this.currentGalleryNameDisplay) {
                 this.currentGalleryNameDisplay.textContent = this.getCurrentGalleryName();
             }
-            
+
             this.currentThumbSize = galleryState.currentThumbSize || { width: 150, height: 150 };
             this.sortOptionsSelect.value = 'name_asc';
             if (data.images && data.images.docs) {
@@ -4707,7 +4733,23 @@ class PublicationOrganizer {
                 this.sortGridItemsAndReflow();
             }
             if (this.descriptionManager) { this.descriptionManager.setCommonDescription(galleryState.commonDescriptionText || ''); }
-            this.scheduleContext = { schedule: data.schedule || {}, allUserPublications: data.scheduleContext.allUserPublications || [] };
+
+            // --- CORRECTION : Empêcher l'écrasement des données globales ---
+            // On ne met à jour QUE les données spécifiques à la galerie.
+            // On ne touche PAS à this.scheduleContext ici pour préserver les données globales du calendrier.
+            // La mise à jour de this.scheduleContext se fait maintenant de manière dédiée
+            // dans la méthode activateTab lorsque l'onglet 'calendar' est sélectionné.
+
+            // Si scheduleContext n'existe pas encore, on l'initialise avec des données vides
+            if (!this.scheduleContext) {
+                this.scheduleContext = { schedule: {}, allUserPublications: [] };
+            }
+
+            // On met à jour seulement le schedule (planification) mais pas allUserPublications
+            // pour éviter d'écraser la vue globale
+            if (data.schedule) {
+                this.scheduleContext.schedule = data.schedule;
+            }
             if (this.calendarPage) { this.publicationFrames.forEach(jf => this.ensureJourInAllUserPublications(jf)); this.calendarPage.buildCalendarUI(); }
             this.isLoadingGallery = false;
             this.updateGridUsage();
@@ -4716,6 +4758,13 @@ class PublicationOrganizer {
             this.updateGridItemStyles();
             this.updateUIToNoGalleryState();
             if (this.croppingPage && this.croppingPage.autoCropper) { this.croppingPage.autoCropper.refreshJourSelection(); }
+
+            // Si l'onglet cible est le calendrier, on s'assure que son UI est reconstruite
+            // avec les données potentiellement mises à jour par activateTab
+            if (targetTabId === 'calendar' && this.calendarPage) {
+                this.calendarPage.buildCalendarUI();
+            }
+
             // CORRECTION : Activer l'onglet CIBLE après le chargement
             this.activateTab(targetTabId);
             this.displayedGalleryId = this.currentGalleryId; // Marquer cette galerie comme affichée
@@ -4744,7 +4793,7 @@ class PublicationOrganizer {
         try {
             const nextPage = this.currentGridPage + 1;
             const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/images?page=${nextPage}&limit=200`);
-            
+
             if (!response.ok) {
                 throw new Error(`Erreur HTTP lors du chargement de la page ${nextPage}: ${response.status}`);
             }
@@ -4771,7 +4820,7 @@ class PublicationOrganizer {
             try {
                 const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryId}/state`, {
                     method: 'PUT',
-                    headers: { 
+                    headers: {
                         'Content-Type': 'application/json',
                         'X-CSRF-Token': this.csrfToken
                     },
@@ -4795,7 +4844,7 @@ class PublicationOrganizer {
             return;
         }
         try {
-            const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryId}`, { 
+            const response = await fetch(`${BASE_API_URL}/api/galleries/${galleryId}`, {
                 method: 'DELETE',
                 headers: {
                     'X-CSRF-Token': this.csrfToken
@@ -5065,13 +5114,13 @@ class PublicationOrganizer {
             id: pf.id,
             imagesData: [...pf.imagesData]
         }));
-        
+
         // 2. Supprimer immédiatement les éléments de l'UI et des données locales
         const tempDeletedIds = new Set([imageId]);
         // Trouver les versions recadrées associées pour les supprimer aussi
         const croppedVersions = this.gridItems.filter(item => item.parentImageId === imageId);
         croppedVersions.forEach(item => tempDeletedIds.add(item.id));
-        
+
         tempDeletedIds.forEach(idToDelete => {
             const itemInGrid = this.gridItemsDict[idToDelete];
             if (itemInGrid) {
@@ -5083,7 +5132,7 @@ class PublicationOrganizer {
         this.publicationFrames.forEach(jf => {
             jf.imagesData = jf.imagesData.filter(img => !tempDeletedIds.has(img.imageId));
         });
-        
+
         this.refreshPublicationViews(); // Rafraîchit les rubans
         this.updateStatsLabel();
         this.updateAddPhotosPlaceholderVisibility();
@@ -5105,7 +5154,7 @@ class PublicationOrganizer {
         } catch (error) {
             console.error("Error deleting image, reverting UI:", error);
             alert(`Erreur: Impossible de supprimer l'image. L'action a été annulée. Détails: ${error.message}`);
-            
+
             // 4. ROLLBACK : Annuler les changements en cas d'erreur
             this.gridItems = originalGridItems;
             this.gridItemsDict = originalGridItemsDict;
@@ -5113,7 +5162,7 @@ class PublicationOrganizer {
                 const pf = this.publicationFrames.find(p => p.id === state.id);
                 if (pf) pf.imagesData = state.imagesData;
             });
-            
+
             // Reconstruire la grille et les rubans
             this.imageGridElement.innerHTML = '';
             this.gridItems.forEach(item => this.imageGridElement.appendChild(item.element));
@@ -5286,14 +5335,14 @@ class PublicationOrganizer {
         }
         const numGridImages = this.gridItems.filter(item => item.isValid).length;
         const numPublications = this.publicationFrames.length;
-        
+
         // Utilisation du gestionnaire de pluriel pour les photos
         const galleryStatsText = i18n.t('labels.galleryStats', { count: numGridImages });
-        this.statsLabelText.textContent = i18n.t('messages.gridStats', { 
-            grid: numGridImages, 
-            publications: numPublications 
+        this.statsLabelText.textContent = i18n.t('messages.gridStats', {
+            grid: numGridImages,
+            publications: numPublications
         });
-        
+
         // Mettre à jour aussi les statistiques de la galerie si c'est la même galerie
         if (this.selectedGalleryForPreviewId === this.currentGalleryId) {
             this.galleryStatsLabelText.textContent = galleryStatsText;
@@ -5311,7 +5360,7 @@ class PublicationOrganizer {
             this.galleryStatsLabelText.textContent = `${totalImages} photo${totalImages !== 1 ? 's' : ''} dans la galerie`;
             return;
         }
-        
+
         // Si c'est la galerie actuellement chargée, utiliser les données en mémoire
         if (targetGalleryId === this.currentGalleryId) {
             const numGridImages = this.gridItems.filter(item => !item.isCroppedVersion).length;
@@ -5329,7 +5378,7 @@ class PublicationOrganizer {
                 throw new Error(`HTTP ${response.status}`);
             }
             const galleryDetails = await response.json();
-            
+
             const totalImages = galleryDetails.images?.total || galleryDetails.images?.docs?.length || 0;
             this.galleryStatsLabelText.textContent = `${totalImages} photo${totalImages > 1 ? 's' : ''} dans la galerie`;
         } catch (error) {
@@ -5342,12 +5391,12 @@ class PublicationOrganizer {
         if (!this.currentGalleryId) { alert("Aucune galerie active."); return; }
         this.recalculateNextPublicationIndex();
         if (this.nextPublicationIndex >= 26) { alert(i18n.t('messages.maxPublicationsReached')); return; }
-        
+
         // ======================= LOG À AJOUTER (DÉBUT) =======================
         console.log('[DEBUG] addPublicationFrame: DÉBUT - Publications actuelles:', this.publicationFrames.map(p => ({ letter: p.letter, index: p.index })));
         console.log('[DEBUG] addPublicationFrame: Bouton désactivé, envoi de la requête...');
         // =====================================================================
-        
+
         this.addPublicationFrameBtn.disabled = true;
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/publications`, {
@@ -5369,11 +5418,11 @@ class PublicationOrganizer {
                 throw new Error(userMessage);
             }
             const newJourData = await response.json();
-            
+
             // ======================= LOG À AJOUTER (2/2) =======================
             console.log('[DEBUG] addPublicationFrame: Réponse du serveur, publication créée:', { letter: newJourData.letter, index: newJourData.index });
             // =====================================================================
-            
+
             const newPublicationFrame = new PublicationFrameBackend(this, newJourData);
             this.publicationFramesContainer.appendChild(newPublicationFrame.element);
             this.publicationFrames.push(newPublicationFrame);
@@ -5533,13 +5582,13 @@ class PublicationOrganizer {
             navigator.sendBeacon(url);
         } else {
             // Fallback pour les très vieux navigateurs (rarement nécessaire)
-            fetch(url, { 
-                method: 'POST', 
+            fetch(url, {
+                method: 'POST',
                 keepalive: true,
                 headers: {
                     'X-CSRF-Token': this.csrfToken
                 }
-            }).catch(() => {});
+            }).catch(() => { });
         }
     }
 
@@ -5592,7 +5641,7 @@ class PublicationOrganizer {
 
     async saveAppState() {
         if (!this.currentGalleryId) return;
-        
+
         // Attendre que le token CSRF soit disponible
         if (!this.csrfToken) {
             console.warn('Token CSRF non disponible, tentative de récupération...');
@@ -5602,37 +5651,37 @@ class PublicationOrganizer {
                 return;
             }
         }
-        
+
         // Get the current active tab, ensuring it's a valid value
         const currentActiveTab = document.querySelector('.tab-button.active')?.dataset.tab;
         // CORRECTED: Use the actual tab values from the HTML
         const validTabs = ['galleries', 'currentGallery', 'cropping', 'description', 'calendar'];
         const activeTab = validTabs.includes(currentActiveTab) ? currentActiveTab : 'galleries';
-        
+
         // Ensure nextPublicationIndex is a valid integer
-        const nextIndex = typeof this.nextPublicationIndex === 'number' && 
-                         this.nextPublicationIndex >= 0 && 
-                         this.nextPublicationIndex <= 25 
-                         ? this.nextPublicationIndex 
-                         : 0;
-        
+        const nextIndex = typeof this.nextPublicationIndex === 'number' &&
+            this.nextPublicationIndex >= 0 &&
+            this.nextPublicationIndex <= 25
+            ? this.nextPublicationIndex
+            : 0;
+
         const appState = {
             currentThumbSize: this.currentThumbSize,
             sortOption: this.sortOptionsSelect.value,
             activeTab: activeTab,
             nextPublicationIndex: nextIndex
         };
-        
+
         try {
             const response = await fetch(`${BASE_API_URL}/api/galleries/${this.currentGalleryId}/state`, {
                 method: 'PUT',
-                headers: { 
+                headers: {
                     'Content-Type': 'application/json',
                     'X-CSRF-Token': this.csrfToken
                 },
                 body: JSON.stringify(appState)
             });
-            
+
             if (!response.ok) {
                 const errorText = await response.text();
                 console.error(`Failed to save app state: ${response.status} ${response.statusText}`, errorText);
@@ -5696,34 +5745,34 @@ async function startApp() {
     const loadingOverlay = document.getElementById('loadingOverlay');
     loadingOverlay.style.display = 'flex';
     loadingOverlay.querySelector('p').textContent = 'Initialisation de l\'application...';
-    
+
     // ▼▼▼ TRADUIRE L'UI AU DÉMARRAGE ▼▼▼
     await i18n.translateUI();
-    
+
     // Initialiser le menu de langues
     initializeLanguageMenu();
-    
+
     try {
         if (!app) {
             // ===== NOUVELLE INTÉGRATION MODULAIRE =====
             // Create PublicationOrganizer instance first
             app = new PublicationOrganizer();
-            
+
             // Initialize ComponentLoader for gradual migration
             if (typeof ComponentLoader !== 'undefined') {
                 console.log('🔧 Initializing modular architecture with ComponentLoader...');
                 // CORRECTION: Passer l'instance app au ComponentLoader
                 window.componentLoader = new ComponentLoader(app);
-                
+
                 // Load modular components using the correct method name
                 await window.componentLoader.initialize();
-                
+
                 console.log('✅ ComponentLoader initialized successfully');
             } else {
                 console.warn('⚠️ ComponentLoader not available, using original PublicationOrganizer');
             }
             // ===== FIN DE L'INTÉGRATION MODULAIRE =====
-            
+
             window.pubApp = app;
             // Initialiser les modules maintenant que app est défini
             app.initializeModules();
@@ -5755,19 +5804,19 @@ function setupGlobalEventListeners() {
     const profileButton = document.getElementById('profileButton');
     const profileDropdown = document.getElementById('profileDropdown');
     const logoutLink = document.getElementById('logoutLink');
-    
+
     // ▼▼▼ AJOUT DE LA LOGIQUE POUR LE MENU PARAMÈTRES ▼▼▼
     const settingsButton = document.getElementById('settingsButton');
     const settingsDropdown = document.getElementById('settingsDropdown');
-    
+
     // Nouveaux éléments pour le menu de langues
     const languageSelectBtn = document.getElementById('languageSelectBtn');
     const languageOptionsContainer = document.getElementById('languageOptions');
     const currentLangDisplay = document.getElementById('currentLangDisplay');
-    
+
     const clearCacheBtn = document.getElementById('clearCacheBtn');
     const aboutBtn = document.getElementById('aboutBtn');
-    
+
     if (profileButton && profileDropdown) {
         profileButton.addEventListener('click', (event) => {
             event.stopPropagation();
@@ -5776,7 +5825,7 @@ function setupGlobalEventListeners() {
             profileDropdown.classList.toggle('show');
         });
     }
-    
+
     if (settingsButton && settingsDropdown) {
         settingsButton.addEventListener('click', (event) => {
             event.stopPropagation();
@@ -5785,7 +5834,7 @@ function setupGlobalEventListeners() {
             settingsDropdown.classList.toggle('show');
         });
     }
-    
+
     // --- LOGIQUE DU MENU DE LANGUES ---
     if (languageOptionsContainer && currentLangDisplay) {
         // 1. Peupler le menu déroulant des langues
@@ -5800,10 +5849,10 @@ function setupGlobalEventListeners() {
             }
             languageOptionsContainer.appendChild(langLink);
         }
-        
+
         // 2. Mettre à jour l'affichage de la langue actuelle
         currentLangDisplay.textContent = AVAILABLE_LANGUAGES[i18n.currentLang];
-        
+
         // 3. Gérer le clic pour changer de langue (avec délégation d'événement)
         languageOptionsContainer.addEventListener('click', (e) => {
             e.preventDefault();
@@ -5813,7 +5862,7 @@ function setupGlobalEventListeners() {
                 i18n.setLanguage(newLang).then(() => {
                     // Mettre à jour l'UI après le changement
                     currentLangDisplay.textContent = AVAILABLE_LANGUAGES[newLang];
-                    
+
                     // Mettre à jour la classe 'active' dans le sous-menu
                     languageOptionsContainer.querySelector('.active-lang')?.classList.remove('active-lang');
                     target.classList.add('active-lang');
@@ -5822,7 +5871,7 @@ function setupGlobalEventListeners() {
             }
         });
     }
-    
+
     if (clearCacheBtn) {
         clearCacheBtn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -5839,7 +5888,7 @@ function setupGlobalEventListeners() {
     if (cleanupBrokenImagesBtn) {
         cleanupBrokenImagesBtn.addEventListener('click', async (e) => {
             e.preventDefault();
-            
+
             if (!window.brokenImages || window.brokenImages.size === 0) {
                 alert('Aucune image cassée détectée pour le moment.');
                 return;
@@ -5878,7 +5927,7 @@ function setupGlobalEventListeners() {
             }
         });
     }
-    
+
     if (aboutBtn) {
         aboutBtn.addEventListener('click', (e) => {
             e.preventDefault();
@@ -5886,14 +5935,14 @@ function setupGlobalEventListeners() {
             settingsDropdown.classList.remove('show');
         });
     }
-    
+
     if (logoutLink) {
         logoutLink.addEventListener('click', (event) => {
             event.preventDefault();
             logout();
         });
     }
-    
+
     // Fermer les menus si on clique ailleurs
     window.addEventListener('click', (event) => {
         if (!event.target.closest('.profile-container')) {
@@ -5907,7 +5956,7 @@ function setupGlobalEventListeners() {
 
 async function logout() {
     try {
-        const response = await fetch('/api/auth/logout', { 
+        const response = await fetch('/api/auth/logout', {
             method: 'POST',
             headers: {
                 'X-CSRF-Token': app.csrfToken
@@ -5948,7 +5997,7 @@ class HashtagManager {
         } catch (error) {
             console.warn('Impossible de charger le dictionnaire de hashtags:', error.message);
             // Fallback silencieux - pas d'erreur critique
-            this.thesaurus = {}; 
+            this.thesaurus = {};
         }
     }
 
@@ -5996,7 +6045,7 @@ class HashtagManager {
                 suggestedHashtags.set(lowerKeyword, 10);
             }
         });
-                
+
         // 4. Ajouter des hashtags de base
         suggestedHashtags.set('photographe', 5);
         suggestedHashtags.set('photography', 5);
@@ -6004,7 +6053,7 @@ class HashtagManager {
         // 5. Trier par priorité et rendre l'affichage
         const sorted = [...suggestedHashtags.entries()].sort((a, b) => b[1] - a[1]);
         const existingHashtags = (text.match(/#[\w\u00C0-\u017F]+/g) || []).map(h => h.substring(1).toLowerCase());
-                
+
         const finalSuggestions = sorted
             .map(entry => entry[0])
             .filter(tag => !existingHashtags.includes(tag));
@@ -6055,7 +6104,7 @@ class HashtagManager {
 class CroppingPage {
     constructor(organizerApp) {
         this.organizerApp = organizerApp;
-        
+
         // Références aux éléments DOM
         this.jourListElement = document.getElementById('croppingPublicationList');
         this.editorContainerElement = document.getElementById('croppingEditorContainer');
@@ -6063,24 +6112,24 @@ class CroppingPage {
         this.editorPlaceholderElement = document.getElementById('croppingEditorPlaceholder');
         this.editorTitleElement = document.getElementById('croppingEditorTitle');
         this.thumbnailStripElement = document.getElementById('croppingThumbnailStrip');
-        
+
         // Nouveaux éléments pour la gestion des vues
         this.switchToGroupedViewBtn = document.getElementById('switchToGroupedViewBtn');
         this.switchToEditorViewBtn = document.getElementById('switchToEditorViewBtn');
         this.allPhotosGroupedViewContainer = document.getElementById('allPhotosGroupedViewContainer');
         this.autoCropSidebar = document.getElementById('autoCropSidebar');
-        
+
         // Initialisation des gestionnaires
         this.croppingManager = new CroppingManager(this.organizerApp, this);
         this.autoCropper = new AutoCropper(this.organizerApp, this);
-        
+
         // État interne
         this.currentSelectedPublicationFrame = null;
         this.isGroupedViewActive = true; // La vue groupée est active par défaut
-        
+
         this._initListeners();
     }
-    
+
     _initListeners() {
         // Clic sur un élément de la liste des publications
         this.jourListElement.addEventListener('click', (e) => {
@@ -6092,7 +6141,7 @@ class CroppingPage {
                 this.switchToEditorView(publicationFrame);
             }
         });
-        
+
         // Clic sur les boutons de changement de vue
         this.switchToGroupedViewBtn.addEventListener('click', () => this.switchToGroupedView());
         this.switchToEditorViewBtn.addEventListener('click', () => {
@@ -6105,7 +6154,7 @@ class CroppingPage {
             }
         });
     }
-    
+
     // Affiche l'onglet (appelé lors du changement de tab)
     show() {
         if (!this.organizerApp.currentGalleryId) {
@@ -6117,25 +6166,25 @@ class CroppingPage {
         // Affiche la vue groupée par défaut à chaque fois qu'on active l'onglet
         this.switchToGroupedView();
     }
-    
+
     // Met à jour la liste des publications à gauche
     populateJourList() {
         const activeId = this.isGroupedViewActive ? null : (this.currentSelectedPublicationFrame ? this.currentSelectedPublicationFrame.id : null);
         this.organizerApp._populateSharedJourList(this.jourListElement, activeId, 'cropping');
     }
-    
+
     // Passe à la VUE GROUPÉE
     async switchToGroupedView() {
         this.isGroupedViewActive = true;
-        
+
         // Si on quitte l'éditeur, on s'assure de sauvegarder les changements en cours
         if (this.croppingManager && this.croppingManager.currentImageIndex > -1 && !this.croppingManager.ignoreSaveForThisImage) {
             await this.croppingManager.finishAndApply();
         }
-        
+
         this.currentSelectedPublicationFrame = null;
         this.populateJourList();
-        
+
         // Mise à jour des boutons et des panneaux
         this.switchToGroupedViewBtn.classList.add('active');
         this.switchToEditorViewBtn.classList.remove('active');
@@ -6149,16 +6198,16 @@ class CroppingPage {
             this.jourListPanel.style.display = 'none';
         }
         // --- FIN DE LA MODIFICATION ---
-        
+
         this.renderAllPhotosGroupedView();
     }
-    
+
     // Passe à la VUE ÉDITEUR pour une publication spécifique
     switchToEditorView(publicationFrame, imageIndex = 0) {
         this.isGroupedViewActive = false;
         this.currentSelectedPublicationFrame = publicationFrame;
         this.populateJourList();
-        
+
         // Mise à jour des boutons et des panneaux
         this.switchToGroupedViewBtn.classList.remove('active');
         this.switchToEditorViewBtn.classList.add('active');
@@ -6183,7 +6232,7 @@ class CroppingPage {
             this.editorPlaceholderElement.textContent = `Cette publication est vide. Ajoutez des images depuis l'onglet "Tri".`;
         }
     }
-    
+
     // Logique pour lancer le recadrage manuel
     async startCroppingForJour(publicationFrame, startIndex = 0) {
         // --- LOGIQUE CORRIGÉE ET ROBUSTIFIÉE ---
@@ -6195,13 +6244,13 @@ class CroppingPage {
 
             if (!originalGridItem) {
                 console.warn(`Image originale ${imgDataInPublication.originalReferencePath} non trouvée. Recadrage impossible.`);
-                
+
                 // Afficher un message utilisateur plus clair
                 this.showUserNotification(`Image manquante: ${imgDataInPublication.originalReferencePath}`, 'warning');
-                
+
                 // Marquer cette image comme défectueuse pour nettoyage ultérieur
                 this.markImageForCleanup(imgDataInPublication.imageId, imgDataInPublication.originalReferencePath);
-                
+
                 return null; // Ignorer cette image si son original est introuvable
             }
 
@@ -6220,7 +6269,7 @@ class CroppingPage {
             this.editorPlaceholderElement.textContent = "Cette publication est vide ou ses images originales sont introuvables.";
             return;
         }
-        
+
         await this.croppingManager.startCropping(imageInfosForCropper, publicationFrame, startIndex);
         this._populateThumbnailStrip(publicationFrame);
         this._updateThumbnailStripHighlight(this.croppingManager.currentImageIndex);
@@ -6272,9 +6321,9 @@ class CroppingPage {
             z-index: 10000;
             max-width: 300px;
         `;
-        
+
         document.body.appendChild(notification);
-        
+
         // Auto-suppression après 5 secondes
         setTimeout(() => {
             if (notification.parentNode) {
@@ -6293,7 +6342,7 @@ class CroppingPage {
             originalPath: originalPath,
             timestamp: Date.now()
         });
-        
+
         console.log(`Image marquée pour nettoyage: ${imageId} (${originalPath})`);
     }
 
@@ -6324,37 +6373,37 @@ class CroppingPage {
             console.error('Erreur lors du nettoyage des images cassées:', error);
         }
     }
-    
+
     // La vue groupée reste interactive
     renderAllPhotosGroupedView() {
         const container = this.allPhotosGroupedViewContainer;
         container.innerHTML = '';
         const app = this.organizerApp;
-        
+
         if (!app.publicationFrames || app.publicationFrames.length === 0) {
             container.innerHTML = '<p class="sidebar-info">Créez des publications dans l\'onglet "Tri".</p>';
             return;
         }
-        
+
         // Section des publications existantes
         const publicationsHeader = document.createElement('h3');
         publicationsHeader.className = 'cropping-section-header';
         publicationsHeader.textContent = 'Publications actuelles';
         container.appendChild(publicationsHeader);
-        
+
         app.publicationFrames.forEach((publicationFrame, pubIndex) => {
             const groupDiv = document.createElement('div');
             groupDiv.className = 'publication-group-container';
-            
+
             const header = document.createElement('h4');
             header.className = 'publication-group-header';
             header.textContent = `Publication ${publicationFrame.letter}`;
             groupDiv.appendChild(header);
-            
+
             const ribbonDiv = document.createElement('div');
             ribbonDiv.className = 'cropping-publication-ribbon';
             ribbonDiv.dataset.publicationId = publicationFrame.id;
-            
+
             // Écouteurs pour le survol
             ribbonDiv.addEventListener('dragover', (e) => {
                 e.preventDefault();
@@ -6380,7 +6429,7 @@ class CroppingPage {
             });
             // Écouteur pour le dépôt
             ribbonDiv.addEventListener('drop', (e) => publicationFrame.onDrop(e));
-            
+
             if (publicationFrame.imagesData.length === 0) {
                 ribbonDiv.innerHTML = '<p class="publication-group-empty-text">Cette publication est vide.</p>';
             } else {
@@ -6388,12 +6437,12 @@ class CroppingPage {
                     const itemElement = publicationFrame.createPublicationItemElement(imgData);
                     itemElement.classList.remove('publication-image-item'); // Enlève la classe de "Tri"
                     itemElement.classList.add('cropping-publication-item'); // Ajoute la classe de "Recadrage"
-                    
+
                     // NOUVEAU : Clic pour passer en mode édition sur cette image
                     itemElement.addEventListener('click', () => {
                         this.switchToEditorView(publicationFrame, imgIndex);
                     });
-                    
+
                     ribbonDiv.appendChild(itemElement);
                 });
             }
@@ -6401,7 +6450,7 @@ class CroppingPage {
             container.appendChild(groupDiv);
         });
     }
-    
+
     // Bande de vignettes pour le recadrage manuel
     _populateThumbnailStrip(publicationFrame) {
         this.thumbnailStripElement.innerHTML = '';
@@ -6416,7 +6465,7 @@ class CroppingPage {
             this.thumbnailStripElement.appendChild(thumbDiv);
         });
     }
-    
+
     // Met en surbrillance la vignette active
     _updateThumbnailStripHighlight(activeIndex) {
         const thumbs = this.thumbnailStripElement.querySelectorAll('.crop-strip-thumb');
@@ -6427,7 +6476,7 @@ class CroppingPage {
             }
         });
     }
-    
+
     // Nettoie l'éditeur
     clearEditor() {
         this.editorPanelElement.style.display = 'none';

@@ -2925,13 +2925,14 @@ button.small-cancel-btn:hover {
 =============================== */
 
 .scheduler-header {
-    justify-content: space-between; /* Pour espacer les éléments */
+    justify-content: center; /* Pour centrer le sélecteur de mois */
     align-items: center;
 }
 
 #monthSelectorContainer {
     display: flex;
     align-items: center;
+    justify-content: center;
     gap: 15px;
     background-color: #e9ecef;
     padding: 5px;

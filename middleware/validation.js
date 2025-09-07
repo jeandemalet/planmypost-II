@@ -205,8 +205,9 @@ const validatePagination = [
         .withMessage('Le numéro de page doit être un entier positif'),
     query('limit')
         .optional()
-        .isInt({ min: 1, max: 100 })
-        .withMessage('La limite doit être entre 1 et 100'),
+        // CORRECTION : Augmentation de la limite maximale autorisée
+        .isInt({ min: 1, max: 500 }) // Ancienne valeur : max: 100
+        .withMessage('La limite doit être entre 1 et 500'),
     handleValidationErrors
 ];
 
