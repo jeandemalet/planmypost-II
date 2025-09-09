@@ -2872,10 +2872,34 @@ class CalendarPage {
                 }
             });
         }, {
-            rootMargin: '100px', // Charger les images 100px avant qu'elles ne deviennent visibles
+            rootMargin: '200px', // Charger les images 200px avant qu'elles ne deviennent visibles
             threshold: 0.01
         });
         // --- FIN DE L'AJOUT ---
+    }
+
+    // NOUVELLE MÉTHODE : Gérer les clics sur les boutons de vignette
+    _handleVignetteClick(event) {
+        const button = event.target.closest('.vignette-action-btn');
+        if (!button) return;
+
+        event.stopPropagation(); // <-- C'est la clé pour corriger le bug de redirection !
+
+        const { action, galleryId, publicationId, publicationLetter } = button.dataset;
+
+        if (action === 'export-publication') {
+            console.log(`Action: Export publication ${publicationLetter} from gallery ${galleryId}`);
+            this.exportJourById(galleryId, publicationId, publicationLetter);
+        } else if (action === 'delete-publication') {
+            console.log(`Action: Delete publication ${publicationLetter} from gallery ${galleryId}`);
+            // Trouver la publication frame correspondante et la supprimer
+            const publicationFrame = this.organizerApp.publicationFrames.find(pf => pf.id === publicationId);
+            if (publicationFrame) {
+                this.organizerApp.closePublicationFrame(publicationFrame);
+            } else {
+                alert(`La publication ${publicationLetter} n'a pas été trouvée.`);
+            }
+        }
     }
 
     // NOUVELLE MÉTHODE : Construire le sélecteur de mois
@@ -2947,6 +2971,10 @@ class CalendarPage {
         if (downloadAllScheduledBtn) {
             downloadAllScheduledBtn.addEventListener('click', () => this.downloadAllScheduled());
         }
+
+        // NOUVEAU : Gestion centralisée des clics sur les vignettes (calendrier et liste)
+        this.calendarGridElement.addEventListener('click', (e) => this._handleVignetteClick(e));
+        this.unscheduledPublicationsListElement.addEventListener('click', (e) => this._handleVignetteClick(e));
     }
 
     reorganizeAll() {
@@ -3323,14 +3351,22 @@ class CalendarPage {
             groupedByGallery[a].name.localeCompare(groupedByGallery[b].name)
         );
 
-        sortedGalleryIds.forEach(galleryId => {
+        sortedGalleryIds.forEach((galleryId, galleryIndex) => {
             const galleryGroup = groupedByGallery[galleryId];
             galleryGroup.publications.sort((a, b) => a.letter.localeCompare(b.letter));
 
-            const galleryHeader = document.createElement('div');
-            galleryHeader.className = 'unscheduled-gallery-header';
-            galleryHeader.textContent = galleryGroup.name;
-            this.unscheduledPublicationsListElement.appendChild(galleryHeader);
+            // SUPPRIMER LA CRÉATION DE L'EN-TÊTE
+            // const galleryHeader = document.createElement('div');
+            // galleryHeader.className = 'unscheduled-gallery-header';
+            // galleryHeader.textContent = galleryGroup.name;
+            // this.unscheduledPublicationsListElement.appendChild(galleryHeader);
+            
+            // AJOUTER UN SÉPARATEUR VISUEL ENTRE LES GROUPES (sauf pour le premier)
+            if (galleryIndex > 0) {
+                const separator = document.createElement('hr');
+                separator.className = 'gallery-group-separator';
+                this.unscheduledPublicationsListElement.appendChild(separator);
+            }
 
             galleryGroup.publications.forEach(publication => {
                 const itemElement = document.createElement('div');
@@ -5857,8 +5893,8 @@ class PublicationOrganizer {
                 <span class="unscheduled-publication-item-label" title="${galleryName} - Publication ${letter}">${galleryName}</span>
             </div>
             <div class="vignette-actions">
-                <button class="vignette-action-btn" title="Télécharger cette publication" onclick="app.calendarPage.exportJourById('${galleryId}', '${_id}', '${letter}')">💾</button>
-                <button class="vignette-action-btn danger" title="Supprimer cette publication" onclick="app.handleDeletePublication('${_id}', '${galleryId}', '${letter}')">🗑️</button>
+                <button class="vignette-action-btn" title="Télécharger cette publication" data-action="export-publication" data-gallery-id="${galleryId}" data-publication-id="${_id}" data-publication-letter="${letter}">💾</button>
+                <button class="vignette-action-btn danger" title="Supprimer cette publication" data-action="delete-publication" data-publication-id="${_id}" data-gallery-id="${galleryId}" data-publication-letter="${letter}">🗑️</button>
             </div>
         `;
 

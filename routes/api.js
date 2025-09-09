@@ -171,7 +171,7 @@ router.get('/galleries/:galleryId/publications', authMiddleware, publicationCach
 router.put('/galleries/:galleryId/publications/:publicationId', authMiddleware, csrfProtection.validateToken, validation.validatePublicationUpdate, publicationController.updatePublication);
 router.delete('/galleries/:galleryId/publications/:publicationId', authMiddleware, csrfProtection.validateToken, validation.validateImageId, publicationController.deletePublication);
 // NOUVELLE ROUTE CI-DESSOUS
-router.get('/galleries/:galleryId/publications/:publicationId/export', authMiddleware, validation.validateImageId, publicationController.exportPublicationImagesAsZip);
+router.get('/galleries/:galleryId/publications/:publicationId/export', authMiddleware, validation.validatePublicationRoute, publicationController.exportPublicationImagesAsZip);
 
 // NOUVELLE ROUTE POUR LE NETTOYAGE AUTOMATIQUE
 // Note: Cette route n'utilise pas csrfProtection.validateToken car elle est appelée via sendBeacon

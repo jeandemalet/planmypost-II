@@ -1,5 +1,5 @@
 {
-  "timestamp": "2025-09-09T13:22:17.994Z",
+  "timestamp": "2025-09-09T15:47:12.112Z",
   "status": "FAIL",
   "summary": {
     "errors": 1,
@@ -7,20 +7,20 @@
     "info": 6
   },
   "errors": [
-    "[2025-09-09T13:22:17.993Z] Potential weak secret detected in .env file: a8b3d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7a8b9c0d1e2f3"
+    "[2025-09-09T15:47:12.103Z] Potential weak secret detected in .env file: a8b3d5e6f7g8h9i0j1k2l3m4n5o6p7q8r9s0t1u2v3w4x5y6z7a8b9c0d1e2f3"
   ],
   "warnings": [
-    "[2025-09-09T13:22:17.993Z] File .env may be readable by others",
-    "[2025-09-09T13:22:17.993Z] File config/environment.js may be readable by others",
-    "[2025-09-09T13:22:17.994Z] File middleware/auth.js may be readable by others",
-    "[2025-09-09T13:22:17.994Z] File package.json may be readable by others"
+    "[2025-09-09T15:47:12.108Z] File .env may be readable by others",
+    "[2025-09-09T15:47:12.109Z] File config/environment.js may be readable by others",
+    "[2025-09-09T15:47:12.110Z] File middleware/auth.js may be readable by others",
+    "[2025-09-09T15:47:12.111Z] File package.json may be readable by others"
   ],
   "info": [
-    "[2025-09-09T13:22:14.207Z] Running npm audit...",
-    "[2025-09-09T13:22:15.834Z] No vulnerabilities found in dependencies",
-    "[2025-09-09T13:22:15.835Z] Checking for outdated packages...",
-    "[2025-09-09T13:22:17.991Z] Some packages are outdated (this is normal)",
-    "[2025-09-09T13:22:17.992Z] Checking environment security...",
-    "[2025-09-09T13:22:17.993Z] Checking file permissions..."
+    "[2025-09-09T15:47:07.463Z] Running npm audit...",
+    "[2025-09-09T15:47:09.426Z] No vulnerabilities found in dependencies",
+    "[2025-09-09T15:47:09.427Z] Checking for outdated packages...",
+    "[2025-09-09T15:47:12.098Z] Some packages are outdated (this is normal)",
+    "[2025-09-09T15:47:12.102Z] Checking environment security...",
+    "[2025-09-09T15:47:12.107Z] Checking file permissions..."
   ]
 }

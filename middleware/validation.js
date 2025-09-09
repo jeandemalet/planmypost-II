@@ -127,6 +127,17 @@ const validatePublicationUpdate = [
     handleValidationErrors
 ];
 
+// AJOUTEZ CE NOUVEAU BLOC DE VALIDATION (par exemple après validatePublicationUpdate)
+const validatePublicationRoute = [
+    param('galleryId')
+        .isMongoId()
+        .withMessage('ID de galerie invalide'),
+    param('publicationId')
+        .isMongoId()
+        .withMessage('ID de publication invalide'),
+    handleValidationErrors
+];
+
 // === VALIDATIONS POUR LES IMAGES ===
 const validateImageId = [
     param('galleryId')
@@ -218,6 +229,7 @@ module.exports = {
     validateGalleryId,
     validatePublicationCreation,
     validatePublicationUpdate,
+    validatePublicationRoute, // <-- AJOUTEZ CETTE LIGNE
     validateImageId,
     validateCropData,
     validateScheduleUpdate,
