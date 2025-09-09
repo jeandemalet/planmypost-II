@@ -13,6 +13,10 @@ class DescriptionManager extends BaseComponent {
         
         this.organizerApp = dependencies.organizerApp || dependencies.organizer;
         
+        // ▼▼▼ CORRECTION : Obtenir l'observateur depuis l'application principale
+        this.imageObserver = this.organizerApp?.imageObserver;
+        // ▲▲▲ FIN DE LA CORRECTION ▲▲▲
+        
         // DOM elements
         this.mainListElement = null;
         this.jourListElement = null;
@@ -415,10 +419,19 @@ class DescriptionManager extends BaseComponent {
         if (publicationFrame.imagesData.length > 0) {
             publicationFrame.imagesData.forEach((imageData, index) => {
                 const imgElement = document.createElement('img');
-                imgElement.src = imageData.thumbnailPath || imageData.imagePath;
+                // ▼▼▼ CORRECTION : Utiliser le lazy loading avec l'observateur global
+                imgElement.dataset.src = imageData.thumbnailPath || imageData.imagePath;
                 imgElement.alt = `Image ${index + 1}`;
                 imgElement.className = 'description-preview-image';
-                imgElement.loading = 'lazy';
+                
+                // Utiliser l'observateur global si disponible
+                if (this.imageObserver) {
+                    this.imageObserver.observe(imgElement);
+                } else {
+                    // Fallback si l'observateur n'est pas disponible
+                    imgElement.src = imageData.thumbnailPath || imageData.imagePath;
+                }
+                // ▲▲▲ FIN DE LA CORRECTION ▲▲▲
                 
                 imgElement.onerror = () => {
                     imgElement.style.display = 'none';

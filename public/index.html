@@ -197,7 +197,13 @@
                 <!-- COLONNE DE GAUCHE : LISTE DES PUBLICATIONS -->
                 <div id="croppingPublicationListPanel">
                     <!-- Removed title: Publications de la Galerie -->
-                    <!-- NOUVEAU SÉLECTEUR DE VUE À DEUX BOUTONS -->
+                    <ul id="croppingPublicationList">
+                    </ul>
+                </div>
+
+                <!-- COLONNE CENTRALE : CONTENU PRINCIPAL (VUE D'ENSEMBLE OU ÉDITEUR) -->
+                <div id="croppingEditorContainer">
+                    <!-- LE SÉLECTEUR EST MAINTENANT ICI, À LA PLACE DU TITRE -->
                     <div id="viewModeSwitch" class="view-mode-switch">
                         <button id="switchToGroupedViewBtn" class="active" title="Vue d'ensemble">
                             <img src="/assets/vuedensemble.png?v=1.1" alt="Vue d'ensemble" class="view-mode-icon" loading="lazy">
@@ -206,13 +212,6 @@
                             <img src="/assets/recadrageindividuel.png?v=1.1" alt="Recadrage Individuel" class="view-mode-icon" loading="lazy">
                         </button>
                     </div>
-                    <ul id="croppingPublicationList">
-                    </ul>
-                </div>
-
-                <!-- COLONNE CENTRALE : CONTENU PRINCIPAL (VUE D'ENSEMBLE OU ÉDITEUR) -->
-                <div id="croppingEditorContainer">
-                    <h3 id="croppingEditorTitle" data-i18n="placeholders.selectPublicationToCrop">Sélectionnez une publication à recadrer</h3>
                     
                     <div id="allPhotosGroupedViewContainer" style="display: none;">
                         <!-- Le contenu de la vue d'ensemble sera injecté ici par JS -->

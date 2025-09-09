@@ -2854,28 +2854,9 @@ class CalendarPage {
         this._initListeners();
         this.debouncedChangeMonth = Utils.debounce(this.changeMonth.bind(this), 100);
 
-        // --- AJOUTER CE BLOC POUR LE LAZY LOADING ---
-        this.imageObserver = new IntersectionObserver((entries, observer) => {
-            entries.forEach(entry => {
-                if (entry.isIntersecting) {
-                    const thumbElement = entry.target;
-                    const imageUrl = thumbElement.dataset.src;
-
-                    if (imageUrl) {
-                        // Appliquer l'image de fond
-                        thumbElement.style.backgroundImage = `url(${imageUrl})`;
-
-                        // Nettoyage : retirer la classe et arrêter d'observer cet élément
-                        thumbElement.classList.remove('lazy-load-thumb');
-                        observer.unobserve(thumbElement);
-                    }
-                }
-            });
-        }, {
-            rootMargin: '200px', // Charger les images 200px avant qu'elles ne deviennent visibles
-            threshold: 0.01
-        });
-        // --- FIN DE L'AJOUT ---
+        // --- MODIFICATION : Utiliser l'observateur global de l'application ---
+        this.imageObserver = organizerApp.imageObserver;
+        // --- FIN DE LA MODIFICATION ---
     }
 
     // NOUVELLE MÉTHODE : Gérer les clics sur les boutons de vignette
@@ -2883,22 +2864,76 @@ class CalendarPage {
         const button = event.target.closest('.vignette-action-btn');
         if (!button) return;
 
-        event.stopPropagation(); // <-- C'est la clé pour corriger le bug de redirection !
+        event.stopPropagation();
 
-        const { action, galleryId, publicationId, publicationLetter } = button.dataset;
+        const { action, galleryId, publicationId, publicationLetter, dateStr } = button.dataset;
 
         if (action === 'export-publication') {
-            console.log(`Action: Export publication ${publicationLetter} from gallery ${galleryId}`);
             this.exportJourById(galleryId, publicationId, publicationLetter);
+        } else if (action === 'unschedule-publication') {
+            // NOUVELLE LOGIQUE : Retirer du calendrier
+            console.log(`Action: Désplanifier la publication ${publicationLetter} du ${dateStr}`);
+            this.removePublicationForDate(new Date(dateStr + 'T00:00:00'), publicationLetter, galleryId);
         } else if (action === 'delete-publication') {
-            console.log(`Action: Delete publication ${publicationLetter} from gallery ${galleryId}`);
-            // Trouver la publication frame correspondante et la supprimer
-            const publicationFrame = this.organizerApp.publicationFrames.find(pf => pf.id === publicationId);
-            if (publicationFrame) {
-                this.organizerApp.closePublicationFrame(publicationFrame);
+            // ANCIENNE LOGIQUE : Suppression permanente avec confirmation
+            this.handleDeletePublication(publicationId, galleryId, publicationLetter);
+        }
+    }
+
+    // AJOUTEZ CETTE NOUVELLE MÉTHODE dans la classe CalendarPage
+    handleDeletePublication(publicationId, galleryId, publicationLetter) {
+        const galleryName = this.organizerApp.getCachedGalleryName(galleryId) || 'cette galerie';
+        if (confirm(`Êtes-vous sûr de vouloir supprimer DÉFINITIVEMENT la publication ${publicationLetter} de "${galleryName}" ?\n\nCette action est irréversible.`)) {
+            const publicationFrameInstance = this.organizerApp.publicationFrames.find(pf => pf.id === publicationId);
+            if (publicationFrameInstance) {
+                this.organizerApp.closePublicationFrame(publicationFrameInstance);
             } else {
-                alert(`La publication ${publicationLetter} n'a pas été trouvée.`);
+                alert("Erreur : Impossible de trouver la publication à supprimer.");
             }
+        }
+    }
+
+    // AJOUTEZ CES TROIS NOUVELLES MÉTHODES à la classe CalendarPage (par exemple, après _handleVignetteClick)
+    _onDragOverUnscheduledList(event) {
+        // CORRECTION : Utiliser dataTransfer.types pour une vérification stable
+        // au lieu de this.dragData qui peut causer des race conditions.
+        if (event.dataTransfer.types.includes('text/x-calendar-item')) {
+            event.preventDefault(); // Indispensable pour autoriser le drop
+            this.unscheduledPublicationsListElement.classList.add('drag-over-list');
+            event.dataTransfer.dropEffect = 'move';
+        }
+    }
+
+    _onDragLeaveUnscheduledList(event) {
+        this.unscheduledPublicationsListElement.classList.remove('drag-over-list');
+    }
+
+    _onDropOnUnscheduledList(event) {
+        event.preventDefault();
+        this.unscheduledPublicationsListElement.classList.remove('drag-over-list');
+        
+        try {
+            const jsonData = event.dataTransfer.getData("application/json");
+            if (!jsonData) return; // Sécurité : si pas de données, on arrête
+
+            const droppedData = JSON.parse(jsonData);
+
+            // On s'assure que l'action ne se déclenche que pour un élément venant du calendrier
+            // SÉCURITÉ : On vérifie aussi que la date existe bien
+            if (droppedData.type === 'calendar' && droppedData.date) { 
+                console.log(`Action: Désplanifier ${droppedData.letter} depuis le calendrier via drop.`);
+                
+                // On réutilise la même fonction que pour le bouton "poubelle" !
+                this.removePublicationForDate(
+                    new Date(droppedData.date + 'T00:00:00'),
+                    droppedData.letter,
+                    droppedData.galleryId
+                );
+            }
+        } catch (e) {
+            console.error("Erreur lors du drop sur la liste des publications :", e);
+        } finally {
+            this.dragData = {}; // Nettoyage de l'état du drag
         }
     }
 
@@ -2975,6 +3010,11 @@ class CalendarPage {
         // NOUVEAU : Gestion centralisée des clics sur les vignettes (calendrier et liste)
         this.calendarGridElement.addEventListener('click', (e) => this._handleVignetteClick(e));
         this.unscheduledPublicationsListElement.addEventListener('click', (e) => this._handleVignetteClick(e));
+        
+        // NOUVEAU : Rendre la liste des publications à planifier "droppable"
+        this.unscheduledPublicationsListElement.addEventListener('dragover', (e) => this._onDragOverUnscheduledList(e));
+        this.unscheduledPublicationsListElement.addEventListener('dragleave', (e) => this._onDragLeaveUnscheduledList(e));
+        this.unscheduledPublicationsListElement.addEventListener('drop', (e) => this._onDropOnUnscheduledList(e));
     }
 
     reorganizeAll() {
@@ -3373,15 +3413,14 @@ class CalendarPage {
                 itemElement.className = 'unscheduled-publication-item';
                 itemElement.draggable = true;
 
-                // --- UTILISER LA CARTE PASSÉE EN ARGUMENT ---
                 const galleryData = { 
                     galleryName: publication.galleryName, 
                     galleryColor: galleryColorMap.get(publication.galleryId) 
                 };
 
-                // APPEL À LA NOUVELLE FONCTION
                 itemElement.innerHTML = this.organizerApp._createPublicationVignetteHTML(publication, galleryData, false);
                 
+                // On attache les listeners directement après la création
                 itemElement.addEventListener('dragstart', e => this._onDragStart(e, { type: 'unscheduled', ...publication }, itemElement));
                 
                 itemElement.addEventListener('click', () => {
@@ -3395,6 +3434,20 @@ class CalendarPage {
                 });
                 
                 this.unscheduledPublicationsListElement.appendChild(itemElement);
+
+                // --- CORRECTION DE STABILITÉ ---
+                // On prépare la vignette pour l'observateur global
+                const thumbDiv = itemElement.querySelector('.unscheduled-publication-item-thumb');
+                if (publication.firstImageThumbnail) {
+                    const thumbFilename = Utils.getFilenameFromURL(publication.firstImageThumbnail);
+                    const thumbUrl = `${BASE_API_URL}/api/uploads/${publication.galleryId}/${thumbFilename}`;
+                    
+                    thumbDiv.dataset.src = thumbUrl;
+                    thumbDiv.classList.add('lazy-load-thumb'); // Cible pour l'observateur
+                } else {
+                    thumbDiv.textContent = '...';
+                }
+                // --- FIN DE LA CORRECTION ---
             });
         });
 
@@ -3443,6 +3496,12 @@ class CalendarPage {
     _onDragStart(event, dragPayload, itemElement) {
         this.dragData = dragPayload;
         event.dataTransfer.setData("application/json", JSON.stringify(dragPayload));
+        
+        // CORRECTION : Ajouter un type personnalisé pour un drag-over robuste
+        if (dragPayload.type === 'calendar') {
+            event.dataTransfer.setData("text/x-calendar-item", 'true');
+        }
+
         event.dataTransfer.effectAllowed = "move";
         setTimeout(() => {
             itemElement.classList.add(dragPayload.type === 'calendar' ? 'dragging-schedule-item' : 'dragging-from-list');
@@ -3613,15 +3672,15 @@ class CalendarPage {
         this.saveSchedule();
     }
 
-    removePublicationForDate(dateObj, jourLetter) {
+    removePublicationForDate(dateObj, jourLetter, galleryId) {
         const dateStr = this.formatDateKey(dateObj);
         const scheduleData = this.organizerApp.scheduleContext.schedule;
-        if (scheduleData[dateStr] && scheduleData[dateStr][jourLetter]) {
+        if (scheduleData[dateStr] && scheduleData[dateStr][jourLetter] && scheduleData[dateStr][jourLetter].galleryId === galleryId) {
             delete scheduleData[dateStr][jourLetter];
             if (Object.keys(scheduleData[dateStr]).length === 0) {
                 delete scheduleData[dateStr];
             }
-            this.saveSchedule();
+            this.saveSchedule(); // Sauvegarde et rafraîchit l'UI
         }
     }
 
@@ -5879,10 +5938,15 @@ class PublicationOrganizer {
     _createPublicationVignetteHTML(publicationData, galleryData, isInCalendarGrid = false) {
         const { _id, letter, galleryId, firstImageThumbnail } = publicationData;
         const { galleryName, galleryColor } = galleryData;
+        const dateStr = isInCalendarGrid ? publicationData.date : ''; // On récupère la date si on est dans la grille
 
         const thumbFilename = firstImageThumbnail ? Utils.getFilenameFromURL(firstImageThumbnail) : '';
         const thumbUrl = firstImageThumbnail ? `${BASE_API_URL}/api/uploads/${galleryId}/${thumbFilename}` : '';
         
+        // CORRECTION : Différencier l'action et le tooltip (title) selon le contexte
+        const action = isInCalendarGrid ? 'unschedule-publication' : 'delete-publication';
+        const deleteTitle = isInCalendarGrid ? 'Retirer cette publication du calendrier' : 'Supprimer cette publication DÉFINITIVEMENT';
+
         // Structure HTML unifiée pour la vignette
         const vignetteHTML = `
             <div class="unscheduled-publication-item-content">
@@ -5894,7 +5958,7 @@ class PublicationOrganizer {
             </div>
             <div class="vignette-actions">
                 <button class="vignette-action-btn" title="Télécharger cette publication" data-action="export-publication" data-gallery-id="${galleryId}" data-publication-id="${_id}" data-publication-letter="${letter}">💾</button>
-                <button class="vignette-action-btn danger" title="Supprimer cette publication" data-action="delete-publication" data-publication-id="${_id}" data-gallery-id="${galleryId}" data-publication-letter="${letter}">🗑️</button>
+                <button class="vignette-action-btn danger" title="${deleteTitle}" data-action="${action}" data-publication-id="${_id}" data-gallery-id="${galleryId}" data-publication-letter="${letter}" data-date-str="${dateStr}">🗑️</button>
             </div>
         `;
 
