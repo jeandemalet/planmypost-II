@@ -74,7 +74,7 @@
                         <!-- Section Compte & Aide -->
                         <div class="dropdown-header" data-i18n="settings.accountAndHelp">Compte & Aide</div>
                         <a href="#" class="disabled" data-i18n="settings.myProfile">Mon Profil</a>
-                        <a href="https://github.com/votre-nom/publication-organizer/blob/main/README.md" target="_blank" data-i18n="settings.documentation">Documentation & Aide</a>
+                        <a href="https://github.com/votre-nom/publication-organizer/blob/main/README.md" target="_blank" rel="noopener" data-i18n="settings.documentation">Documentation & Aide</a>
                         <a href="#" id="aboutBtn" data-i18n="settings.about">À propos de Publication Organizer</a>
                     </div>
                 </div>
@@ -145,7 +145,7 @@
                     <button id="zoomInBtn" class="zoom-btn-round" data-i18n-title="tooltips.zoomIn">+</button>
                 </div>
                 <div class="sort-controls">
-                    <select id="sortOptions" data-i18n-title="labels.sortBy">
+                    <select id="sortOptions" data-i18n-title="labels.sortBy" title="Trier par">
                         <option value="" disabled data-i18n="labels.sortBy">Trier par...</option>
                         <option value="name_asc" selected data-i18n="labels.sortOptions.name_asc">Nom (A-Z)</option>
                         <option value="name_desc" data-i18n="labels.sortOptions.name_desc">Nom (Z-A)</option>
@@ -435,14 +435,20 @@
                         <div class="auto-schedule-settings">
                             <div class="setting-group">
                                 <label for="autoSchedulePerDay" data-i18n="labels.publish">Publier</label>
-                                <input type="number" id="autoSchedulePerDay" value="1" min="1">
+                                <input type="number" id="autoSchedulePerDay" value="1" min="1" title="Nombre de publications par jour">
                                 <span data-i18n="labels.every">tous les</span>
-                                <input type="number" id="autoScheduleEveryXDays" value="1" min="1">
+                                <input type="number" id="autoScheduleEveryXDays" value="1" min="1" title="Intervalle en jours">
                                 <span data-i18n="labels.days">jour(s)</span>
                             </div>
                         </div>
-                        <button id="runAutoScheduleBtn" class="primary-action icon-only" title="Lancer la Planification" data-i18n-title="buttons.runAutoSchedule"><img src="/assets/play.png?v=1.1" alt="Lancer la Planification" class="btn-icon" loading="lazy"></button>
+                        <button id="runAutoScheduleBtn" class="primary-action" data-i18n="buttons.runAutoSchedule">Lancer la Planification</button>
                         <p id="auto-schedule-info" class="sidebar-info"></p>
+                        
+                        <!-- DÉPLACER LES BOUTONS ICI -->
+                        <div class="global-actions-container" style="margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px; display: flex; flex-direction: column; gap: 10px;">
+                            <button id="reorganizeAllBtn" class="secondary-action" data-i18n="buttons.reorganizeAll">Tout Réorganiser</button>
+                            <button id="downloadAllScheduledBtn" data-i18n="buttons.downloadAll">Tout Télécharger</button>
+                        </div>
                     </div>
 
                     <!-- ▼▼▼ CORRECTION : SECTION PUBLICATIONS À PLANIFIER RESTAURÉE ▼▼▼ -->
@@ -452,9 +458,7 @@
                             <!-- La liste des publications est générée ici -->
                         </div>
                         
-                        <!-- ▼▼▼ CORRECTION : BOUTONS RESTAURÉS ▼▼▼ -->
-                        <button id="reorganizeAllBtn" class="secondary-action" style="margin-top: 10px;" data-i18n="buttons.reorganizeAll">Tout Réorganiser</button>
-                        <button id="downloadAllScheduledBtn" class="primary-action" style="margin-top: 5px;" data-i18n="buttons.downloadAll">Tout Télécharger</button>
+                        <!-- SUPPRIMER LES BOUTONS D'ICI -->
                     </div>
 
                 </div>

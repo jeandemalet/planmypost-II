@@ -765,7 +765,9 @@ class PublicationFrameBackend {
             // S'assurer que ce publication est dans allUserPublications
             this.organizer.ensureJourInAllUserPublications(this);
             console.log(`✅ Mise à publication de la liste des publications à planifier`);
-            this.organizer.calendarPage.buildUnscheduledPublicationsList();
+            // Appeler buildCalendarUI au lieu de buildUnscheduledPublicationsList pour s'assurer
+            // que la carte des couleurs est correctement générée et utilisée
+            this.organizer.calendarPage.buildCalendarUI();
         } else {
             console.log(`❌ Pas de calendarPage disponible`);
         }
@@ -3132,13 +3134,23 @@ class CalendarPage {
             return;
         }
         
+        // --- DÉBUT DE LA CORRECTION DÉFINITIVE ---
+        // 1. Créer une carte des couleurs basée sur TOUTES les publications de l'utilisateur
+        const allUserPublications = this.organizerApp.scheduleContext.allUserPublications;
+        const galleryColorMap = new Map();
+        const uniqueGalleryIds = [...new Set(allUserPublications.map(p => p.galleryId))];
+        uniqueGalleryIds.forEach((id, index) => {
+            galleryColorMap.set(id, PUBLICATION_COLORS[index % PUBLICATION_COLORS.length]);
+        });
+        // --- FIN DE LA CORRECTION DÉFINITIVE ---
+        
         // --- CORRECTION : Supprimer l'appel à la construction du panneau latéral ---
         // AVANT (Incorrect) :
         // this.populateJourList(); // Cet appel construisait le panneau latéral
         
         // APRÈS (Correct) :
         // On ne fait plus appel à this.populateJourList() depuis ici.
-        this.buildUnscheduledPublicationsList(); // On construit la liste de droite directement
+        this.buildUnscheduledPublicationsList(galleryColorMap); // On construit la liste de droite directement
 
         // --- MODIFICATION PRINCIPALE ---
         const year = this.currentDate.getFullYear();
@@ -3165,17 +3177,17 @@ class CalendarPage {
         today.setHours(0, 0, 0, 0);
         for (let i = 0; i < daysInPrevMonth; i++) {
             const prevMonthDay = new Date(year, month, 1 - (daysInPrevMonth - i));
-            this.createDayCell(prevMonthDay, true, false, prevMonthDay < today);
+            this.createDayCell(prevMonthDay, true, false, prevMonthDay < today, galleryColorMap); // Passer la carte
         }
         for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
             const currentDateInLoop = new Date(year, month, day);
-            this.createDayCell(currentDateInLoop, false, currentDateInLoop.getTime() === today.getTime(), currentDateInLoop < today && currentDateInLoop.getTime() !== today.getTime());
+            this.createDayCell(currentDateInLoop, false, currentDateInLoop.getTime() === today.getTime(), currentDateInLoop < today && currentDateInLoop.getTime() !== today.getTime(), galleryColorMap); // Passer la carte
         }
         const totalCellsSoFar = daysInPrevMonth + lastDayOfMonth.getDate();
         const remainingCells = (7 - (totalCellsSoFar % 7)) % 7;
         for (let i = 1; i <= remainingCells; i++) {
             const nextMonthDay = new Date(year, month + 1, i);
-            this.createDayCell(nextMonthDay, true, false, nextMonthDay < today);
+            this.createDayCell(nextMonthDay, true, false, nextMonthDay < today, galleryColorMap); // Passer la carte
         }
 
         // --- AJOUTER CETTE PARTIE À LA FIN DE LA FONCTION ---
@@ -3201,7 +3213,7 @@ class CalendarPage {
         this.organizerApp._populateSharedJourList(this.jourListElement, null, 'calendar');
     }
 
-    createDayCell(dateObj, isOtherMonth, isToday = false, isPast = false) {
+    createDayCell(dateObj, isOtherMonth, isToday = false, isPast = false, galleryColorMap) { // Accepter la carte en argument
         const dayCell = document.createElement('div');
         dayCell.className = 'calendar-day-cell';
         if (isOtherMonth) dayCell.classList.add('other-month');
@@ -3220,64 +3232,34 @@ class CalendarPage {
             const sortedLetters = Object.keys(itemsOnDay).sort();
             sortedLetters.forEach(letter => {
                 const itemData = itemsOnDay[letter];
-                const pubItemElement = document.createElement('div');
-                pubItemElement.className = 'scheduled-item';
-                pubItemElement.draggable = true;
-                const colorIndex = letter.charCodeAt(0) - 'A'.charCodeAt(0);
-                pubItemElement.style.borderColor = PUBLICATION_COLORS[colorIndex % PUBLICATION_COLORS.length];
-                const textSpan = document.createElement('span');
-                textSpan.className = 'scheduled-item-text';
-                textSpan.textContent = itemData.label || `Publication ${letter}`;
-                pubItemElement.appendChild(textSpan);
-                const thumbContainer = document.createElement('div');
-                thumbContainer.className = 'scheduled-item-thumb-container';
-                const thumbDiv = document.createElement('div');
-                thumbDiv.className = 'scheduled-item-thumb';
-                this.loadCalendarThumb(thumbDiv, letter, itemData.galleryId);
-                thumbContainer.appendChild(thumbDiv);
-                pubItemElement.appendChild(thumbContainer);
-                const actionsContainer = document.createElement('div');
-                actionsContainer.className = 'scheduled-item-actions';
-                const downloadBtn = document.createElement('button');
-                downloadBtn.className = 'scheduled-item-download-btn';
-                downloadBtn.innerHTML = '💾';
-                downloadBtn.title = 'Télécharger le ZIP de la Publication';
-                const publicationDataForExport = allUserPublications.find(j => j.galleryId === itemData.galleryId && j.letter === letter);
-                if (publicationDataForExport) {
-                    downloadBtn.onclick = (e) => {
-                        e.stopPropagation();
-                        this.exportJourById(itemData.galleryId, publicationDataForExport._id, letter);
+                const publicationDataForVignette = allUserPublications.find(j => j.galleryId === itemData.galleryId && j.letter === letter);
+
+                if (publicationDataForVignette) {
+                    const itemElement = document.createElement('div');
+                    itemElement.className = 'unscheduled-publication-item scheduled-in-grid';
+                    itemElement.draggable = true;
+
+                    // --- CORRECTION DE LA LOGIQUE DE COULEUR ---
+                    const galleryData = {
+                        galleryName: itemData.galleryName || 'Galerie Inconnue',
+                        galleryColor: galleryColorMap.get(itemData.galleryId) || '#cccccc' // Utilisation de la carte !
                     };
-                    actionsContainer.appendChild(downloadBtn);
+                    
+                    // APPEL À LA MÊME FONCTION UNIVERSELLE
+                    itemElement.innerHTML = this.organizerApp._createPublicationVignetteHTML(publicationDataForVignette, galleryData, true);
+
+                    itemElement.dataset.jourLetter = letter;
+                    itemElement.dataset.dateStr = dateKey;
+                    itemElement.dataset.galleryId = itemData.galleryId;
+                    itemElement.addEventListener('dragstart', (e) => this._onDragStart(e, {
+                        type: 'calendar',
+                        date: dateKey,
+                        letter: letter,
+                        galleryId: itemData.galleryId,
+                        data: itemData
+                    }, itemElement));
+                    dayCell.appendChild(itemElement);
                 }
-                const deleteBtn = document.createElement('button');
-                deleteBtn.className = 'scheduled-item-delete-btn';
-                deleteBtn.innerHTML = '&times;';
-                deleteBtn.title = 'Supprimer cette publication du calendrier';
-                deleteBtn.onclick = (e) => {
-                    e.stopPropagation();
-                    this.removePublicationForDate(dateObj, letter);
-                };
-                actionsContainer.appendChild(deleteBtn);
-                pubItemElement.appendChild(actionsContainer);
-                if (itemData.galleryName && itemData.galleryId !== this.organizerApp.currentGalleryId) {
-                    const galleryNameSpan = document.createElement('span');
-                    galleryNameSpan.className = 'scheduled-item-gallery-name';
-                    galleryNameSpan.textContent = itemData.galleryName;
-                    galleryNameSpan.title = itemData.galleryName;
-                    pubItemElement.appendChild(galleryNameSpan);
-                }
-                pubItemElement.dataset.jourLetter = letter;
-                pubItemElement.dataset.dateStr = dateKey;
-                pubItemElement.dataset.galleryId = itemData.galleryId;
-                pubItemElement.addEventListener('dragstart', (e) => this._onDragStart(e, {
-                    type: 'calendar',
-                    date: dateKey,
-                    letter: letter,
-                    galleryId: itemData.galleryId,
-                    data: itemData
-                }, pubItemElement));
-                dayCell.appendChild(pubItemElement);
             });
         }
         dayCell.addEventListener('dragover', (e) => {
@@ -3294,7 +3276,7 @@ class CalendarPage {
         this.calendarGridElement.appendChild(dayCell);
     }
 
-    buildUnscheduledPublicationsList() {
+    buildUnscheduledPublicationsList(galleryColorMap) { // Accepter la carte en argument
         if (!this.unscheduledPublicationsListElement) return;
         this.unscheduledPublicationsListElement.innerHTML = '';
 
@@ -3321,9 +3303,11 @@ class CalendarPage {
             return;
         }
 
-        // --- DÉBUT DE LA NOUVELLE LOGIQUE DE REGROUPEMENT ET TRI ---
+        // --- DÉBUT DES MODIFICATIONS ---
 
-        // 1. Regrouper les publications par galerie
+        // --- SUPPRIMER L'ANCIENNE CRÉATION DE LA CARTE DE COULEUR ICI ---
+        // const galleryColorMap = new Map(); // SUPPRIMER CETTE LIGNE
+
         const groupedByGallery = unscheduled.reduce((acc, publication) => {
             if (!acc[publication.galleryId]) {
                 acc[publication.galleryId] = {
@@ -3335,7 +3319,6 @@ class CalendarPage {
             return acc;
         }, {});
 
-        // 2. Trier les galeries par nom, puis les publications de chaque galerie par lettre
         const sortedGalleryIds = Object.keys(groupedByGallery).sort((a, b) =>
             groupedByGallery[a].name.localeCompare(groupedByGallery[b].name)
         );
@@ -3344,54 +3327,27 @@ class CalendarPage {
             const galleryGroup = groupedByGallery[galleryId];
             galleryGroup.publications.sort((a, b) => a.letter.localeCompare(b.letter));
 
-            // 3. Créer et ajouter le header de la galerie
             const galleryHeader = document.createElement('div');
             galleryHeader.className = 'unscheduled-gallery-header';
             galleryHeader.textContent = galleryGroup.name;
             this.unscheduledPublicationsListElement.appendChild(galleryHeader);
 
-            // 4. Créer et ajouter les publications pour cette galerie
             galleryGroup.publications.forEach(publication => {
                 const itemElement = document.createElement('div');
                 itemElement.className = 'unscheduled-publication-item';
                 itemElement.draggable = true;
 
-                const contentDiv = document.createElement('div');
-                contentDiv.className = 'unscheduled-publication-item-content';
+                // --- UTILISER LA CARTE PASSÉE EN ARGUMENT ---
+                const galleryData = { 
+                    galleryName: publication.galleryName, 
+                    galleryColor: galleryColorMap.get(publication.galleryId) 
+                };
 
-                const letterSpan = document.createElement('span');
-                letterSpan.className = 'unscheduled-publication-item-letter';
-                letterSpan.textContent = publication.letter;
-                const colorIndex = publication.letter.charCodeAt(0) - 'A'.charCodeAt(0);
-                letterSpan.style.backgroundColor = PUBLICATION_COLORS[colorIndex % PUBLICATION_COLORS.length];
-
-                const thumbDiv = document.createElement('div');
-                thumbDiv.className = 'unscheduled-publication-item-thumb';
-
-                if (publication.firstImageThumbnail) {
-                    const thumbFilename = Utils.getFilenameFromURL(publication.firstImageThumbnail);
-                    const thumbUrl = `${BASE_API_URL}/api/uploads/${publication.galleryId}/${thumbFilename}`;
-                    
-                    // On ne charge PAS l'image directement.
-                    // On prépare le lazy loading en utilisant la même méthode que pour la grille principale.
-                    thumbDiv.dataset.src = thumbUrl; // Stocker l'URL dans un attribut data
-                    thumbDiv.classList.add('lazy-load-thumb'); // Ajouter la classe pour que l'observateur la trouve
-                    thumbDiv.textContent = '';
-                } else {
-                    thumbDiv.textContent = '...'; // Fallback si pas de miniature
-                }
-
-                const publicationLabelSpan = document.createElement('span');
-                publicationLabelSpan.className = 'unscheduled-publication-item-label';
-                publicationLabelSpan.textContent = `Publication ${publication.letter}`;
-
-                contentDiv.appendChild(letterSpan);
-                contentDiv.appendChild(thumbDiv);
-                contentDiv.appendChild(publicationLabelSpan);
-                itemElement.appendChild(contentDiv);
-
+                // APPEL À LA NOUVELLE FONCTION
+                itemElement.innerHTML = this.organizerApp._createPublicationVignetteHTML(publication, galleryData, false);
+                
                 itemElement.addEventListener('dragstart', e => this._onDragStart(e, { type: 'unscheduled', ...publication }, itemElement));
-
+                
                 itemElement.addEventListener('click', () => {
                     this.organizerApp.handleLoadGallery(publication.galleryId).then(() => {
                         const publicationFrame = this.organizerApp.publicationFrames.find(pf => pf.id === publication._id);
@@ -3401,15 +3357,12 @@ class CalendarPage {
                         }
                     });
                 });
-
+                
                 this.unscheduledPublicationsListElement.appendChild(itemElement);
             });
         });
-        // --- FIN DE LA NOUVELLE LOGIQUE ---
-        
-        // --- AJOUTER CETTE PARTIE À LA FIN DE LA FONCTION ---
-        // Lancer l'observation sur toutes les nouvelles vignettes à charger
-        const lazyImages = this.calendarGridElement.querySelectorAll('.lazy-load-thumb');
+
+        const lazyImages = this.unscheduledPublicationsListElement.querySelectorAll('.lazy-load-thumb');
         lazyImages.forEach(img => this.imageObserver.observe(img));
     }
 
@@ -5884,6 +5837,32 @@ class PublicationOrganizer {
             }
         }
         return null;
+    }
+
+    // AJOUTER CETTE NOUVELLE MÉTHODE DANS LA CLASSE PublicationOrganizer
+    _createPublicationVignetteHTML(publicationData, galleryData, isInCalendarGrid = false) {
+        const { _id, letter, galleryId, firstImageThumbnail } = publicationData;
+        const { galleryName, galleryColor } = galleryData;
+
+        const thumbFilename = firstImageThumbnail ? Utils.getFilenameFromURL(firstImageThumbnail) : '';
+        const thumbUrl = firstImageThumbnail ? `${BASE_API_URL}/api/uploads/${galleryId}/${thumbFilename}` : '';
+        
+        // Structure HTML unifiée pour la vignette
+        const vignetteHTML = `
+            <div class="unscheduled-publication-item-content">
+                <span class="unscheduled-publication-item-letter" style="background-color: ${galleryColor};">${letter}</span>
+                <div class="unscheduled-publication-item-thumb" style="${thumbUrl ? `background-image: url('${thumbUrl}')` : ''}">
+                    ${!thumbUrl ? '...' : ''}
+                </div>
+                <span class="unscheduled-publication-item-label" title="${galleryName} - Publication ${letter}">${galleryName}</span>
+            </div>
+            <div class="vignette-actions">
+                <button class="vignette-action-btn" title="Télécharger cette publication" onclick="app.calendarPage.exportJourById('${galleryId}', '${_id}', '${letter}')">💾</button>
+                <button class="vignette-action-btn danger" title="Supprimer cette publication" onclick="app.handleDeletePublication('${_id}', '${galleryId}', '${letter}')">🗑️</button>
+            </div>
+        `;
+
+        return vignetteHTML;
     }
 
     // Méthode appelée par activateTab

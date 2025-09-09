@@ -175,15 +175,17 @@ button:disabled .profile-action-icon {
 
 .tab-content {
     display: none;
-    padding: 15px;
-    border: 1px solid #ccc;
+    /* Conserver le padding existant s'il y en a, sinon le définir à 0 */
+    padding: 0; 
+    border: 1px solid #dee2e6;
     background-color: #fff;
     min-height: calc(100vh - 150px);
     border-radius: 8px;
 }
 
 .tab-content.active {
-    display: block;
+    display: flex; /* Utiliser flex pour un meilleur contrôle du layout */
+    flex-direction: column; /* Organiser le contenu verticalement */
 }
 
 #galleries.tab-content.active {
@@ -1086,9 +1088,9 @@ button.small-cancel-btn:hover {
 #calendarGrid {
     display: grid;
     grid-template-columns: repeat(7, 1fr);
-    gap: 1px;
-    background-color: #ccc;
-    border: 1px solid #ccc;
+    gap: 1px; /* La clé : un espacement de 1px qui forme les lignes */
+    background-color: #dee2e6; /* La couleur des lignes */
+    border: 1px solid #dee2e6; /* Bordure extérieure uniforme */
     border-top: none;
     flex-grow: 1;
     overflow-y: hidden;
@@ -1099,9 +1101,12 @@ button.small-cancel-btn:hover {
 .calendar-header-cell, .calendar-day-cell {
     background-color: #fff;
     padding: 5px;
-    min-height: 100px;
+    min-height: 120px; /* Hauteur minimale pour les petits écrans */
     display: flex;
     flex-direction: column;
+    overflow-y: auto; /* Permet de scroller si trop de publications */
+    aspect-ratio: 1 / 1; /* LA CORRECTION CLÉ : force un ratio carré */
+    border: none; /* On supprime la bordure de la cellule elle-même */
 }
 .calendar-header-cell {
     font-weight: bold;
@@ -1139,22 +1144,23 @@ button.small-cancel-btn:hover {
 
 
 .scheduled-item {
+    /* Hérite de .publication-item-base */
     background-color: #f8f9fa;
-    padding: 4px;
     border-radius: 6px;
-    font-size: 0.8em;
-    margin-top: 4px;
-    cursor: grab;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-around;
-    align-items: stretch;
-    overflow: hidden;
-    position: relative;
     border: 1px solid #dee2e6;
-    border-left: 4px solid lightblue;
-    min-height: 55px;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    cursor: grab;
     transition: background-color 0.2s, box-shadow 0.2s;
+    
+    flex-direction: column; /* La grille a un layout vertical */
+    justify-content: space-around;
+    padding: 4px;
+    min-height: 55px;
+    border-left-width: 4px; /* Garde la bordure colorée */
+    margin-top: 4px;
+    font-size: 0.8em;
 }
 
 .scheduled-item:hover {
@@ -1172,39 +1178,39 @@ button.small-cancel-btn:hover {
 
 .scheduled-item-actions {
     position: absolute;
-    top: 2px;
-    right: 2px;
+    top: 4px;
+    right: 4px;
     display: flex;
-    gap: 3px;
-    background-color: rgba(255, 255, 255, 0.6);
-    padding: 2px;
-    border-radius: 5px;
-    transition: opacity 0.2s ease-in-out;
-    opacity: 1;
-    z-index: 5;
+    gap: 5px;
+    z-index: 10;
+    opacity: 1; /* Rendu toujours visible, pas de hover */
+    background-color: transparent !important; /* Pas de fond gris */
+    padding: 0;
 }
 
 .scheduled-item-delete-btn,
 .scheduled-item-download-btn {
     position: static;
-    background-color: rgba(0, 0, 0, 0.4);
-    color: white;
-    border: none;
+    background: transparent !important; /* Pas de fond */
+    border: none !important;
     border-radius: 4px;
-    width: 18px;
-    height: 18px;
-    font-size: 12px;
-    line-height: 1;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    font-size: 16px;
+    color: #333; /* Icône en noir pour la visibilité sur fond clair */
+    cursor: pointer;
+    transition: transform 0.15s ease;
+    text-shadow: 0 0 3px white; /* Ajoute un léger halo blanc pour la lisibilité */
     display: flex;
     align-items: center;
     justify-content: center;
-    cursor: pointer;
-    transition: background-color 0.2s;
+    line-height: 1;
 }
 
-.scheduled-item-delete-btn:hover { background-color: #dc3545; }
-.scheduled-item-download-btn:hover { background-color: #007bff; }
-.scheduled-item-download-btn { font-size: 10px; }
+.scheduled-item-delete-btn:hover { transform: scale(1.2); background: transparent !important; }
+.scheduled-item-download-btn:hover { transform: scale(1.2); background: transparent !important; }
+.scheduled-item-download-btn { font-size: 16px; }
 
 
 .scheduled-item-text {
@@ -1336,10 +1342,11 @@ button.small-cancel-btn:hover {
 
 
 /* --- Layouts pour Recadrage et Description --- */
-.cropping-layout, .description-layout {
-    display: flex;
-    gap: 15px;
-    height: calc(100vh - 150px);
+.cropping-layout, .description-layout, .calendar-layout {
+    flex-grow: 1; /* Fait en sorte que le layout grandisse pour remplir l'espace */
+    padding: 15px; /* Appliquer le padding ici plutôt que sur .tab-content */
+    height: 100%;
+    box-sizing: border-box;
 }
 
 #croppingPublicationListPanel, #descriptionPublicationListPanel, #calendarPublicationListPanel {
@@ -2498,6 +2505,63 @@ button.small-cancel-btn:hover {
     text-overflow: ellipsis;
 }
 
+/* Styles pour les vignettes améliorées */
+.unscheduled-publication-item {
+    position: relative; /* Indispensable pour la superposition */
+    display: flex;
+    align-items: center;
+    justify-content: space-between; /* Pour espacer le contenu et les actions */
+}
+
+.unscheduled-publication-item-letter {
+    color: white;
+    font-weight: bold;
+    text-shadow: 1px 1px 2px rgba(0,0,0,0.5); /* Améliore la lisibilité */
+}
+
+/* ========================================================== */
+/* --- CORRECTION DÉFINITIVE - VIGNETTES ET BOUTONS --- */
+/* ========================================================== */
+
+/* Assurer que les vignettes dans la grille et la liste se comportent de la même façon */
+.unscheduled-publication-item, .scheduled-in-grid {
+    position: relative; /* Indispensable pour la superposition des boutons */
+}
+
+/* Conteneur des actions : TOUJOURS VISIBLE */
+.vignette-actions {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    display: flex;
+    gap: 5px;
+    z-index: 10;
+    opacity: 1; /* Rendu toujours visible, pas de hover */
+    background-color: transparent !important; /* Pas de fond gris */
+    padding: 0;
+}
+
+/* Boutons : transparents, icône blanche, pas d'effets de survol */
+.vignette-action-btn {
+    background: transparent !important; /* Pas de fond */
+    border: none !important;
+    border-radius: 4px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    font-size: 16px;
+    color: #333; /* Icône en noir pour la visibilité sur fond clair */
+    cursor: pointer;
+    transition: transform 0.15s ease;
+    text-shadow: 0 0 3px white; /* Ajoute un léger halo blanc pour la lisibilité */
+}
+
+/* Effet de survol sobre, sans changement de couleur */
+.vignette-action-btn:hover {
+    transform: scale(1.2); /* Léger agrandissement, c'est tout */
+    background: transparent !important; /* On s'assure qu'il n'y a pas de changement */
+}
+
 /* On retire le nom de la galerie de chaque item, car il est maintenant dans le header */
 .unscheduled-publication-item-gallery {
     display: none;
@@ -2639,6 +2703,30 @@ button.small-cancel-btn:hover {
 /* ========================================================== */
 /* --- ZONES D'ÉDITION DÉLIMITÉES DANS L'ÉDITEUR RICHE --- */
 /* ========================================================== */
+
+/* AJOUTER CES RÈGLES POUR MASQUER LES ÉLÉMENTS INDÉSIRABLES */
+
+/* Suppression visuelle de la "gélule" de sauvegarde */
+#save-status-indicator {
+    display: none !important;
+}
+
+/* Masquer le conteneur d'info de la planification auto LORSQU'IL EST VIDE */
+#auto-schedule-info:empty {
+    display: none;
+}
+
+/* Style pour quand il CONTIENT du texte, pour qu'il soit bien intégré */
+#auto-schedule-info {
+    font-size: 0.8em;
+    color: #007bff;
+    margin-top: 10px;
+    text-align: center;
+    background-color: #e6f7ff;
+    border: 1px solid #b3e0ff;
+    padding: 8px;
+    border-radius: 4px;
+}
 
 /* Style pour les zones d'édition autour du bloc commun */
 .editable-zone {
@@ -3329,6 +3417,39 @@ button.small-cancel-btn:hover {
     max-width: 300px;      /* Limite la largeur maximale pour les noms très longs */
 }
 
+/* Style de base commun pour une publication */
+.publication-item-base {
+    background-color: #f8f9fa;
+    border-radius: 6px;
+    border: 1px solid #dee2e6;
+    display: flex;
+    align-items: center;
+    overflow: hidden;
+    cursor: grab;
+    transition: background-color 0.2s, box-shadow 0.2s;
+}
+
+.publication-item-base:hover {
+    background-color: #f1f3f5;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+
+/* Appliquer cette base aux deux types d'éléments */
+.unscheduled-publication-item {
+    /* Hérite de .publication-item-base */
+    padding: 6px 8px;
+    margin-bottom: 5px;
+}
+
+.scheduled-item {
+    /* Hérite de .publication-item-base */
+    flex-direction: column; /* La grille a un layout vertical */
+    justify-content: space-around;
+    padding: 4px;
+    min-height: 55px;
+    border-left-width: 4px; /* Garde la bordure colorée */
+}
+
 /*
  --- STYLES POUR LE MENU PARAMÈTRES --- */
 .settings-container {
@@ -3842,4 +3963,25 @@ LES POUR LA LISTE DES PUBLICATIONS REGROUPÉES PAR GALERIE --- */
 #calendar #calendar-main-content {
     /* Le contenu principal prend toute la largeur maintenant */
     flex-grow: 1;
+}
+
+/* AJOUTER CES RÈGLES À LA FIN DU FICHIER CSS */
+
+/* Supprimer le séparateur entre les blocs d'action de la sidebar */
+.global-actions-container {
+    border-top: none !important; /* Supprime la ligne de séparation */
+    margin-top: 10px !important;
+    padding-top: 0 !important;
+}
+
+/* Appliquer le style "gris" (style par défaut) aux deux boutons */
+#reorganizeAllBtn, #downloadAllScheduledBtn {
+    background-color: #e7e7e7; /* Couleur grise standard */
+    color: #333; /* Texte noir */
+    border: 1px solid #ccc;
+}
+
+/* Surcharger l'effet de survol pour le style gris */
+#reorganizeAllBtn:hover, #downloadAllScheduledBtn:hover {
+    background-color: #ddd;
 }
