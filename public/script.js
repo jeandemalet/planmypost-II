@@ -387,30 +387,30 @@ class GridItemBackend {
 
     updateSize(newThumbSize) {
         if (newThumbSize.width === this.thumbSize.width && newThumbSize.height === this.thumbSize.height) {
-            return;
+            return; // Pas de changement, on ne fait rien
         }
 
+        // Seuil pour décider quand charger l'image haute résolution.
+        // Les miniatures font 150px, donc on charge la version HD quand on affiche plus grand.
+        const loadFullImageThreshold = GridItemBackend.SERVER_THUMB_OPTIMAL_DISPLAY_WIDTH * 1.5; // soit ~225px
+
         const oldSrcFilename = Utils.getFilenameFromURL(this.imgElement.src);
-        let newSrcToUse = this.thumbnailPath;
+        let newSrcToUse = this.thumbnailPath; // Par défaut, on utilise la miniature
 
-        const loadFullImageThresholdWidth = GridItemBackend.SERVER_THUMB_OPTIMAL_DISPLAY_WIDTH * 1.5;
-        const loadFullImageThresholdHeight = GridItemBackend.SERVER_THUMB_OPTIMAL_DISPLAY_HEIGHT * 1.5;
-
-        if (newThumbSize.width > loadFullImageThresholdWidth || newThumbSize.height > loadFullImageThresholdHeight) {
+        // Si la nouvelle taille est supérieure au seuil, on utilise l'image en haute résolution
+        if (newThumbSize.width > loadFullImageThreshold || newThumbSize.height > loadFullImageThreshold) {
             if (this.imagePath !== this.thumbnailPath) {
                 newSrcToUse = this.imagePath;
-            } else {
-                newSrcToUse = this.thumbnailPath;
             }
-        } else {
-            newSrcToUse = this.thumbnailPath;
         }
 
         const newSrcFilename = Utils.getFilenameFromURL(newSrcToUse);
+        // On change la source de l'image SEULEMENT si c'est nécessaire pour optimiser les performances
         if (newSrcFilename !== oldSrcFilename) {
             this.imgElement.src = newSrcToUse;
         }
 
+        // On met à jour la taille de l'élément dans tous les cas
         this.thumbSize = { ...newThumbSize };
         this.updateElementStyle();
     }
@@ -1416,6 +1416,7 @@ class CroppingManager {
         this.ignoreSaveForThisImage = false;
         this.handleSize = 18;
         this.handleDetectionOffset = this.handleSize / 2 + 6;
+        this.isRedrawScheduled = false; // Pour optimiser les redessins
         this.debouncedUpdatePreview = Utils.debounce(() => this.updatePreview(), 150);
         this.debouncedHandleResize = Utils.debounce(() => this._handleResize(), 50);
         this._initListeners();
@@ -1658,6 +1659,17 @@ class CroppingManager {
     }
 
     redrawCanvasOnly() { this._internalRedraw(false); }
+
+    // Méthode optimisée pour programmer les redessins avec requestAnimationFrame
+    _scheduleRedraw() {
+        if (!this.isRedrawScheduled) {
+            this.isRedrawScheduled = true;
+            requestAnimationFrame(() => {
+                this.redrawCanvasOnly();
+                this.isRedrawScheduled = false;
+            });
+        }
+    }
 
     _internalRedraw(updatePreviewAlso = false) {
         this.ctx.fillStyle = CROPPER_BACKGROUND_GRAY;
@@ -2005,10 +2017,10 @@ class CroppingManager {
         this.previewCenter.style.display = 'none';
         this.previewRight.style.display = 'none';
 
-        // Effacer les sources
-        this.previewLeft.src = 'about:blank';
-        this.previewCenter.src = 'about:blank';
-        this.previewRight.src = 'about:blank';
+        // Effacer les sources proprement
+        this.previewLeft.src = '';
+        this.previewCenter.src = '';
+        this.previewRight.src = '';
 
         if (!this.currentImageObject) return;
 
@@ -2440,7 +2452,7 @@ class CroppingManager {
         this.cropRectDisplay.y = Math.round(newY);
         this.cropRectDisplay.width = Math.round(Math.max(minDim, newW));
         this.cropRectDisplay.height = Math.round(Math.max(minDim, newH));
-        this.redrawCanvasOnly();
+        this._scheduleRedraw(); // Appel optimisé
     }
 
     onDocumentMouseUp(event) {
@@ -2756,6 +2768,12 @@ class DescriptionManager {
     }
 
     clearEditor() {
+        // Safety check to ensure DOM elements are initialized
+        if (!this.editorTitleElement) {
+            console.warn('DescriptionManager DOM elements not initialized yet, skipping clearEditor');
+            return;
+        }
+        
         this.editorTitleElement.textContent = "Sélectionnez une publication";
         this.editorElement.innerHTML = '';
         this.editorElement.classList.remove('structured');
@@ -3296,38 +3314,39 @@ class CalendarPage {
         const scheduleData = this.organizerApp.scheduleContext.schedule;
         const allUserPublications = this.organizerApp.scheduleContext.allUserPublications;
         if (scheduleData[dateKey]) {
-            const itemsOnDay = scheduleData[dateKey];
-            const sortedLetters = Object.keys(itemsOnDay).sort();
-            sortedLetters.forEach(letter => {
-                const itemData = itemsOnDay[letter];
-                const publicationDataForVignette = allUserPublications.find(j => j.galleryId === itemData.galleryId && j.letter === letter);
+            const galleriesOnDay = scheduleData[dateKey];
+            // Boucle sur chaque galerie, puis sur chaque lettre planifiée
+            Object.keys(galleriesOnDay).sort().forEach(galleryId => {
+                const itemsInGallery = galleriesOnDay[galleryId] || {};
+                const sortedLetters = Object.keys(itemsInGallery).sort();
+                sortedLetters.forEach(letter => {
+                    const itemData = itemsInGallery[letter]; // { galleryName }
+                    const publicationDataForVignette = allUserPublications.find(j => j.galleryId === galleryId && j.letter === letter);
+                    if (publicationDataForVignette) {
+                        const itemElement = document.createElement('div');
+                        itemElement.className = 'unscheduled-publication-item scheduled-in-grid';
+                        itemElement.draggable = true;
+                        const galleryData = {
+                            galleryName: (itemData && itemData.galleryName) || 'Galerie Inconnue',
+                            galleryColor: galleryColorMap.get(galleryId) || '#cccccc'
+                        };
+                        
+                        // APPEL À LA MÊME FONCTION UNIVERSELLE
+                        itemElement.innerHTML = this.organizerApp._createPublicationVignetteHTML(publicationDataForVignette, galleryData, true);
 
-                if (publicationDataForVignette) {
-                    const itemElement = document.createElement('div');
-                    itemElement.className = 'unscheduled-publication-item scheduled-in-grid';
-                    itemElement.draggable = true;
-
-                    // --- CORRECTION DE LA LOGIQUE DE COULEUR ---
-                    const galleryData = {
-                        galleryName: itemData.galleryName || 'Galerie Inconnue',
-                        galleryColor: galleryColorMap.get(itemData.galleryId) || '#cccccc' // Utilisation de la carte !
-                    };
-                    
-                    // APPEL À LA MÊME FONCTION UNIVERSELLE
-                    itemElement.innerHTML = this.organizerApp._createPublicationVignetteHTML(publicationDataForVignette, galleryData, true);
-
-                    itemElement.dataset.jourLetter = letter;
-                    itemElement.dataset.dateStr = dateKey;
-                    itemElement.dataset.galleryId = itemData.galleryId;
-                    itemElement.addEventListener('dragstart', (e) => this._onDragStart(e, {
-                        type: 'calendar',
-                        date: dateKey,
-                        letter: letter,
-                        galleryId: itemData.galleryId,
-                        data: itemData
-                    }, itemElement));
-                    dayCell.appendChild(itemElement);
-                }
+                        itemElement.dataset.jourLetter = letter;
+                        itemElement.dataset.dateStr = dateKey;
+                        itemElement.dataset.galleryId = galleryId;
+                        itemElement.addEventListener('dragstart', (e) => this._onDragStart(e, {
+                            type: 'calendar',
+                            date: dateKey,
+                            letter: letter,
+                            galleryId: galleryId,
+                            data: { galleryName: galleryData.galleryName }
+                        }, itemElement));
+                        dayCell.appendChild(itemElement);
+                    }
+                });
             });
         }
         dayCell.addEventListener('dragover', (e) => {
@@ -3358,9 +3377,11 @@ class CalendarPage {
 
         const scheduledSet = new Set();
         for (const date in scheduleData) {
-            for (const letter in scheduleData[date]) {
-                const item = scheduleData[date][letter];
-                scheduledSet.add(`${item.galleryId}-${letter}`);
+            for (const galleryId in scheduleData[date]) {
+                for (const letter in scheduleData[date][galleryId]) {
+                    // Nouvelle structure: l'ID de galerie est la clé
+                    scheduledSet.add(`${galleryId}-${letter}`);
+                }
             }
         }
 
@@ -3525,16 +3546,26 @@ class CalendarPage {
             if (droppedData.type === 'unscheduled') {
                 this.addOrUpdatePublicationForDate(new Date(targetDateKey + 'T00:00:00'), droppedData.letter, droppedData.galleryId, droppedData.galleryName);
             } else if (droppedData.type === 'calendar') {
-                const { date: sourceDateStr, letter: sourceLetter, data: sourceData } = droppedData;
+                const { date: sourceDateStr, letter: sourceLetter, galleryId: sourceGalleryId, data: sourceData } = droppedData;
                 if (sourceDateStr === targetDateKey) { this.buildCalendarUI(); return; }
-                delete scheduleData[sourceDateStr][sourceLetter];
-                if (Object.keys(scheduleData[sourceDateStr]).length === 0) {
-                    delete scheduleData[sourceDateStr];
+                // Supprimer l'entrée d'origine dans la structure imbriquée
+                if (scheduleData[sourceDateStr] && scheduleData[sourceDateStr][sourceGalleryId] && scheduleData[sourceDateStr][sourceGalleryId][sourceLetter]) {
+                    delete scheduleData[sourceDateStr][sourceGalleryId][sourceLetter];
+                    if (Object.keys(scheduleData[sourceDateStr][sourceGalleryId]).length === 0) {
+                        delete scheduleData[sourceDateStr][sourceGalleryId];
+                    }
+                    if (Object.keys(scheduleData[sourceDateStr]).length === 0) {
+                        delete scheduleData[sourceDateStr];
+                    }
                 }
+                // Ajouter à la nouvelle date dans la structure imbriquée
                 if (!scheduleData[targetDateKey]) {
                     scheduleData[targetDateKey] = {};
                 }
-                scheduleData[targetDateKey][sourceLetter] = sourceData;
+                if (!scheduleData[targetDateKey][sourceGalleryId]) {
+                    scheduleData[targetDateKey][sourceGalleryId] = {};
+                }
+                scheduleData[targetDateKey][sourceGalleryId][sourceLetter] = sourceData;
                 this.saveSchedule();
             }
         } catch (e) {
@@ -3578,9 +3609,10 @@ class CalendarPage {
     isJourScheduled(galleryId, jourLetter) {
         const scheduleData = this.organizerApp.scheduleContext.schedule;
         for (const dateKey in scheduleData) {
-            const dayEvents = scheduleData[dateKey];
-            if (dayEvents[jourLetter] && dayEvents[jourLetter].galleryId === galleryId) {
-                return true;
+            for (const galleryIdInDate in scheduleData[dateKey]) {
+                if (galleryIdInDate === galleryId && scheduleData[dateKey][galleryIdInDate][jourLetter]) {
+                    return true;
+                }
             }
         }
         return false;
@@ -3615,21 +3647,23 @@ class CalendarPage {
         let fixedCount = 0;
 
         Object.keys(scheduleData).forEach(dateStr => {
-            Object.keys(scheduleData[dateStr]).forEach(letter => {
-                const item = scheduleData[dateStr][letter];
+            Object.keys(scheduleData[dateStr]).forEach(galleryId => {
+                Object.keys(scheduleData[dateStr][galleryId]).forEach(letter => {
+                    const item = scheduleData[dateStr][galleryId][letter];
 
-                // Si le nom de galerie est manquant ou vide
-                if (!item.galleryName) {
-                    const jourInfo = allUserPublications.find(
-                        j => j.galleryId === item.galleryId && j.letter === letter
-                    );
+                    // Si le nom de galerie est manquant ou vide
+                    if (!item.galleryName) {
+                        const jourInfo = allUserPublications.find(
+                            j => j.galleryId === galleryId && j.letter === letter
+                        );
 
-                    if (jourInfo && jourInfo.galleryName) {
-                        item.galleryName = jourInfo.galleryName;
-                        fixedCount++;
-                        console.log(`[CalendarPage] Nom de galerie corrigé pour ${dateStr} ${letter}: ${jourInfo.galleryName}`);
+                        if (jourInfo && jourInfo.galleryName) {
+                            item.galleryName = jourInfo.galleryName;
+                            fixedCount++;
+                            console.log(`[CalendarPage] Nom de galerie corrigé pour ${dateStr} ${letter}: ${jourInfo.galleryName}`);
+                        }
                     }
-                }
+                });
             });
         });
 
@@ -3644,14 +3678,20 @@ class CalendarPage {
     addOrUpdatePublicationForDate(dateObj, jourLetter, galleryId, galleryName) {
         const dateStr = this.formatDateKey(dateObj);
         const scheduleData = this.organizerApp.scheduleContext.schedule;
+        // S'assurer que l'objet pour la date existe
         if (!scheduleData[dateStr]) {
             scheduleData[dateStr] = {};
         }
-        if (scheduleData[dateStr][jourLetter] && scheduleData[dateStr][jourLetter].galleryId === galleryId) {
+        // S'assurer que le sous-objet pour la galerie existe
+        if (!scheduleData[dateStr][galleryId]) {
+            scheduleData[dateStr][galleryId] = {};
+        }
+        // Si la publication existe déjà pour cette galerie et cette lettre, ne rien faire
+        if (scheduleData[dateStr][galleryId][jourLetter]) {
             return;
         }
 
-        // --- CORRECTION : S'assurer que le nom de la galerie est toupublications présent ---
+        // Trouver le nom de la galerie si absent
         let finalGalleryName = galleryName;
 
         // Si le nom n'a pas été fourni, on le recherche dans allUserPublications
@@ -3664,10 +3704,9 @@ class CalendarPage {
             }
         }
 
-        scheduleData[dateStr][jourLetter] = {
-            label: `Publication ${jourLetter}`,
-            galleryId: galleryId,
-            galleryName: finalGalleryName || 'Galerie?' // Fallback au cas où
+        // Ajouter la publication dans le sous-objet de la galerie
+        scheduleData[dateStr][galleryId][jourLetter] = {
+            galleryName: finalGalleryName || 'Galerie?'
         };
         this.saveSchedule();
     }
@@ -3675,8 +3714,11 @@ class CalendarPage {
     removePublicationForDate(dateObj, jourLetter, galleryId) {
         const dateStr = this.formatDateKey(dateObj);
         const scheduleData = this.organizerApp.scheduleContext.schedule;
-        if (scheduleData[dateStr] && scheduleData[dateStr][jourLetter] && scheduleData[dateStr][jourLetter].galleryId === galleryId) {
-            delete scheduleData[dateStr][jourLetter];
+        if (scheduleData[dateStr] && scheduleData[dateStr][galleryId] && scheduleData[dateStr][galleryId][jourLetter]) {
+            delete scheduleData[dateStr][galleryId][jourLetter];
+            if (Object.keys(scheduleData[dateStr][galleryId]).length === 0) {
+                delete scheduleData[dateStr][galleryId];
+            }
             if (Object.keys(scheduleData[dateStr]).length === 0) {
                 delete scheduleData[dateStr];
             }
@@ -3697,12 +3739,16 @@ class CalendarPage {
             const scheduleData = this.organizerApp.scheduleContext.schedule;
             const allUserPublications = this.organizerApp.scheduleContext.allUserPublications;
             const scheduledPublicationIdentifiers = new Set();
-            Object.values(scheduleData).forEach(day => {
-                Object.values(day).forEach(item => {
-                    const letter = item.label ? item.label.split(' ')[1] : Object.keys(day).find(k => day[k] === item);
-                    if (letter) scheduledPublicationIdentifiers.add(`${item.galleryId}-${letter}`);
-                });
-            });
+            // Nouvelle structure: scheduleData[date][galleryId][letter] = { galleryName }
+            for (const dateKey in scheduleData) {
+                const galleriesOnDay = scheduleData[dateKey];
+                for (const galleryId in galleriesOnDay) {
+                    const itemsInGallery = galleriesOnDay[galleryId];
+                    for (const letter in itemsInGallery) {
+                        scheduledPublicationIdentifiers.add(`${galleryId}-${letter}`);
+                    }
+                }
+            }
             let unpublishedPublications = allUserPublications.filter(publication =>
                 !scheduledPublicationIdentifiers.has(`${publication.galleryId}-${publication.letter}`) && this.organizerApp.isPublicationReadyForPublishing(publication.galleryId, publication.letter)
             );
@@ -4320,7 +4366,13 @@ class PublicationOrganizer {
         descriptionTabContent.querySelectorAll('button, textarea').forEach(el => el.disabled = noGalleryActive);
         if (this.descriptionManager) {
             if (noGalleryActive) {
-                this.descriptionManager.clearEditor();
+                // Vérifier si le descriptionManager a une méthode clearEditor (modularisé)
+                if (typeof this.descriptionManager.clearEditor === 'function') {
+                    this.descriptionManager.clearEditor();
+                } else {
+                    // Fallback à l'ancienne méthode si le composant n'est pas chargé
+                    this.clearEditor();
+                }
                 this.descriptionManager.populateLists();
             } else if (descriptionTabContent.classList.contains('active')) {
                 this.descriptionManager.show();
@@ -4788,6 +4840,8 @@ class PublicationOrganizer {
         this.currentGalleryId = galleryId;
         this.selectedGalleryForPreviewId = galleryId; // Synchroniser la sélection
         localStorage.setItem('publicationOrganizer_lastGalleryId', this.currentGalleryId);
+        // Sauvegarder la dernière galerie sélectionnée manuellement par l'utilisateur
+        localStorage.setItem('publicationOrganizer_lastUserSelectedGalleryId', this.currentGalleryId);
 
         // Réinitialisation de l'état
         this.gridItems = [];
@@ -4796,7 +4850,15 @@ class PublicationOrganizer {
         this.publicationFrames = [];
         this.publicationFramesContainer.innerHTML = '';
         this.currentPublicationFrame = null;
-        if (this.descriptionManager) this.descriptionManager.clearEditor();
+        if (this.descriptionManager) {
+            // Vérifier si le descriptionManager a une méthode clearEditor (modularisé)
+            if (typeof this.descriptionManager.clearEditor === 'function') {
+                this.descriptionManager.clearEditor();
+            } else {
+                // Fallback à l'ancienne méthode si le composant n'est pas chargé
+                this.clearEditor();
+            }
+        }
         if (this.croppingPage) this.croppingPage.clearEditor();
         if (this.galleriesUploadProgressContainer) this.galleriesUploadProgressContainer.style.display = 'none';
         if (this.currentGalleryUploadProgressContainer) this.currentGalleryUploadProgressContainer.style.display = 'none';
@@ -5075,7 +5137,15 @@ class PublicationOrganizer {
                 this.currentPublicationFrame = null;
                 this.nextPublicationIndex = 0;
                 this.scheduleContext = { schedule: {}, allUserPublications: [] };
-                if (this.descriptionManager) this.descriptionManager.clearEditor();
+                if (this.descriptionManager) {
+                    // Vérifier si le descriptionManager a une méthode clearEditor (modularisé)
+                    if (typeof this.descriptionManager.clearEditor === 'function') {
+                        this.descriptionManager.clearEditor();
+                    } else {
+                        // Fallback à l'ancienne méthode si le composant n'est pas chargé
+                        this.clearEditor();
+                    }
+                }
                 if (this.croppingPage) this.croppingPage.clearEditor();
             }
             await this.loadGalleriesList();
@@ -5938,16 +6008,14 @@ class PublicationOrganizer {
     _createPublicationVignetteHTML(publicationData, galleryData, isInCalendarGrid = false) {
         const { _id, letter, galleryId, firstImageThumbnail } = publicationData;
         const { galleryName, galleryColor } = galleryData;
-        const dateStr = isInCalendarGrid ? publicationData.date : ''; // On récupère la date si on est dans la grille
+        const dateStr = isInCalendarGrid ? publicationData.date : '';
 
         const thumbFilename = firstImageThumbnail ? Utils.getFilenameFromURL(firstImageThumbnail) : '';
         const thumbUrl = firstImageThumbnail ? `${BASE_API_URL}/api/uploads/${galleryId}/${thumbFilename}` : '';
         
-        // CORRECTION : Différencier l'action et le tooltip (title) selon le contexte
         const action = isInCalendarGrid ? 'unschedule-publication' : 'delete-publication';
         const deleteTitle = isInCalendarGrid ? 'Retirer cette publication du calendrier' : 'Supprimer cette publication DÉFINITIVEMENT';
 
-        // Structure HTML unifiée pour la vignette
         const vignetteHTML = `
             <div class="unscheduled-publication-item-content">
                 <span class="unscheduled-publication-item-letter" style="background-color: ${galleryColor};">${letter}</span>
@@ -5957,8 +6025,12 @@ class PublicationOrganizer {
                 <span class="unscheduled-publication-item-label" title="${galleryName} - Publication ${letter}">${galleryName}</span>
             </div>
             <div class="vignette-actions">
-                <button class="vignette-action-btn" title="Télécharger cette publication" data-action="export-publication" data-gallery-id="${galleryId}" data-publication-id="${_id}" data-publication-letter="${letter}">💾</button>
-                <button class="vignette-action-btn danger" title="${deleteTitle}" data-action="${action}" data-publication-id="${_id}" data-gallery-id="${galleryId}" data-publication-letter="${letter}" data-date-str="${dateStr}">🗑️</button>
+                <button class="vignette-action-btn" title="Télécharger cette publication" data-action="export-publication" data-gallery-id="${galleryId}" data-publication-id="${_id}" data-publication-letter="${letter}">
+                    <img src="assets/download.png" alt="Exporter" class="vignette-icon">
+                </button>
+                <button class="vignette-action-btn danger" title="${deleteTitle}" data-action="${action}" data-publication-id="${_id}" data-gallery-id="${galleryId}" data-publication-letter="${letter}" data-date-str="${dateStr}">
+                    <img src="assets/bin.png" alt="Supprimer" class="vignette-icon">
+                </button>
             </div>
         `;
 
@@ -6052,8 +6124,12 @@ async function checkUserStatus() {
             if (data.loggedIn) {
                 document.getElementById('userInfo').textContent = `Connecté: ${data.username}`;
                 const profileImage = document.querySelector('#profileButton .profile-action-icon');
-                if (profileImage && data.user && data.user.picture) {
-                    profileImage.src = data.user.picture;
+                if (profileImage) {
+                    if (data.user && data.user.picture) {
+                        profileImage.src = data.user.picture;
+                    } else {
+                        profileImage.src = '/assets/profile.png?v=1.1';
+                    }
                 }
                 await startApp();
             } else {
@@ -6102,14 +6178,20 @@ async function startApp() {
             // 4. Récupérer le token CSRF
             await app.fetchCsrfToken();
         }
-        let galleryIdToLoad = localStorage.getItem('publicationOrganizer_lastGalleryId');
+        // Priorité de chargement améliorée
+        // 1) Dernière galerie sélectionnée par l'utilisateur
+        let galleryIdToLoad = localStorage.getItem('publicationOrganizer_lastUserSelectedGalleryId');
+        // 2) Sinon, dernière galerie visitée automatiquement
         if (!galleryIdToLoad) {
-            const response = await fetch(`${BASE_API_URL}/api/galleries?limit=1&sort=lastAccessed`);
+            galleryIdToLoad = localStorage.getItem('publicationOrganizer_lastGalleryId');
+        }
+        // 3) Sinon, prendre la première galerie (tri par nom croissant)
+        if (!galleryIdToLoad) {
+            const response = await fetch(`${BASE_API_URL}/api/galleries?limit=1&sort=name_asc`);
             if (response.ok) {
                 const galleries = await response.json();
                 if (galleries && galleries.length > 0) {
                     galleryIdToLoad = galleries[0]._id;
-                    localStorage.setItem('publicationOrganizer_lastGalleryId', galleryIdToLoad);
                 }
             }
         }
@@ -6520,15 +6602,17 @@ class CroppingPage {
         this.switchToGroupedViewBtn.classList.add('active');
         this.switchToEditorViewBtn.classList.remove('active');
         this.allPhotosGroupedViewContainer.style.display = 'block';
+        // Toujours laisser la barre latérale affichée pour conserver la grille à 3 colonnes
         this.autoCropSidebar.style.display = 'block';
         this.editorPanelElement.style.display = 'none';
         this.editorPlaceholderElement.style.display = 'none';
 
-        // --- MODIFICATION PRINCIPALE ---
-        if (this.jourListPanel) {
-            this.jourListPanel.style.display = 'none';
+        // Ajouter/retirer les classes d'état sur le conteneur central pour piloter la largeur via CSS
+        const editorContainer = document.getElementById('croppingEditorContainer');
+        if (editorContainer) {
+            editorContainer.classList.add('all-photos-view-active');
+            editorContainer.classList.remove('editor-view-active');
         }
-        // --- FIN DE LA MODIFICATION ---
 
         this.renderAllPhotosGroupedView();
     }
@@ -6543,7 +6627,8 @@ class CroppingPage {
         this.switchToGroupedViewBtn.classList.remove('active');
         this.switchToEditorViewBtn.classList.add('active');
         this.allPhotosGroupedViewContainer.style.display = 'none';
-        this.autoCropSidebar.style.display = 'none';
+        // Toujours laisser la barre latérale affichée et gérer la largeur via CSS
+        this.autoCropSidebar.style.display = 'block';
 
         // --- MODIFICATION PRINCIPALE ---
         // 'flex' est utilisé car c'est un conteneur flexbox
@@ -6551,6 +6636,13 @@ class CroppingPage {
             this.jourListPanel.style.display = 'flex';
         }
         // --- FIN DE LA MODIFICATION ---
+
+        // Mettre à jour les classes d'état sur le conteneur central
+        const editorContainer = document.getElementById('croppingEditorContainer');
+        if (editorContainer) {
+            editorContainer.classList.add('editor-view-active');
+            editorContainer.classList.remove('all-photos-view-active');
+        }
 
         if (publicationFrame && publicationFrame.imagesData.length > 0) {
             this.editorPanelElement.style.display = 'flex';

@@ -1,6 +1,116 @@
 /* ===============================
- Fichier: public/style.css (Version complète et corrigée)
+  Fichier: public/style.css (Version complète et corrigée)
 =============================== */
+
+/* Sélecteur de vue élargi */
+#viewModeSwitch {
+    max-width: 900px;
+    padding: 6px;
+    margin: 10px auto;
+}
+
+.view-mode-switch button {
+    padding: 12px 24px;
+    font-size: 1.1em;
+    font-weight: 600;
+    gap: 12px;
+    display: flex;
+    align-items: center;
+}
+
+.view-mode-icon {
+    width: 24px;
+    height: 24px;
+    transition: transform 0.2s ease;
+}
+
+.view-mode-switch button:hover .view-mode-icon {
+    transform: scale(1.1);
+}
+
+/* Gallery card styles */
+.photo-card {
+    background-color: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+}
+
+.view-mode-switch button {
+    padding: 12px 24px;
+    font-size: 1.1em;
+    font-weight: 600;
+    gap: 12px;
+    display: flex;
+    align-items: center;
+}
+
+.view-mode-icon {
+    width: 24px;
+    height: 24px;
+    transition: transform 0.2s ease;
+}
+
+.view-mode-switch button:hover .view-mode-icon {
+    transform: scale(1.1);
+}
+
+/* Styles existants */
+
+/* Sélecteur de vue élargi */
+#viewModeSwitch {
+    max-width: 900px;
+    padding: 6px;
+    margin: 10px auto;
+}
+
+.view-mode-switch button {
+    padding: 12px 24px;
+    font-size: 1.1em;
+    font-weight: 600;
+    gap: 12px;
+    display: flex;
+    align-items: center;
+}
+
+.view-mode-icon {
+    width: 24px;
+    height: 24px;
+    transition: transform 0.2s ease;
+}
+
+.view-mode-switch button:hover .view-mode-icon {
+    transform: scale(1.1);
+}
+
+/* Sélecteur de vue élargi */
+#viewModeSwitch {
+    max-width: 900px;
+    padding: 6px;
+    margin: 10px auto;
+}
+
+.view-mode-switch button {
+    padding: 12px 24px;
+    font-size: 1.1em;
+    font-weight: 600;
+    gap: 12px;
+    display: flex;
+    align-items: center;
+}
+
+.view-mode-icon {
+    width: 24px;
+    height: 24px;
+    transition: transform 0.2s ease;
+}
+
+.view-mode-switch button:hover .view-mode-icon {
+    transform: scale(1.1);
+}
+
+/* Styles existants préservés */
 
 :root {
     /* --neon-yellow: #E0FF00; -- Supprimé pour la cohérence de l'UI */
@@ -661,8 +771,8 @@ button.small-cancel-btn:hover {
 
 #imageGrid {
     display: grid;
-    gap: 5px;
-    padding: 5px;
+    gap: 8px;
+    padding: 8px;
 }
 
 .grid-item {
@@ -2369,9 +2479,7 @@ button.small-cancel-btn:hover {
 
 /* --- MODIFICATIONS POUR LA VUE ÉDITEUR --- */
 /* Quand l'éditeur est actif, le panneau central est normal */
-#croppingEditorContainer.editor-view-active {
-    /* Pas de style spécifique nécessaire, revient au défaut */
-}
+/* Règle vide supprimée pour éviter les avertissements CSS */
 
 /* Le panneau éditeur est visible */
 .editor-view-active #croppingEditorPanel {
@@ -3681,8 +3789,276 @@ button.small-cancel-btn:hover {
 /* Styles pour les conteneurs de groupe */
 .publication-group-container {
     margin-bottom: 25px;
+    background-color: #ffffff;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 15px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+    display: flex; /* Aligne le titre et le ruban horizontalement */
+    align-items: center; /* Centre verticalement le titre avec le ruban */
+    gap: 15px; /* Espace entre le titre et le ruban */
+    margin-bottom: 10px; /* Moins d'espace entre chaque publication */
+    padding: 15px;
 }
 
+.publication-group-header {
+    flex-shrink: 0; /* Empêche le titre de se rétrécir */
+    min-width: 150px; /* Largeur minimale pour la lisibilité */
+    text-align: center; /* Centre le texte dans son espace */
+    font-size: 1.1em;
+    font-weight: 600;
+    margin: 0;
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
+/* 3. Style du ruban d'images (prend l'espace restant) */
+.cropping-publication-ribbon {
+    flex-grow: 1; /* Fait en sorte que le ruban prenne tout l'espace restant */
+    min-height: 100px; /* Hauteur minimale réduite pour les publications vides */
+    padding: 10px; /* Padding interne réduit */
+}
+
+/* 4. Ajustement des vignettes pour la nouvelle taille du ruban */
+.cropping-publication-item {
+    width: 90px;
+    height: 90px;
+}
+
+/* 5. Ajustement du placeholder pour le drag & drop */
+.cropping-publication-ribbon .cropping-publication-item-placeholder,
+.cropping-publication-ribbon .publication-image-placeholder {
+    width: 90px;
+    height: 90px;
+}
+/* Styles for cropping tab view mode icons - Version finale unifiée */
+.view-mode-switch button:hover:not(.active) {
+    background-color: rgba(73, 80, 87, 0.1);
+    color: #495057;
+}
+
+.view-mode-icon {
+    width: 20px;
+    height: 20px;
+    object-fit: contain;
+}
+/* --- STY
+LES POUR LA LISTE DES PUBLICATIONS REGROUPÉES PAR GALERIE --- */
+.unscheduled-gallery-header {
+    margin-top: 15px;
+    padding: 8px 10px;
+    background-color: #e9ecef;
+    color: #495057;
+    font-weight: 600;
+    font-size: 0.9em;
+    border-radius: 4px;
+    border-bottom: 1px solid #dee2e6;
+    position: sticky;
+    top: -5px; /* Pour un effet "sticky" propre dans le conteneur */
+    z-index: 10;
+}
+
+#unscheduledPublicationsList .unscheduled-gallery-header:first-child {
+    margin-top: 0;
+}
+
+.unscheduled-publication-item-label {
+    font-size: 0.9em;
+    color: #343a40;
+    flex-grow: 1;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/*
+ --- STYLES POUR LE MENU PARAMÈTRES --- */
+.settings-container {
+    position: relative;
+    display: inline-block;
+}
+
+/* Styles génériques pour les menus déroulants */
+.dropdown-menu {
+    display: none;
+    position: absolute;
+    right: 0;
+    background-color: #ffffff;
+    min-width: 240px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.12);
+    z-index: 1001;
+    border-radius: 8px;
+    padding: 8px 0;
+    border: 1px solid #e9ecef;
+}
+
+.dropdown-menu a {
+    color: #212529;
+    padding: 10px 16px;
+    text-decoration: none;
+    display: block;
+    font-size: 0.9em;
+    transition: background-color 0.2s ease;
+}
+
+.dropdown-menu a:hover {
+    background-color: #f8f9fa;
+}
+
+.dropdown-menu .disabled {
+    color: #adb5bd;
+    pointer-events: none;
+    background-color: transparent;
+}
+
+.dropdown-divider {
+    height: 1px;
+    margin: 8px 0;
+    overflow: hidden;
+    background-color: #e9ecef;
+}
+
+.dropdown-header {
+    padding: 10px 16px;
+    font-size: 0.8em;
+    font-weight: 600;
+    color: #6c757d;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+/* La classe .show sera ajoutée par JS pour afficher le menu */
+.dropdown-menu.show {
+    display: block;
+    animation: fadeInDown 0.2s ease-out;
+}
+
+@keyframes fadeInDown {
+    from {
+        opacity: 0;
+        transform: translateY(-10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Amélioration de l'espacement des conteneurs de profil et paramètres */
+.profile-container,
+.settings-container {
+    margin-left: 8px;
+}
+
+.profile-container:first-child,
+.settings-container:first-child {
+    margin-left: 0;
+}
+
+/* =
+=========================================================
+   STYLES ISOLÉS POUR LES RUBANS D'ÉDITION EN VUE GROUPÉE
+   ========================================================== */
+
+.cropping-publication-ribbon {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px; /* Un peu plus d'espace */
+    padding: 15px;
+    min-height: 150px; /* Hauteur minimale pour la zone de dépôt */
+    background-color: #f0f2f5;
+    border: 2px dashed #d1d5db;
+    border-radius: 8px;
+    align-content: flex-start;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+/* Style de survol de la zone de dépôt, conservé comme demandé */
+.cropping-publication-ribbon.drag-over {
+    background-color: #e3f2fd;
+    border-color: #2196f3;
+}
+
+.publication-group-empty-text {
+    width: 100%;
+    text-align: center;
+    align-self: center;
+    color: #6c757d;
+    font-style: italic;
+}
+
+/* Vignettes d'images plus grandes et isolées pour la vue de recadrage */
+.cropping-publication-item {
+    width: 120px;
+    height: 120px;
+    cursor: grab;
+    position: relative;
+    background-size: contain;
+    background-repeat: no-repeat;
+    background-position: center;
+    background-color: #ffffff;
+    border: 1px solid #adb5bd;
+    border-radius: 6px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.07);
+    transition: transform 0.2s ease-out, box-shadow 0.2s ease-out; /* Effet de transition doux */
+}
+
+/* Effet au survol : léger agrandissement sans rotation */
+.cropping-publication-item:hover {
+    transform: scale(1.04); /* Pas de rotation */
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+    z-index: 10;
+}
+
+.cropping-publication-item:active {
+    cursor: grabbing;
+}
+
+/* Style pour l'élément en cours de déplacement */
+.cropping-publication-item.dragging-publication-item {
+    opacity: 0.5;
+    transform: scale(1.05); /* Agrandissement pendant le glisser */
+    box-shadow: 0 6px 15px rgba(0,0,0,0.2);
+}
+
+/* Bouton de suppression adapté */
+.cropping-publication-item .delete-btn {
+    position: absolute;
+    top: -8px;
+    right: -8px;
+    width: 24px;
+    height: 24px;
+    line-height: 22px;
+    font-size: 18px;
+    background-color: rgba(220, 53, 69, 0.85);
+    color: white;
+    border: none;
+    border-radius: 50%;
+    cursor: pointer;
+    /* opacity: 0; Removed to keep delete button always visible */
+    transition: opacity 0.2s, background-color 0.2s;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: bold;
+}
+
+.cropping-publication-item .delete-btn:hover {
+    background-color: #dc3545;
+}
+
+/* Placeholder pour la réorganisation, adapté à la nouvelle taille */
+.cropping-publication-ribbon .publication-image-placeholder {
+    width: 120px;
+    height: 120px;
+    background-color: rgba(33, 150, 243, 0.15);
+    border: 2px dashed #2196f3;
+    border-radius: 6px;
+}
+
+/* Styles pour les conteneurs de groupe */
+.publication-group-container {
+    margin-bottom: 25px;
     background-color: #ffffff;
     border: 1px solid #dee2e6;
     border-radius: 8px;
@@ -4162,4 +4538,93 @@ LES POUR LA LISTE DES PUBLICATIONS REGROUPÉES PAR GALERIE --- */
     border-left: 1px solid #dee2e6;
     height: 100%;
     overflow-y: auto;
+}
+
+/*
+========================================================== 
+--- STYLES POUR LES ICÔNES DES VIGNETTES DU CALENDRIER ---
+========================================================== 
+*/
+
+/* Ajustement du bouton pour qu'il contienne bien une icône */
+.vignette-action-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(255, 255, 255, 0.7);
+    border-radius: 50%;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: 1px solid rgba(0, 0, 0, 0.1);
+    box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+    transition: background-color 0.2s, transform 0.2s;
+    font-size: 1rem;
+    color: inherit;
+    text-shadow: none;
+}
+
+.vignette-action-btn:hover {
+    background-color: #ffffff;
+    transform: scale(1.1);
+}
+
+/* Style spécifique pour le survol du bouton supprimer */
+.vignette-action-btn.danger:hover {
+    background-color: #f8d7da;
+}
+
+/* Style de l'icône à l'intérieur du bouton */
+.vignette-icon {
+    width: 14px;
+    height: 14px;
+    object-fit: contain;
+}
+
+/* ========================================================== */
+/* --- CORRECTIONS RECADRAGE: CENTRAGE + AMÉLIORATIONS UI --- */
+/* ========================================================== */
+
+/* Forcer une grille 3 colonnes pour stabiliser le centrage du sélecteur */
+.cropping-layout {
+    display: grid !important;
+    grid-template-columns: auto 1fr auto;
+    gap: 15px;
+    height: calc(100vh - 150px);
+}
+
+/* Barre latérale: largeur par défaut et transitions douces */
+#autoCropSidebar {
+    width: 320px;
+    transition: width 0.3s ease-in-out, opacity 0.3s ease-in-out, padding 0.3s ease-in-out;
+    opacity: 1;
+    overflow: hidden; /* cache le contenu pendant la transition */
+}
+
+/* En vue éditeur, on réduit la colonne de droite à zéro pour préserver la grille */
+#croppingEditorContainer.editor-view-active + #autoCropSidebar {
+    width: 0;
+    padding-left: 0;
+    opacity: 0;
+    border-left: none;
+}
+
+/* En vue d'ensemble, on rétablit la visibilité pleine de la barre latérale */
+#croppingEditorContainer.all-photos-view-active + #autoCropSidebar {
+    width: 320px;
+    opacity: 1;
+}
+
+/* --- AMÉLIORATIONS UI DE L'ONGLET RECADRAGE --- */
+#croppingEditorContainer #viewModeSwitch {
+    max-width: 600px;
+    border: 2px solid #ced4da;
+    margin-top: 5px;
+    margin-bottom: 15px;
+}
+
+#croppingEditorPanel {
+    padding: 10px;
+    border: none;
+    box-shadow: none;
 }

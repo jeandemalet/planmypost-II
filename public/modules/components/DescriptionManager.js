@@ -450,6 +450,12 @@ class DescriptionManager extends BaseComponent {
      * Clear editor
      */
     clearEditor() {
+        // Safety check to ensure DOM elements are initialized
+        if (!this.editorTitleElement) {
+            this.logger.warn('DescriptionManager DOM elements not initialized yet, skipping clearEditor');
+            return;
+        }
+        
         this.editorTitleElement.textContent = 'Sélectionnez une publication';
         this.editorElement.innerHTML = '';
         this.editorElement.classList.remove('structured');
