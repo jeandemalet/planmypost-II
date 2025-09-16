@@ -444,13 +444,16 @@ button.small-cancel-btn:hover {
     flex-grow: 1;
     display: flex;
     flex-direction: column;
-    height: calc(100vh - 180px);
+    height: auto !important; /* Dynamic height to prevent overflow at zoom */
+    min-height: auto !important; /* Remove viewport constraint */
+    max-height: none !important; /* Allow unlimited growth */
     background-color: #ffffff;
     padding: 20px;
     border: 1px solid #dee2e6;
     border-radius: 8px;
     box-shadow: 0 2px 5px rgba(0,0,0,0.05);
     position: relative;
+    overflow: visible; /* Allow content to expand naturally */
 }
 #galleryPreviewPlaceholder {
     text-align: center;
@@ -2489,7 +2492,17 @@ button.small-cancel-btn:hover {
 
 /* Le conteneur de la vue d'ensemble est caché */
 .editor-view-active #allPhotosGroupedViewContainer {
-    display: none;
+    display: none !important;
+}
+
+/* Le panneau éditeur est caché en vue d'ensemble */
+.all-photos-view-active #croppingEditorPanel {
+    display: none !important;
+}
+
+/* Le conteneur de la vue d'ensemble est visible */
+.all-photos-view-active #allPhotosGroupedViewContainer {
+    display: block !important;
 }
 
 /* La barre latérale est cachée en vue éditeur */
@@ -4798,39 +4811,215 @@ LES POUR LA LISTE DES PUBLICATIONS REGROUPÉES PAR GALERIE --- */
     max-width: none !important;
 }
 
-/* ===========================
-   FIX: SIMPLE CLEAN FILMSTRIP STYLING
-   =========================== */
+/* ============================================
+   CONTAINER CONFINEMENT FIX - PREVENTS CONTENT SPILLING AT ALL ZOOM LEVELS
+   ============================================ */
 
-/* Reset filmstrip to original working state */
-#croppingThumbnailStrip {
-    display: flex;
-    gap: 8px;
-    padding: 10px;
-    background-color: transparent;
-    border-radius: 8px;
-    overflow-x: auto;
-    overflow-y: hidden;
-    height: 80px;
-    box-sizing: border-box;
-    align-items: center;
-    scrollbar-width: thin;
-    scrollbar-color: #ccc transparent;
+   /* CRITICAL: Make container height dynamic and adapt to content */
+   #croppingEditorPanel {
+       height: auto !important; /* ESSENTIAL: Dynamic height based on content */
+       min-height: auto !important; /* Remove minimum height constraint */
+       max-height: none !important; /* Remove maximum height constraint */
+       overflow: visible !important; /* Allow natural content expansion */
+       box-sizing: border-box !important; /* Ensure proper sizing calculations */
+       display: flex !important;
+       flex-direction: column !important; /* Stack elements vertically */
+   }
+
+   /* Base filmstrip styling - responsive and stable */
+   #croppingThumbnailStrip {
+       display: flex;
+       gap: 8px;
+       padding: 10px;
+       background-color: transparent;
+       border-radius: 8px;
+       overflow-x: auto;
+       overflow-y: hidden;
+       height: 80px;
+       max-height: 80px; /* Limit filmstrip height specifically */
+       box-sizing: border-box;
+       align-items: center;
+       scrollbar-width: thin;
+       scrollbar-color: #ccc transparent;
+       flex-shrink: 0; /* Prevent filmstrip from shrinking */
+   }
+
+   #croppingThumbnailStrip::-webkit-scrollbar {
+       height: 4px;
+   }
+
+   #croppingThumbnailStrip::-webkit-scrollbar-track {
+       background: transparent;
+   }
+
+   #croppingThumbnailStrip::-webkit-scrollbar-thumb {
+       background: #ccc;
+       border-radius: 2px;
+   }
+
+   #croppingThumbnailStrip::-webkit-scrollbar-thumb:hover {
+       background: #999;
+   }
+
+   /* Ensure proper layout hierarchy for containment */
+   #croppingEditorContainer {
+       height: auto !important; /* Dynamic height for container */
+       min-height: auto !important;
+       max-height: none !important;
+       overflow: visible !important;
+       flex: 1 !important; /* Allow growth but respect parent constraints */
+       display: flex !important;
+       flex-direction: column !important;
+   }
+
+   /* Page layout adjustments for proper containment */
+   .cropping-layout {
+       height: auto !important; /* Adapt to content instead of fixed viewport units */
+       min-height: auto !important; /* Remove viewport calculations that break at zoom */
+       max-height: none !important; /* Allow unlimited growth for zoom compatibility */
+       display: flex !important;
+       flex-direction: row !important;
+       gap: 15px;
+       align-items: flex-start; /* Use flex-start instead of stretch for natural height */
+   }
+
+   /* Sidebar containment adjustments */
+   #autoCropSidebar {
+       height: auto !important; /* Match content height */
+       max-height: calc(100vh - 200px); /* Reasonable upper limit for readability */
+       overflow-y: auto !important; /* Scroll if too tall instead of spilling */
+   }
+
+   /* Left panel containment */
+   #croppingPublicationListPanel {
+       height: auto !important;
+       max-height: calc(100vh - 180px); /* Match existing pattern */
+       overflow-y: auto !important;
+   }
+
+/* ============================================
+   CRITICAL FIX: SQUARE THUMBNAILS FOR 120% ZOOM
+   ============================================ */
+
+/* Force perfect square aspect ratio for all thumbnails */
+.cropping-thumbnail-item,
+.crop-strip-thumb,
+.cropping-publication-item {
+    flex-shrink: 0 !important;
+    width: 60px !important;  /* Fixed width for consistent sizing */
+    height: 60px !important; /* Fixed height = width for perfect square */
+    aspect-ratio: 1 / 1;      /* Modern CSS: guarantees perfect square at all zoom levels */
+    box-sizing: border-box !important;
+    border-radius: 6px !important;
+    overflow: hidden !important;
+    border: 2px solid transparent !important;
+    position: relative !important;
 }
 
-#croppingThumbnailStrip::-webkit-scrollbar {
-    height: 4px;
+/* Perfect image fitting within square containers */
+.cropping-thumbnail-item img,
+.crop-strip-thumb img,
+.cropping-publication-item img {
+    width: 100% !important;
+    height: 100% !important;
+    object-fit: cover !important; /* KEY: covers square without distortion */
+    object-position: center !important;
+    display: block !important;
+    border-radius: 4px !important;
 }
 
-#croppingThumbnailStrip::-webkit-scrollbar-track {
-    background: transparent;
+/* Hover effects for thumbnails - subtle scaling */
+.cropping-thumbnail-item:not(.active):hover,
+.crop-strip-thumb:not(.active-crop-thumb):hover,
+.cropping-publication-item:not(.active):hover {
+    transform: scale(1.05);
+    transition: transform 0.2s ease;
 }
 
-#croppingThumbnailStrip::-webkit-scrollbar-thumb {
-    background: #ccc;
-    border-radius: 2px;
+/* Active state styling */
+.cropping-thumbnail-item.active,
+.crop-strip-thumb.active-crop-thumb {
+    border-color: #007bff !important;
+    box-shadow: 0 0 8px rgba(0, 123, 255, 0.3) !important;
 }
 
-#croppingThumbnailStrip::-webkit-scrollbar-thumb:hover {
-    background: #999;
+/* ============================================
+   ULTRA-FLEXIBLE WRAPPER - STABLE ACROSS ALL ZOOM LEVELS (110%, 120%, 150%)
+   ============================================ */
+
+/* Ultimate wrapper container - maintains perfect alignment at all zoom levels */
+#croppingEditorWrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important; /* CRITICAL: Allows complete compression */
+    box-sizing: border-box !important;
+    display: flex !important;
+    flex-direction: column !important;
+    align-items: stretch !important;
+    justify-content: flex-start !important;
+    gap: 0 !important;
+}
+
+/* CRITICAL: Remove all min-width constraints that prevent compression */
+#croppingEditorWrapper > .cropper-main-area,
+#croppingEditorWrapper > .cropper-controls,
+#croppingEditorWrapper > #croppingThumbnailStrip {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important; /* ESSENTIAL: Allows elements to shrink to nothing */
+    box-sizing: border-box !important;
+    flex-shrink: 1 !important; /* ENABLE: Allows proper shrinking behavior */
+    flex-basis: auto !important; /* RESET: Natural sizing */
+}
+
+/* Perfect unified compression at 150% zoom - main editor */
+#croppingEditorWrapper > .cropper-main-area {
+    margin: 0 !important;
+    padding: 0 !important;
+    flex-grow: 1 !important; /* Grows to fill space */
+    flex-shrink: 1 !important; /* Shrinks when space is limited */
+}
+
+/* Controls bar - follows main editor compression */
+#croppingEditorWrapper > .cropper-controls {
+    margin: 0 !important;
+    padding: 10px !important;
+    flex-shrink: 1 !important; /* Matches shrinking behavior */
+    flex-grow: 0 !important; /* Maintains its natural size when space allows */
+    flex-basis: auto !important;
+}
+
+/* Filmstrip - perfectly matches compression of other elements */
+#croppingEditorWrapper > #croppingThumbnailStrip {
+    width: 100% !important;
+    min-width: 0 !important; /* CRITICAL: Allows complete shrinking */
+    margin: 0 !important;
+    padding: 10px !important;
+    align-self: stretch !important;
+    flex-grow: 0 !important; /* Maintains natural size */
+    flex-shrink: 1 !important; /* Matches shrinking behavior */
+    flex-basis: auto !important;
+}
+
+/* ============================================
+   FINAL COMPRESSION FIX FOR 150% ZOOM BREAKPOINT
+   ============================================ */
+
+/* Remove any residual min-width constraints from all nested elements */
+#croppingEditorWrapper *,
+#croppingEditorWrapper *::before,
+#croppingEditorWrapper *::after {
+    min-width: 0 !important; /* Ensures ALL elements can compress */
+}
+
+/* CRITICAL: Ensure thumbnails can shrink within filmstrip */
+.cropping-thumbnail-item,
+.crop-strip-thumb,
+.cropping-publication-item {
+    flex-shrink: 1 !important; /* Allow flexible shrinking */
+    width: 60px !important;
+    height: 60px !important;
+    min-width: 60px !important; /* Maintain minimum usability for thumbnails */
+    min-height: 60px !important;
+}
 }
