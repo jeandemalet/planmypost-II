@@ -4741,3 +4741,96 @@ LES POUR LA LISTE DES PUBLICATIONS REGROUPÉES PAR GALERIE --- */
     margin-bottom: 0px !important;
     padding: 10px !important;
 }
+
+/* ===============================================
+   UNIFIED RESPONSIVE CROPPING EDITOR WRAPPER
+   =============================================== */
+
+ /* The wrapper container provides unified alignment for the cropper elements */
+#croppingEditorWrapper {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    align-items: stretch; /* Ensures child elements stretch to full width */
+    justify-content: flex-start;
+}
+
+/* Ensure all child elements of the wrapper occupy 100% of the wrapper width */
+#croppingEditorWrapper > .cropper-main-area,
+#croppingEditorWrapper > .cropper-controls,
+#croppingEditorWrapper > #croppingThumbnailStrip {
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box !important;
+    flex-shrink: 0; /* Prevents flexbox from shrinking elements */
+}
+
+/* PERFECT CONTAINER ALIGNMENT: Consistent constraints for unified behavior */
+#croppingEditorWrapper > .cropper-main-area {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
+
+#croppingEditorWrapper > .cropper-controls {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 10px !important;
+}
+
+#croppingEditorWrapper > #croppingThumbnailStrip {
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 10px !important;
+}
+
+/* RESET any existing layout rules that might interfere with responsive alignment */
+#croppingEditorPanel .cropper-main-area,
+#croppingEditorPanel .cropper-controls,
+#croppingEditorPanel .cropping-thumbnail-strip {
+    min-width: auto !important;
+    max-width: none !important;
+}
+
+/* ===========================
+   FIX: SIMPLE CLEAN FILMSTRIP STYLING
+   =========================== */
+
+/* Reset filmstrip to original working state */
+#croppingThumbnailStrip {
+    display: flex;
+    gap: 8px;
+    padding: 10px;
+    background-color: transparent;
+    border-radius: 8px;
+    overflow-x: auto;
+    overflow-y: hidden;
+    height: 80px;
+    box-sizing: border-box;
+    align-items: center;
+    scrollbar-width: thin;
+    scrollbar-color: #ccc transparent;
+}
+
+#croppingThumbnailStrip::-webkit-scrollbar {
+    height: 4px;
+}
+
+#croppingThumbnailStrip::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+#croppingThumbnailStrip::-webkit-scrollbar-thumb {
+    background: #ccc;
+    border-radius: 2px;
+}
+
+#croppingThumbnailStrip::-webkit-scrollbar-thumb:hover {
+    background: #999;
+}

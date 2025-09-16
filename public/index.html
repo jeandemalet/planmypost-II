@@ -220,38 +220,41 @@
                     </div>
 
                     <div id="croppingEditorPanel" style="display: none;">
-                        <div class="cropper-main-area">
-                            <div class="cropper-canvas-container">
-                                <canvas id="cropperCanvas"></canvas>
-                            </div>
-                            <div class="cropper-right-panel">
-                                <div class="cropper-previews">
-                                    <!-- Preview title removed -->
-                                    <img id="cropperPreviewLeft" alt="Aperçu Gauche">
-                                    <img id="cropperPreviewCenter" alt="Aperçu Milieu">
-                                    <img id="cropperPreviewRight" alt="Aperçu Droit">
+                        <!-- UNIFIED WRAPPER CONTAINER FOR RESPONSIVE ALIGNMENT -->
+                        <div id="croppingEditorWrapper">
+                            <div class="cropper-main-area">
+                                <div class="cropper-canvas-container">
+                                    <canvas id="cropperCanvas"></canvas>
                                 </div>
-                                <!-- LE BLOC DE RECADRAGE AUTO A ÉTÉ DÉPLACÉ D'ICI... -->
+                                <div class="cropper-right-panel">
+                                    <div class="cropper-previews">
+                                        <!-- Preview title removed -->
+                                        <img id="cropperPreviewLeft" alt="Aperçu Gauche">
+                                        <img id="cropperPreviewCenter" alt="Aperçu Milieu">
+                                        <img id="cropperPreviewRight" alt="Aperçu Droit">
+                                    </div>
+                                    <!-- LE BLOC DE RECADRAGE AUTO A ÉTÉ DÉPLACÉ D'ICI... -->
+                                </div>
                             </div>
-                        </div>
-                        <div class="cropper-controls">
+                            <div class="cropper-controls">
                             <button id="cropPrevImageBtn" title="Image précédente" data-i18n-title="tooltips.previousImage"><img src="assets/previous.png?v=1.1" alt="Précédent" loading="lazy"></button>
-                            <button id="cropNextImageBtn" title="Image suivante" data-i18n-title="tooltips.nextImage"><img src="assets/next.png?v=1.1" alt="Suivant" loading="lazy"></button>
-                            <button id="cropFlipBtn" title="Retourner Horizontalement" data-i18n-title="tooltips.flipHorizontal"><img src="assets/turn-around.png?v=1.1" alt="Retourner" loading="lazy"></button>
-                            <select id="cropAspectRatio">
-                                <option value="3:4" data-i18n="cropping.aspectRatios.3:4">3:4 (Vertical)</option>
-                                <option value="1:1" data-i18n="cropping.aspectRatios.1:1">1:1 (Carré)</option>
-                                <option value="16:9" data-i18n="cropping.aspectRatios.16:9">16:9 (Paysage)</option>
-                                <option value="3:2" data-i18n="cropping.aspectRatios.3:2">3:2 (Paysage)</option>
-                                <option value="free" data-i18n="cropping.aspectRatios.free">Libre</option>
-                            </select>
-                            <button id="cropAddWhiteBarsBtn" title="Ajouter des barres blanches (format 3:4)" data-i18n-title="tooltips.addWhiteBars"><img src="assets/barres-blanches.png?v=1.1" alt="Barres Blanches"></button>
-                            <button id="cropSplitLineBtn" title="Diviser l'image pour un carrousel" data-i18n-title="tooltips.splitImage"><img src="assets/split.png?v=1.1" alt="Split"></button>
-                            <button id="cropDeleteBtn" title="Supprimer et passer à la suivante" data-i18n-title="tooltips.deleteImage"><img src="assets/bin.png?v=1.1" alt="Supprimer"></button>
-                            <button id="cropFinishBtn" class="primary-action" title="Terminer et appliquer les recadrages" data-i18n-title="tooltips.finishCropping"><img src="assets/confirm.png?v=1.1" alt="Terminer et Appliquer"></button>
-                            <div id="cropperInfoLabel"></div>
+                                <button id="cropNextImageBtn" title="Image suivante" data-i18n-title="tooltips.nextImage"><img src="assets/next.png?v=1.1" alt="Suivant" loading="lazy"></button>
+                                <button id="cropFlipBtn" title="Retourner Horizontalement" data-i18n-title="tooltips.flipHorizontal"><img src="assets/turn-around.png?v=1.1" alt="Retourner" loading="lazy"></button>
+                                <select id="cropAspectRatio">
+                                    <option value="3:4" data-i18n="cropping.aspectRatios.3:4">3:4 (Vertical)</option>
+                                    <option value="1:1" data-i18n="cropping.aspectRatios.1:1">1:1 (Carré)</option>
+                                    <option value="16:9" data-i18n="cropping.aspectRatios.16:9">16:9 (Paysage)</option>
+                                    <option value="3:2" data-i18n="cropping.aspectRatios.3:2">3:2 (Paysage)</option>
+                                    <option value="free" data-i18n="cropping.aspectRatios.free">Libre</option>
+                                </select>
+                                <button id="cropAddWhiteBarsBtn" title="Ajouter des barres blanches (format 3:4)" data-i18n-title="tooltips.addWhiteBars"><img src="assets/barres-blanches.png?v=1.1" alt="Barres Blanches"></button>
+                                <button id="cropSplitLineBtn" title="Diviser l'image pour un carrousel" data-i18n-title="tooltips.splitImage"><img src="assets/split.png?v=1.1" alt="Split"></button>
+                                <button id="cropDeleteBtn" title="Supprimer et passer à la suivante" data-i18n-title="tooltips.deleteImage"><img src="assets/bin.png?v=1.1" alt="Supprimer"></button>
+                                <button id="cropFinishBtn" class="primary-action" title="Terminer et appliquer les recadrages" data-i18n-title="tooltips.finishCropping"><img src="assets/confirm.png?v=1.1" alt="Terminer et Appliquer"></button>
+                                <div id="cropperInfoLabel"></div>
+                            </div>
+                            <div id="croppingThumbnailStrip" class="cropping-thumbnail-strip"></div>
                         </div>
-                        <div id="croppingThumbnailStrip" class="cropping-thumbnail-strip"></div>
                     </div>
                     <p id="croppingEditorPlaceholder">Aucune publication sélectionnée.</p>
                 </div>
