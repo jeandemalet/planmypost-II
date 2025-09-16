@@ -1630,25 +1630,21 @@ button.small-cancel-btn:hover {
 .cropper-main-area {
     display: flex;
     flex-grow: 1;
-    gap: 15px;
+    gap: 20px;
     overflow: hidden;
     margin-bottom: 15px;
-    align-items: stretch; /* <<-- CORRECTION APPLIQUÉE */
+    align-items: flex-start;
 }
 .cropper-canvas-container {
-    flex-grow: 1;
-    flex-shrink: 1;
+    flex: 1 1 auto;
     display: flex;
     align-items: center;
     justify-content: center;
     aspect-ratio: 1 / 1;
-    max-height: calc(100vh - 300px);
-    min-width: 0;
+    max-height: min(calc(100vh - 300px), 700px);
+    min-height: max(400px, calc(100vh - 500px));
     background-color: #2e2e2e;
     border-radius: 8px;
-    min-height: 400px; /* Empêche l'effondrement du canvas */
-    min-width: 400px;  /* Empêche l'effondrement du canvas */
-    position: relative; /* Assure le positionnement */
 }
 #cropperCanvas {
     max-width: 100%;
@@ -1657,11 +1653,14 @@ button.small-cancel-btn:hover {
     cursor: crosshair;
 }
 .cropper-right-panel {
+    flex: 0 0 200px;
     display: flex;
     flex-direction: column;
-    width: 260px;
-    min-width: 260px;
     gap: 15px;
+    padding: 10px;
+    background-color: #f9f9f9;
+    border: 1px solid #ccc;
+    border-radius: 8px;
 }
 .cropper-previews {
     width: 100%;
@@ -1689,6 +1688,8 @@ button.small-cancel-btn:hover {
 
 #cropperPreviewLeft, #cropperPreviewCenter, #cropperPreviewRight {
     max-width: 100%;
+    width: 80px;
+    height: 80px;
     border: 1px solid #ddd;
     margin-bottom: 10px;
     background-color: lightgrey;
@@ -3323,9 +3324,9 @@ button.small-cancel-btn:hover {
 .cropper-main-area {
     display: flex;
     flex-grow: 1;
-    gap: 15px;
+    gap: 8px;
     overflow: hidden;
-    margin-bottom: 15px;
+    margin-bottom: 5px;
     align-items: stretch;
     min-height: 0; /* Correction pour éviter le dépassement du conteneur */
 }
@@ -3336,8 +3337,8 @@ button.small-cancel-btn:hover {
     display: flex;
     align-items: center;
     justify-content: center;
-    aspect-ratio: 1 / 1;
-    max-height: calc(100vh - 300px);
+    aspect-ratio: 16 / 9;
+    max-height: calc(100vh - 400px);
     min-width: 0;
 }
 
@@ -4594,6 +4595,20 @@ LES POUR LA LISTE DES PUBLICATIONS REGROUPÉES PAR GALERIE --- */
     height: calc(100vh - 150px);
 }
 
+@media (max-width: 1200px) {
+    .cropping-layout {
+        grid-template-columns: 240px 1fr 280px;
+    }
+}
+
+@media (max-width: 900px) {
+    .cropping-layout {
+        grid-template-columns: 1fr;
+        grid-template-rows: auto 1fr auto;
+        gap: 10px;
+    }
+}
+
 /* Barre latérale: largeur par défaut et transitions douces */
 #autoCropSidebar {
     width: 320px;
@@ -4628,4 +4643,31 @@ LES POUR LA LISTE DES PUBLICATIONS REGROUPÉES PAR GALERIE --- */
     padding: 10px;
     border: none;
     box-shadow: none;
+}
+
+/*
+--- LAYOUT OPTIMIZATIONS FOR CROPPING INTERFACE COMPACT DESIGN ---
+*/
+
+/* Reduce vertical margins and spacing around the cropping main area */
+.cropper-main-area {
+    gap: 4px !important; /* reduce gap from default 20px/8px to 4px */
+    margin-bottom: 5px !important; /* reduce bottom margin to compact the layout */
+}
+
+/* Optimize the right sidebar width to better utilize space */
+#autoCropSidebar {
+    width: 260px !important; /* reduce from 320px to 260px for better balance */
+    min-width: 240px !important;
+}
+
+/* Reduce padding in cropping controls bar for more compact appearance */
+.cropper-controls {
+    padding: 10px !important; /* reduce from 15px to 10px */
+    margin-bottom: 10px !important; /* reduce from 15px to 10px */
+}
+
+/* Reduce margin top for cropping thumbnail strip */
+.cropping-thumbnail-strip {
+    margin-top: 10px !important; /* reduce from 15px to 10px */
 }
