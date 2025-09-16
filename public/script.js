@@ -1420,12 +1420,17 @@ class CroppingManager {
         this.debouncedUpdatePreview = Utils.debounce(() => this.updatePreview(), 150);
         this.debouncedHandleResize = Utils.debounce(() => this._handleResize(), 50);
         this._initListeners();
-        // Cache d'images pour éviter les rechargements inutiles
+        // Cache d'images pour éviter les rechargements inutiles (optimisé)
         this.imageCache = new Map();
         // Taille précédente du conteneur pour éviter les redimensionnements inutiles
         this.lastContainerSize = { width: 0, height: 0 };
         // Indicateur d'initialisation de smartcrop
         this.smartcropInitialized = false;
+        // NOUVEAU : Système de préchargement et cache optimisé
+        this.preloadPromises = new Map(); // Suivre les préchargements en cours
+        this.preloadedImages = new Set(); // Images déjà préchargées
+        this.cacheSizeLimit = 10; // Limiter le cache à 10 images maximum
+        this.cacheAccessOrder = new Array(); // Ordre d'accès au cache pour LRU
     }
 
     _initListeners() {
@@ -1857,6 +1862,108 @@ class CroppingManager {
         await this.loadCurrentImage();
     }
 
+    // NOUVELLE MÉTHODE : Préchargement des images adjacentes pour optimiser la navigation
+    async preLoadAdjacentImages() {
+        const currentIndex = this.currentImageIndex;
+
+        // Précharger 2 images après et 2 images avant
+        const indicesToPreload = [];
+        for (let i = 1; i <= 2; i++) {
+            const nextIndex = currentIndex + i;
+            const prevIndex = currentIndex - i;
+
+            if (nextIndex < this.imagesToCrop.length) indicesToPreload.push(nextIndex);
+            if (prevIndex >= 0) indicesToPreload.push(prevIndex);
+        }
+
+        // Pour chaque indice candidat au préchargement
+        for (const index of indicesToPreload) {
+            const imgInfo = this.imagesToCrop[index];
+            const imageUrl = imgInfo.baseImageToCropFromDataURL;
+
+            // Vérifier si déjà en cours de préchargement
+            if (this.preloadPromises.has(imageUrl)) continue;
+
+            // Vérifier si déjà préchargée et dans le cache
+            if (this.preloadedImages.has(imageUrl) && this.imageCache.has(imageUrl)) continue;
+
+            // Lancer le préchargement asynchrone
+            const preloadPromise = this.looadImageForCache(imageUrl);
+            this.preloadPromises.set(imageUrl, preloadPromise);
+
+            try {
+                const image = await preloadPromise;
+                this.addImageToCache(imageUrl, image);
+                this.preloadedImages.add(imageUrl);
+                this.preloadPromises.delete(imageUrl);
+                console.log(`[CroppingManager] ✅ Préchargement réussi: index ${index}, URL: ${imageUrl.substring(0, 100)}...`);
+            } catch (error) {
+                console.warn(`[CroppingManager] ⚠️ Échec du préchargement: index ${index}, URL: ${imageUrl.substring(0, 100)}...`, error.message);
+                this.preloadPromises.delete(imageUrl);
+            }
+        }
+    }
+
+    // NOUVELLE MÉTHODE : Charger une image spécifiquement pour le cache
+    async looadImageForCache(imageUrl) {
+        return new Promise((resolve, reject) => {
+            const img = new Image();
+            img.crossOrigin = "Anonymous";
+            img.onload = () => resolve(img);
+            img.onerror = (err) => reject(err);
+            img.src = imageUrl;
+        });
+    }
+
+    // NOUVELLE MÉTHODE : Récupérer une image depuis le cache
+    getImageFromCache(imageUrl) {
+        if (this.imageCache.has(imageUrl)) {
+            // Mettre à jour l'ordre d'accès pour LRU
+            const accessIndex = this.cacheAccessOrder.indexOf(imageUrl);
+            if (accessIndex > -1) {
+                this.cacheAccessOrder.splice(accessIndex, 1);
+            }
+            this.cacheAccessOrder.unshift(imageUrl);
+            return this.imageCache.get(imageUrl);
+        }
+        return null;
+    }
+
+    // NOUVELLE MÉTHODE : Ajouter une image au cache avec gestion LRU
+    addImageToCache(imageUrl, imageObject) {
+        // Nettoyer le cache si nécessaire (éviter la pollution mémoire)
+        this.cleanupCache();
+
+        this.imageCache.set(imageUrl, imageObject);
+        this.cacheAccessOrder.unshift(imageUrl);
+
+        // Limiter la taille du cache
+        if (this.cacheAccessOrder.length > this.cacheSizeLimit) {
+            const oldestUrl = this.cacheAccessOrder.pop();
+            if (oldestUrl && this.imageCache.has(oldestUrl)) {
+                this.imageCache.delete(oldestUrl);
+            }
+        }
+
+        console.log(`[CroppingManager] 📦 Cache mis à jour: ${this.imageCache.size}/${this.cacheSizeLimit} images en mémoire`);
+    }
+
+    // NOUVELLE MÉTHODE : Nettoyer le cache pour éviter les fuites mémoire
+    cleanupCache() {
+        // Supprimer les images non utilisées depuis plus de 10 minutes (indiquées par leur absence dans le cache LRU)
+        const cutoffIndex = Math.min(this.cacheSizeLimit, this.cacheAccessOrder.length - 5); // Garder les 5 plus récentes
+        for (let i = cutoffIndex; i < this.cacheAccessOrder.length; i++) {
+            const oldUrl = this.cacheAccessOrder[i];
+            if (this.imageCache.has(oldUrl)) {
+                this.imageCache.delete(oldUrl);
+            }
+        }
+        if (this.cacheAccessOrder.length > this.cacheSizeLimit * 2) {
+            // En cas d'explosion du cache, couper les plus anciennes
+            this.cacheAccessOrder.splice(this.cacheSizeLimit);
+        }
+    }
+
     async loadCurrentImage() {
         // [LOG] Log au début du chargement d'une image spécifique
         console.log(`[CroppingManager] --- Début de loadCurrentImage pour l'index ${this.currentImageIndex} ---`);
@@ -1878,19 +1985,31 @@ class CroppingManager {
         }
 
         const imgInfo = this.imagesToCrop[this.currentImageIndex];
-        // MODIFICATION : Utiliser le basename transmis directement
         const displayName = imgInfo.basename || `Image ${this.currentImageIndex + 1}`;
         this.infoLabel.textContent = `Chargement ${displayName}...`;
 
         try {
-            // [LOG] Log de l'URL exacte qui sera chargée
-            console.log(`[CroppingManager] Tentative de chargement de l'URL : ${imgInfo.baseImageToCropFromDataURL}`);
+            const imageUrl = imgInfo.baseImageToCropFromDataURL;
 
-            this.currentImageObject = await Utils.loadImage(imgInfo.baseImageToCropFromDataURL);
+            // OPTIMISATION : Vérifier d'abord le cache avant de charger
+            let imageFromCache = this.getImageFromCache(imageUrl);
 
-            // [LOG] Log en cas de succès avec les dimensions
-            console.log(`[CroppingManager] ✅ Image chargée avec succès. Dimensions: ${this.currentImageObject.naturalWidth}x${this.currentImageObject.naturalHeight}`);
+            if (imageFromCache) {
+                console.log(`[CroppingManager] ✅ Image récupérée depuis le cache: ${imageUrl.substring(0, 100)}...`);
+                this.currentImageObject = imageFromCache;
+            } else {
+                // [LOG] Log de l'URL exacte qui sera chargée
+                console.log(`[CroppingManager] Tentative de chargement de l'URL : ${imageUrl.substring(0, 100)}...`);
 
+                this.currentImageObject = await Utils.loadImage(imageUrl);
+
+                // AJOUTER AU CACHE pour les utilisations futures
+                this.addImageToCache(imageUrl, this.currentImageObject);
+
+                console.log(`[CroppingManager] ✅ Image chargée avec succès. Dimensions: ${this.currentImageObject.naturalWidth}x${this.currentImageObject.naturalHeight}`);
+            }
+
+            // Déterminer le ratio par défaut
             let defaultRatio;
             const imgWidth = this.currentImageObject.naturalWidth || this.currentImageObject.width;
             const imgHeight = this.currentImageObject.naturalHeight || this.currentImageObject.height;
@@ -1900,11 +2019,12 @@ class CroppingManager {
             this.aspectRatioSelect.value = defaultRatio;
 
             // Il est crucial d'appeler _handleResize ici pour s'assurer que le canvas a les bonnes dimensions
-            // AVANT d'essayer de dessiner ou de calculer le smartcrop.
             this._handleResize();
 
+            // LANCER LE PRÉCHARGEMENT en arrière-plan (ne bloque pas l'interface)
+            this.preLoadAdjacentImages();
+
         } catch (e) {
-            // [LOG] Log en cas d'échec
             console.error(`❌ ERREUR CRITIQUE: Échec du chargement de l'image pour le recadrage : ${displayName}`, e);
             console.error(`URL qui a échoué :`, imgInfo.baseImageToCropFromDataURL);
             this.infoLabel.textContent = `Erreur chargement: ${displayName}. L'image est peut-être corrompue.`;
