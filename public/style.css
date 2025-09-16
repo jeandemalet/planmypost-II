@@ -1775,6 +1775,7 @@ button.small-cancel-btn:hover {
 
 
 #cropperInfoLabel {
+    display: none !important;
     font-weight: normal;
     font-size: 0.9em; /* Taille réduite */
     color: var(--text-primary);
@@ -2277,7 +2278,7 @@ button.small-cancel-btn:hover {
 .cropping-layout {
     display: flex;
     gap: 15px;
-    height: calc(100vh - 150px);
+    min-height: calc(100vh - 150px);
 }
 
 #croppingPublicationListPanel {
@@ -3356,13 +3357,29 @@ button.small-cancel-btn:hover {
 }
 
 #croppingThumbnailStrip {
-    height: 120px; /* Hauteur fixe du ruban de photos */
+    min-height: 80px; /* Minimum height pour lisibilité, mais permet l'expansion */
+    height: auto; /* Hauteur dynamique basée sur le contenu */
+    max-height: none; /* Supprime la limitation maximale */
     overflow-x: auto;
     overflow-y: hidden;
     border: 1px solid #ddd;
     background-color: #f9f9f9;
     border-radius: 6px;
     padding: 10px;
+}
+}
+
+.cropping-publication-ribbon {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 15px;
+    min-height: 140px; /* Hauteur minimale pour la zone de dépôt */
+    background-color: #e9ecef;
+    border: 2px dashed #ced4da; /* Bordure en pointillés pour indiquer la zone de dépôt */
+    border-radius: 8px;
+    align-content: flex-start;
+    transition: background-color 0.2s, border-color 0.2s;
 }
 
 
@@ -3479,7 +3496,7 @@ button.small-cancel-btn:hover {
 .cropping-layout {
     display: flex;
     gap: 15px;
-    height: calc(100vh - 150px);
+    min-height: calc(100vh - 150px);
 }
 
 #croppingPublicationListPanel {
@@ -5012,7 +5029,7 @@ LES POUR LA LISTE DES PUBLICATIONS REGROUPÉES PAR GALERIE --- */
     min-width: 0 !important; /* Ensures ALL elements can compress */
 }
 
-/* CRITICAL: Ensure thumbnails can shrink within filmstrip */
+   /* CRITICAL: Ensure thumbnails can shrink within filmstrip */
 .cropping-thumbnail-item,
 .crop-strip-thumb,
 .cropping-publication-item {
@@ -5021,5 +5038,4 @@ LES POUR LA LISTE DES PUBLICATIONS REGROUPÉES PAR GALERIE --- */
     height: 60px !important;
     min-width: 60px !important; /* Maintain minimum usability for thumbnails */
     min-height: 60px !important;
-}
 }
