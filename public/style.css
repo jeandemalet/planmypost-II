@@ -4614,31 +4614,7 @@ LES POUR LA LISTE DES PUBLICATIONS REGROUPÉES PAR GALERIE --- */
     object-fit: contain;
 }
 
-/* ========================================================== */
-/* --- CORRECTIONS RECADRAGE: CENTRAGE + AMÉLIORATIONS UI --- */
-/* ========================================================== */
 
-/* Forcer une grille 3 colonnes pour stabiliser le centrage du sélecteur */
-.cropping-layout {
-    display: grid !important;
-    grid-template-columns: auto 1fr auto;
-    gap: 15px;
-    height: calc(100vh - 150px);
-}
-
-@media (max-width: 1200px) {
-    .cropping-layout {
-        grid-template-columns: 240px 1fr 280px;
-    }
-}
-
-@media (max-width: 900px) {
-    .cropping-layout {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto 1fr auto;
-        gap: 10px;
-    }
-}
 
 /* Barre latérale: largeur par défaut et transitions douces */
 #autoCropSidebar {
@@ -5039,4 +5015,77 @@ LES POUR LA LISTE DES PUBLICATIONS REGROUPÉES PAR GALERIE --- */
     height: 60px !important;
     min-width: 60px !important; /* Maintain minimum usability for thumbnails */
     min-height: 60px !important;
+}
+
+/* ============================================
+   IMPROVED CROPPING LAYOUT WITH FLEXBOX
+   ============================================ */
+
+/* Convert three-column layout to use flexbox with fluid middle column */
+.cropping-layout {
+    display: flex !important;
+    flex-direction: row !important;
+    gap: 15px !important;
+    height: calc(100vh - 150px) !important;
+    align-items: flex-start !important;
+}
+
+/* Left panel - publication list */
+#croppingPublicationListPanel {
+    flex: 0 0 280px !important;
+    min-width: 250px !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+    border-right: 1px solid #ddd !important;
+    padding-right: 15px !important;
+}
+
+/* Middle column - fluid width for main content */
+#croppingEditorContainer {
+    flex: 1 1 auto !important;
+    min-width: 0 !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+    padding: 0 15px !important;
+}
+
+/* Right panel - auto crop controls */
+#autoCropSidebar {
+    flex: 0 0 320px !important;
+    min-width: 280px !important;
+    height: 100% !important;
+    overflow-y: auto !important;
+    border-left: 1px solid #ddd !important;
+    padding-left: 15px !important;
+}
+
+/* Add vertical scrolling to main content column */
+#croppingEditorContainer {
+    overflow-y: auto !important;
+}
+
+/* Horizontal scrolling for publication thumbnail containers */
+.cropping-thumbnail-strip,
+#croppingThumbnailStrip {
+    overflow-x: auto !important;
+    overflow-y: hidden !important;
+    white-space: nowrap !important;
+    scrollbar-width: thin !important;
+    scrollbar-color: #ccc transparent !important;
+}
+
+.cropping-thumbnail-strip::-webkit-scrollbar,
+#croppingThumbnailStrip::-webkit-scrollbar {
+    height: 6px !important;
+}
+
+.cropping-thumbnail-strip::-webkit-scrollbar-track,
+#croppingThumbnailStrip::-webkit-scrollbar-track {
+    background-color: transparent !important;
+}
+
+.cropping-thumbnail-strip::-webkit-scrollbar-thumb,
+#croppingThumbnailStrip::-webkit-scrollbar-thumb {
+    background-color: #ccc !important;
+    border-radius: 3px !important;
 }
