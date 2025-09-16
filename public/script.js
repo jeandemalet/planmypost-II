@@ -6905,7 +6905,7 @@ class CroppingPage {
         this.editorPanelElement.style.display = 'none';
         this.editorPlaceholderElement.style.display = 'block';
         this.editorPlaceholderElement.textContent = "Sélectionnez une publication pour la recadrer.";
-        this.editorTitleElement.textContent = "Recadrage";
+        // La ligne problématique a été supprimée car l'élément de titre n'existe plus.
         this.thumbnailStripElement.innerHTML = '';
         if (this.currentSelectedPublicationFrame) {
             this.currentSelectedPublicationFrame = null;
