@@ -2981,7 +2981,6 @@ class CalendarPage {
         // MODIFIÉ : Remplacer monthYearLabelElement par les nouveaux éléments
         this.monthSelectorElement = this.parentElement.querySelector('#monthSelector');
         this.yearLabelElement = this.parentElement.querySelector('#yearLabel');
-        this.jourListElement = this.parentElement.querySelector('#calendarPublicationList');
         this.unscheduledPublicationsListElement = this.parentElement.querySelector('#unscheduledPublicationsList');
         this.contextPreviewModal = document.getElementById('calendarContextPreviewModal');
         this.contextPreviewTitle = document.getElementById('calendarContextTitle');
@@ -3405,19 +3404,7 @@ class CalendarPage {
         lazyImagesInSidebar.forEach(img => this.imageObserver.observe(img));
     }
 
-    populateJourList() {
-        // --- CORRECTION : Conditionner l'affichage de ce panneau ---
-        // Cette fonction est toujours appelée par d'autres onglets,
-        // mais on s'assure qu'elle ne fait rien pour le calendrier.
-        const isCalendarActive = document.getElementById('calendar').classList.contains('active');
-        if (isCalendarActive) {
-            this.jourListElement.innerHTML = ''; // S'assurer que le panneau est vide
-            return; // Ne rien construire
-        }
 
-        // La logique existante pour les autres onglets reste inchangée
-        this.organizerApp._populateSharedJourList(this.jourListElement, null, 'calendar');
-    }
 
     createDayCell(dateObj, isOtherMonth, isToday = false, isPast = false, galleryColorMap) { // Accepter la carte en argument
         const dayCell = document.createElement('div');
