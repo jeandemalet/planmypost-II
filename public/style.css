@@ -1180,6 +1180,7 @@ button.small-cancel-btn:hover {
     display: flex;
     flex-direction: column;
     min-width: 0;
+    width: 0; /* Force element to shrink to content width initially */
 }
 
 .scheduler-header {
@@ -1210,13 +1211,13 @@ button.small-cancel-btn:hover {
     background-color: #dee2e6; /* Couleur des lignes de la grille */
     border: 1px solid #dee2e6; /* Bordure extérieure uniforme */
     border-top: none;
-    flex-grow: 1;
     overflow-y: hidden;
     position: relative;
     border-radius: 0 0 8px 8px;
     /* Assurez-vous qu'il n'y a pas de padding ou margin qui affecterait l'alignement */
     padding: 0;
     margin: 0;
+    height: auto; /* Allow grid height to be determined by content rather than stretching vertically */
 }
 
 .calendar-header-cell, .calendar-day-cell {
