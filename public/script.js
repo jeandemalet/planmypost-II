@@ -3332,30 +3332,34 @@ class CalendarPage {
             // --- CORRECTION : Supprimer l'appel à la construction du panneau latéral ---
             // AVANT (Incorrect) :
             // this.populateJourList(); // Cet appel construisait le panneau latéral
-            
+
             // APRÈS (Correct) :
             // On ne fait plus appel à this.populateJourList() depuis ici.
             this.buildUnscheduledPublicationsList();
             return;
         }
-        
+
         // --- DÉBUT DE LA CORRECTION DÉFINITIVE ---
-        // 1. Créer une carte des couleurs basée sur TOUTES les publications de l'utilisateur
+        // 1. Créer une carte des couleurs globale unifiée basée sur TOUTES les publications de l'utilisateur
         const allUserPublications = this.organizerApp.scheduleContext.allUserPublications;
         const galleryColorMap = new Map();
-        const uniqueGalleryIds = [...new Set(allUserPublications.map(p => p.galleryId))];
+        const uniqueGalleryIds = [...new Set([
+            ...allUserPublications.map(p => p.galleryId),
+            this.organizerApp.currentGalleryId // Inclure la galerie courante si elle n'est pas dans allUserPublications
+        ])];
         uniqueGalleryIds.forEach((id, index) => {
             galleryColorMap.set(id, PUBLICATION_COLORS[index % PUBLICATION_COLORS.length]);
         });
+        console.log(`[buildCalendarUI]Carte globale des couleurs créée avec ${uniqueGalleryIds.length} galeries:`, Array.from(galleryColorMap.entries()));
         // --- FIN DE LA CORRECTION DÉFINITIVE ---
-        
+
         // --- CORRECTION : Supprimer l'appel à la construction du panneau latéral ---
         // AVANT (Incorrect) :
         // this.populateJourList(); // Cet appel construisait le panneau latéral
-        
+
         // APRÈS (Correct) :
         // On ne fait plus appel à this.populateJourList() depuis ici.
-        this.buildUnscheduledPublicationsList(galleryColorMap); // On construit la liste de droite directement
+        this.buildUnscheduledPublicationsList(galleryColorMap); // On construit la liste de droite directement avec la carte des couleurs unifiée
 
         // --- MODIFICATION PRINCIPALE ---
         const year = this.currentDate.getFullYear();
@@ -3382,17 +3386,17 @@ class CalendarPage {
         today.setHours(0, 0, 0, 0);
         for (let i = 0; i < daysInPrevMonth; i++) {
             const prevMonthDay = new Date(year, month, 1 - (daysInPrevMonth - i));
-            this.createDayCell(prevMonthDay, true, false, prevMonthDay < today, galleryColorMap); // Passer la carte
+            this.createDayCell(prevMonthDay, true, false, prevMonthDay < today, galleryColorMap); // Passer la carte unifiée
         }
         for (let day = 1; day <= lastDayOfMonth.getDate(); day++) {
             const currentDateInLoop = new Date(year, month, day);
-            this.createDayCell(currentDateInLoop, false, currentDateInLoop.getTime() === today.getTime(), currentDateInLoop < today && currentDateInLoop.getTime() !== today.getTime(), galleryColorMap); // Passer la carte
+            this.createDayCell(currentDateInLoop, false, currentDateInLoop.getTime() === today.getTime(), currentDateInLoop < today && currentDateInLoop.getTime() !== today.getTime(), galleryColorMap); // Passer la carte unifiée
         }
         const totalCellsSoFar = daysInPrevMonth + lastDayOfMonth.getDate();
         const remainingCells = (7 - (totalCellsSoFar % 7)) % 7;
         for (let i = 1; i <= remainingCells; i++) {
             const nextMonthDay = new Date(year, month + 1, i);
-            this.createDayCell(nextMonthDay, true, false, nextMonthDay < today, galleryColorMap); // Passer la carte
+            this.createDayCell(nextMonthDay, true, false, nextMonthDay < today, galleryColorMap); // Passer la carte unifiée
         }
 
         // --- AJOUTER CETTE PARTIE À LA FIN DE LA FONCTION ---
@@ -3402,6 +3406,9 @@ class CalendarPage {
 
         lazyImagesInGrid.forEach(img => this.imageObserver.observe(img));
         lazyImagesInSidebar.forEach(img => this.imageObserver.observe(img));
+
+        // Force refresh the sidebar to ensure synchronization
+        this.organizerApp.refreshSidePanels();
     }
 
 
@@ -3501,8 +3508,16 @@ class CalendarPage {
 
         // --- DÉBUT DES MODIFICATIONS ---
 
-        // --- SUPPRIMER L'ANCIENNE CRÉATION DE LA CARTE DE COULEUR ICI ---
-        // const galleryColorMap = new Map(); // SUPPRIMER CETTE LIGNE
+        // --- CRÉATION DE LA CARTE DE COULEUR UNIFIÉE ---
+        const filteredGalleryIds = [...new Set(unscheduled.map(p => p.galleryId))];
+        filteredGalleryIds.forEach((id, index) => {
+            const existingGalleryColor = galleryColorMap.get(id);
+            if (!existingGalleryColor) {
+                // Si la galerie n'est pas encore dans la carte, on lui assigne une couleur dynamique
+                galleryColorMap.set(id, PUBLICATION_COLORS[index % PUBLICATION_COLORS.length]);
+                console.log(`[CalendarPage.buildUnscheduledPublicationsList] Nouvelle couleur assignée pour ${id}: ${PUBLICATION_COLORS[index % PUBLICATION_COLORS.length]}`);
+            }
+        });
 
         const groupedByGallery = unscheduled.reduce((acc, publication) => {
             if (!acc[publication.galleryId]) {
@@ -3523,34 +3538,21 @@ class CalendarPage {
             const galleryGroup = groupedByGallery[galleryId];
             galleryGroup.publications.sort((a, b) => a.letter.localeCompare(b.letter));
 
-            // SUPPRIMER LA CRÉATION DE L'EN-TÊTE
-            // const galleryHeader = document.createElement('div');
-            // galleryHeader.className = 'unscheduled-gallery-header';
-            // galleryHeader.textContent = galleryGroup.name;
-            // this.unscheduledPublicationsListElement.appendChild(galleryHeader);
-            
-            // AJOUTER UN SÉPARATEUR VISUEL ENTRE LES GROUPES (sauf pour le premier)
-            if (galleryIndex > 0) {
-                const separator = document.createElement('hr');
-                separator.className = 'gallery-group-separator';
-                this.unscheduledPublicationsListElement.appendChild(separator);
-            }
-
             galleryGroup.publications.forEach(publication => {
                 const itemElement = document.createElement('div');
                 itemElement.className = 'unscheduled-publication-item';
                 itemElement.draggable = true;
 
-                const galleryData = { 
-                    galleryName: publication.galleryName, 
-                    galleryColor: galleryColorMap.get(publication.galleryId) 
+                const galleryData = {
+                    galleryName: publication.galleryName,
+                    galleryColor: galleryColorMap.get(publication.galleryId) || PUBLICATION_COLORS[0] // Couleur par défaut si problème
                 };
 
                 itemElement.innerHTML = this.organizerApp._createPublicationVignetteHTML(publication, galleryData, false);
-                
+
                 // On attache les listeners directement après la création
                 itemElement.addEventListener('dragstart', e => this._onDragStart(e, { type: 'unscheduled', ...publication }, itemElement));
-                
+
                 itemElement.addEventListener('click', () => {
                     this.organizerApp.handleLoadGallery(publication.galleryId).then(() => {
                         const publicationFrame = this.organizerApp.publicationFrames.find(pf => pf.id === publication._id);
@@ -3560,7 +3562,7 @@ class CalendarPage {
                         }
                     });
                 });
-                
+
                 this.unscheduledPublicationsListElement.appendChild(itemElement);
 
                 // --- CORRECTION DE STABILITÉ ---
@@ -3569,7 +3571,7 @@ class CalendarPage {
                 if (publication.firstImageThumbnail) {
                     const thumbFilename = Utils.getFilenameFromURL(publication.firstImageThumbnail);
                     const thumbUrl = `${BASE_API_URL}/api/uploads/${publication.galleryId}/${thumbFilename}`;
-                    
+
                     thumbDiv.dataset.src = thumbUrl;
                     thumbDiv.classList.add('lazy-load-thumb'); // Cible pour l'observateur
                 } else {
@@ -3898,16 +3900,24 @@ class CalendarPage {
             let publicationsPlaced = 0;
             while (unpublishedPublications.length > 0) {
                 const dateKey = this.formatDateKey(currentDate);
-                let postsOnThisDay = scheduleData[dateKey] ? Object.keys(scheduleData[dateKey]).length : 0;
+                let postsOnThisDay = 0;
+                if (scheduleData[dateKey]) {
+                    // Compter le nombre total de publications pour toutes les galeries ce jour-là
+                    for (const galleryId in scheduleData[dateKey]) {
+                        postsOnThisDay += Object.keys(scheduleData[dateKey][galleryId]).length;
+                    }
+                }
                 while (postsOnThisDay < postsPerDay && unpublishedPublications.length > 0) {
                     const jourToPlace = unpublishedPublications.shift();
                     if (!scheduleData[dateKey]) {
                         scheduleData[dateKey] = {};
                     }
-                    scheduleData[dateKey][jourToPlace.letter] = {
-                        galleryId: jourToPlace.galleryId,
+                    if (!scheduleData[dateKey][jourToPlace.galleryId]) {
+                        scheduleData[dateKey][jourToPlace.galleryId] = {};
+                    }
+                    scheduleData[dateKey][jourToPlace.galleryId][jourToPlace.letter] = {
                         galleryName: jourToPlace.galleryName,
-                        label: `Publication ${jourToPlace.letter}`
+                        publicationId: jourToPlace._id
                     };
                     postsOnThisDay++;
                     publicationsPlaced++;
