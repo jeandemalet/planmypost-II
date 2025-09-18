@@ -3368,6 +3368,47 @@ button.small-cancel-btn:hover {
     border-radius: 6px;
     padding: 10px;
 }
+
+.cropping-publication-ribbon {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 15px;
+    min-height: 140px; /* Hauteur minimale pour la zone de dépôt */
+    background-color: #e9ecef;
+    border: 2px dashed #ced4da; /* Bordure en pointillés pour indiquer la zone de dépôt */
+    border-radius: 8px;
+    align-content: flex-start;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+
+.cropping-publication-ribbon {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    padding: 15px;
+    min-height: 140px; /* Hauteur minimale pour la zone de dépôt */
+    background-color: #e9ecef;
+    border: 2px dashed #ced4da; /* Bordure en pointillés pour indiquer la zone de dépôt */
+    border-radius: 8px;
+    align-content: flex-start;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.cropping-publication-ribbon.drag-over {
+    background-color: #e3f2fd;
+    border-color: #007bff;
+}
+
+.publication-group-empty-text {
+    width: 100%;
+    text-align: center;
+    align-self: center;
+    color: #6c757d;
+    font-style: italic;
+    font-size: 1.1em;
+    margin: 0;
 }
 
 .cropping-publication-ribbon {
@@ -4304,8 +4345,6 @@ LES POUR LA LISTE DES PUBLICATIONS REGROUPÉES PAR GALERIE --- */
 .unscheduled-publication-item-gallery {
     display: none;
 }
-/* ========
-=======================
    STYLES POUR LE NOUVEL ONGLET PUBLICATION
    =============================== */
 
@@ -4329,6 +4368,94 @@ LES POUR LA LISTE DES PUBLICATIONS REGROUPÉES PAR GALERIE --- */
     padding: 20px;
     border-left: 1px solid #ddd;
     overflow-y: auto;
+}
+/* ===============================================
+   MISE EN PAGE RESPONSIVE - ONGLET PUBLICATION
+   =============================================== */
+
+/* Style par défaut pour les grands écrans (Desktop-First) */
+.publication-layout {
+    display: flex;
+    flex-direction: row; /* Met les éléments côte à côte */
+    align-items: flex-start; /* Aligne les éléments en haut */
+    gap: 30px;
+    width: 100%;
+    max-width: 1200px; /* Limite la largeur maximale pour un meilleur confort de lecture */
+    margin: 0 auto; /* Centre le contenu sur les très grands écrans */
+    height: calc(100vh - 180px);
+}
+
+#publication-preview-panel {
+    flex: 1; /* Le mockup prend l'espace restant */
+    display: flex;
+    justify-content: center; /* Centre le téléphone dans sa colonne */
+    padding: 20px;
+}
+
+#publication-control-panel {
+    width: 400px; /* Largeur fixe pour le panneau de contrôle */
+    flex-shrink: 0; /* Empêche le panneau de se rétrécir */
+    padding: 20px;
+    border-left: 1px solid #ddd;
+    overflow-y: auto;
+}
+
+/* Styles pour les écrans plus petits (tablettes et mobiles) */
+@media (max-width: 992px) {
+    .publication-layout {
+        flex-direction: column; /* Empile les éléments verticalement */
+        align-items: center; /* Centre les éléments empilés */
+        gap: 20px;
+        height: auto;
+        min-height: calc(100vh - 180px);
+    }
+
+    #publication-preview-panel,
+    #publication-control-panel {
+        width: 100%; /* Les deux éléments prennent toute la largeur */
+        max-width: 500px; /* Limite la largeur pour une meilleure lisibilité sur tablette */
+        border-left: none;
+        margin-top: 0;
+        padding: 15px;
+    }
+
+    #publication-preview-panel {
+        order: 1;
+    }
+
+    #publication-control-panel {
+        order: 2;
+    }
+
+    /* Adjust smartphone mockup for smaller screens */
+    .smartphone-mockup {
+        width: 280px;
+        height: 600px;
+        margin: 0 auto;
+    }
+}
+
+/* Additional mobile breakpoint for very small screens */
+@media (max-width: 480px) {
+    .publication-layout {
+        gap: 15px;
+    }
+
+    #publication-preview-panel,
+    #publication-control-panel {
+        padding: 10px;
+    }
+
+    /* Make smartphone mockup more compact for mobile */
+    .smartphone-mockup {
+        width: 250px;
+        height: 500px;
+        padding: 10px;
+    }
+
+    .control-section {
+        margin-bottom: 20px;
+    }
 }
 
 .control-section {
