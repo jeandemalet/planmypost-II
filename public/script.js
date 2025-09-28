@@ -6779,23 +6779,45 @@ class CroppingPage {
 
     // Logique pour lancer le recadrage manuel
     async startCroppingForJour(publicationFrame, startIndex = 0) {
-        // --- LOGIQUE CORRIGÉE ET ROBUSTIFIÉE ---
-        // La nouvelle logique utilise directement les données stockées dans la publication,
-        // ce qui la rend indépendante de la pagination.
+        // --- CORRECTION ROBUSTE POUR LES IMAGES MANQUANTES ---
         const imageInfosForCropper = publicationFrame.imagesData.map(imgDataInPublication => {
-            // On utilise directement le chemin principal stocké, au lieu de chercher dans gridItemsDict
-            const originalGridItem = this.organizerApp.gridItemsDict[imgDataInPublication.originalReferencePath];
+            // 1. Essayer d'abord de récupérer l'image depuis gridItemsDict (cas normal)
+            let originalGridItem = this.organizerApp.gridItemsDict[imgDataInPublication.originalReferencePath];
 
+            // 2. Si pas trouvé, essayer de chercher par imageId (fallback)
+            if (!originalGridItem && imgDataInPublication.imageId) {
+                originalGridItem = this.organizerApp.gridItemsDict[imgDataInPublication.imageId];
+                console.log(`[FALLBACK] Image trouvée par imageId: ${imgDataInPublication.imageId}`);
+            }
+
+            // 3. Si toujours pas trouvé, essayer de chercher dans toutes les publications (double fallback)
             if (!originalGridItem) {
-                console.warn(`Image originale ${imgDataInPublication.originalReferencePath} non trouvée. Recadrage impossible.`);
+                originalGridItem = this.organizerApp.findImageInAnyJour(imgDataInPublication.originalReferencePath) ||
+                                 this.organizerApp.findImageInAnyJour(imgDataInPublication.imageId);
+                if (originalGridItem) {
+                    console.log(`[DOUBLE FALLBACK] Image trouvée dans une autre publication: ${imgDataInPublication.originalReferencePath}`);
+                }
+            }
+
+            // 4. Si aucune des méthodes n'a fonctionné, créer un objet de substitution
+            if (!originalGridItem) {
+                console.warn(`Image originale ${imgDataInPublication.originalReferencePath} non trouvée. Création d'un substitut.`);
 
                 // Afficher un message utilisateur plus clair
-                this.showUserNotification(`Image manquante: ${imgDataInPublication.originalReferencePath}`, 'warning');
+                this.showUserNotification(`Image manquante: ${imgDataInPublication.basename || imgDataInPublication.originalReferencePath}`, 'warning');
 
                 // Marquer cette image comme défectueuse pour nettoyage ultérieur
                 this.markImageForCleanup(imgDataInPublication.imageId, imgDataInPublication.originalReferencePath);
 
-                return null; // Ignorer cette image si son original est introuvable
+                // Créer un objet de substitution avec les informations disponibles
+                return {
+                    currentImageId: imgDataInPublication.imageId,
+                    basename: imgDataInPublication.basename || `Image ${imgDataInPublication.imageId}`,
+                    originalReferenceId: imgDataInPublication.originalReferencePath,
+                    // Utiliser le chemin de miniature comme fallback pour éviter l'erreur complète
+                    baseImageToCropFromDataURL: imgDataInPublication.dataURL || imgDataInPublication.mainImagePath,
+                    isSubstitute: true // Marquer comme substitut pour traitement spécial
+                };
             }
 
             return {
@@ -6806,7 +6828,7 @@ class CroppingPage {
                 baseImageToCropFromDataURL: originalGridItem.imagePath,
             };
         }).filter(info => info !== null);
-        // --- FIN DE LA CORRECTION ---
+        // --- FIN DE LA CORRECTION ROBUSTE ---
 
         if (imageInfosForCropper.length === 0) {
             this.clearEditor();
