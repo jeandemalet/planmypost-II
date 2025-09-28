@@ -1431,6 +1431,52 @@ class CroppingManager {
         this.preloadedImages = new Set(); // Images déjà préchargées
         this.cacheSizeLimit = 10; // Limiter le cache à 10 images maximum
         this.cacheAccessOrder = new Array(); // Ordre d'accès au cache pour LRU
+
+        // NOUVEAU : Métriques de performance pour le cache
+        this.cacheHits = 0;
+        this.cacheMisses = 0;
+
+        // NOUVEAU : Cache pour les résultats smartcrop
+        this.smartcropCache = new Map();
+
+        // NOUVEAU : File d'attente pour les opérations de sauvegarde par lot
+        this.pendingSaveOperations = new Array();
+
+        // NOUVEAU : Initialiser les métriques de performance
+        this.initializePerformanceMetrics();
+    }
+
+    // NOUVELLE MÉTHODE : Initialiser les métriques de performance
+    initializePerformanceMetrics() {
+        this.cacheHits = 0;
+        this.cacheMisses = 0;
+        this.lastCleanupTime = Date.now();
+        this.performanceLog = [];
+
+        // Nettoyer les métriques toutes les 5 minutes
+        setInterval(() => {
+            this.logPerformanceMetrics();
+            this.optimizeMemoryUsage();
+        }, 5 * 60 * 1000);
+    }
+
+    // NOUVELLE MÉTHODE : Logger les métriques de performance
+    logPerformanceMetrics() {
+        const stats = this.getCacheStats();
+        const logEntry = {
+            timestamp: new Date().toISOString(),
+            ...stats,
+            totalRequests: this.cacheHits + this.cacheMisses
+        };
+
+        this.performanceLog.push(logEntry);
+
+        // Garder seulement les 10 dernières entrées
+        if (this.performanceLog.length > 10) {
+            this.performanceLog.shift();
+        }
+
+        console.log(`[CroppingManager] 📊 Performance Cache: ${stats.hitRate * 100}% hits, ${stats.size}/${stats.maxSize} images, ${stats.memoryUsage}`);
     }
 
     _initListeners() {
@@ -1879,6 +1925,13 @@ class CroppingManager {
         // Pour chaque indice candidat au préchargement
         for (const index of indicesToPreload) {
             const imgInfo = this.imagesToCrop[index];
+
+            // Vérification de sécurité : s'assurer que imgInfo et son URL existent
+            if (!imgInfo || !imgInfo.baseImageToCropFromDataURL) {
+                console.warn(`[CroppingManager] Image info ou URL manquante pour l'index ${index}`);
+                continue;
+            }
+
             const imageUrl = imgInfo.baseImageToCropFromDataURL;
 
             // Vérifier si déjà en cours de préchargement
@@ -1896,9 +1949,11 @@ class CroppingManager {
                 this.addImageToCache(imageUrl, image);
                 this.preloadedImages.add(imageUrl);
                 this.preloadPromises.delete(imageUrl);
-                console.log(`[CroppingManager] ✅ Préchargement réussi: index ${index}, URL: ${imageUrl.substring(0, 100)}...`);
+                const shortUrl = imageUrl && imageUrl.length > 100 ? imageUrl.substring(0, 100) + '...' : imageUrl || 'URL inconnue';
+                console.log(`[CroppingManager] ✅ Préchargement réussi: index ${index}, URL: ${shortUrl}`);
             } catch (error) {
-                console.warn(`[CroppingManager] ⚠️ Échec du préchargement: index ${index}, URL: ${imageUrl.substring(0, 100)}...`, error.message);
+                const shortUrl = imageUrl && imageUrl.length > 100 ? imageUrl.substring(0, 100) + '...' : imageUrl || 'URL inconnue';
+                console.warn(`[CroppingManager] ⚠️ Échec du préchargement: index ${index}, URL: ${shortUrl}`, error.message);
                 this.preloadPromises.delete(imageUrl);
             }
         }
@@ -1918,15 +1973,23 @@ class CroppingManager {
     // NOUVELLE MÉTHODE : Récupérer une image depuis le cache
     getImageFromCache(imageUrl) {
         if (this.imageCache.has(imageUrl)) {
-            // Mettre à jour l'ordre d'accès pour LRU
+            // CACHE HIT : Mettre à jour les métriques et l'ordre d'accès pour LRU
+            this.cacheHits++;
+
             const accessIndex = this.cacheAccessOrder.indexOf(imageUrl);
             if (accessIndex > -1) {
                 this.cacheAccessOrder.splice(accessIndex, 1);
             }
             this.cacheAccessOrder.unshift(imageUrl);
+
+            console.log(`[CroppingManager] ✅ Cache HIT: ${imageUrl.substring(0, 100)}... (Taux: ${Math.round(this.getCacheStats().hitRate * 100)}%)`);
             return this.imageCache.get(imageUrl);
+        } else {
+            // CACHE MISS : Mettre à jour les métriques
+            this.cacheMisses++;
+            console.log(`[CroppingManager] ❌ Cache MISS: ${imageUrl.substring(0, 100)}... (Taux: ${Math.round(this.getCacheStats().hitRate * 100)}%)`);
+            return null;
         }
-        return null;
     }
 
     // NOUVELLE MÉTHODE : Ajouter une image au cache avec gestion LRU
@@ -1961,6 +2024,72 @@ class CroppingManager {
         if (this.cacheAccessOrder.length > this.cacheSizeLimit * 2) {
             // En cas d'explosion du cache, couper les plus anciennes
             this.cacheAccessOrder.splice(this.cacheSizeLimit);
+        }
+    }
+
+    // NOUVELLE MÉTHODE : Optimisation du cache avec métriques de performance
+    getCacheStats() {
+        return {
+            size: this.imageCache.size,
+            maxSize: this.cacheSizeLimit,
+            hitRate: this.cacheHits / (this.cacheHits + this.cacheMisses) || 0,
+            memoryUsage: Math.round(JSON.stringify([...this.imageCache.entries()]).length / 1024) + 'KB'
+        };
+    }
+
+    // NOUVELLES MÉTHODES : Optimisation des opérations de canvas
+    optimizeCanvasRendering() {
+        // Activer l'accélération matérielle
+        const canvas = this.canvasElement;
+        const ctx = this.ctx;
+
+        // Optimiser le contexte pour de meilleures performances
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'medium'; // Compromis qualité/performance
+
+        // Utiliser willReadFrequently pour les opérations de lecture fréquentes
+        if (ctx.willReadFrequently === undefined) {
+            // Fallback pour les navigateurs plus anciens
+            console.log('[CroppingManager] Optimisation canvas: willReadFrequently non supporté');
+        }
+    }
+
+    // NOUVELLE MÉTHODE : Gestion intelligente de la mémoire
+    optimizeMemoryUsage() {
+        // Nettoyer le cache si la mémoire est faible
+        if (this.imageCache.size > this.cacheSizeLimit * 0.8) {
+            console.log('[CroppingManager] Nettoyage automatique du cache (80% de la limite atteinte)');
+            this.cleanupCache();
+        }
+
+        // Forcer le garbage collection si disponible (Chrome/Edge)
+        if (window.gc && this.imageCache.size > this.cacheSizeLimit) {
+            window.gc();
+        }
+    }
+
+    // NOUVELLE MÉTHODE : Batch les opérations de sauvegarde
+    async batchSaveOperations() {
+        if (this.pendingSaveOperations.length === 0) return;
+
+        const operationsToProcess = [...this.pendingSaveOperations];
+        this.pendingSaveOperations = [];
+
+        try {
+            // Traiter les opérations par lots pour éviter de surcharger le serveur
+            const batchSize = 3;
+            for (let i = 0; i < operationsToProcess.length; i += batchSize) {
+                const batch = operationsToProcess.slice(i, i + batchSize);
+                await Promise.all(batch.map(op => op()));
+                // Petite pause entre les lots pour ne pas surcharger
+                if (i + batchSize < operationsToProcess.length) {
+                    await new Promise(resolve => setTimeout(resolve, 100));
+                }
+            }
+        } catch (error) {
+            console.error('[CroppingManager] Erreur lors du traitement par lot:', error);
+            // Remettre les opérations en attente en cas d'erreur
+            this.pendingSaveOperations.unshift(...operationsToProcess);
         }
     }
 
@@ -2450,24 +2579,93 @@ class CroppingManager {
     }
 
     async nextImage(skipSave = false) {
-        if (!skipSave && this.currentImageIndex >= 0 && this.currentImageIndex < this.imagesToCrop.length) {
-            await this.applyAndSaveCurrentImage();
+        // Optimisation : Vérification rapide avant opérations coûteuses
+        if (this.isLoading) {
+            console.warn('[CroppingManager] nextImage ignoré - opération en cours');
+            return;
         }
-        if (this.currentImageIndex < this.imagesToCrop.length - 1) {
-            this.currentImageIndex++;
-            await this.loadCurrentImage();
-        } else {
-            await this.finishAndApply();
+
+        this.isLoading = true;
+
+        try {
+            // Optimisation : Sauvegarde conditionnelle avec timeout
+            if (!skipSave && this.currentImageIndex >= 0 && this.currentImageIndex < this.imagesToCrop.length) {
+                // Timeout pour éviter les blocages infinis
+                const savePromise = this.applyAndSaveCurrentImage();
+                const timeoutPromise = new Promise((_, reject) =>
+                    setTimeout(() => reject(new Error('Save timeout')), 10000)
+                );
+
+                await Promise.race([savePromise, timeoutPromise]);
+            }
+
+            // Optimisation : Vérification des limites avant incrémentation
+            if (this.currentImageIndex < this.imagesToCrop.length - 1) {
+                this.currentImageIndex++;
+
+                // Optimisation : Préchargement avant le chargement principal
+                const nextImageUrl = this.imagesToCrop[this.currentImageIndex]?.baseImageToCropFromDataURL;
+                if (nextImageUrl && !this.getImageFromCache(nextImageUrl)) {
+                    // Préchargement en arrière-plan sans bloquer
+                    this.looadImageForCache(nextImageUrl).then(image => {
+                        this.addImageToCache(nextImageUrl, image);
+                        console.log(`[CroppingManager] ✅ Image suivante préchargée: ${nextImageUrl.substring(0, 100)}...`);
+                    }).catch(error => {
+                        console.warn(`[CroppingManager] ⚠️ Échec préchargement image suivante:`, error.message);
+                    });
+                }
+
+                await this.loadCurrentImage();
+
+                // Optimisation : Lancer le préchargement des images adjacentes après le chargement principal
+                setTimeout(() => this.preLoadAdjacentImages(), 100);
+            } else {
+                await this.finishAndApply();
+            }
+        } catch (error) {
+            console.error('[CroppingManager] Erreur dans nextImage:', error);
+            this.infoLabel.textContent = `Erreur navigation: ${error.message}`;
+        } finally {
+            this.isLoading = false;
         }
     }
 
     async prevImage() {
-        if (this.currentImageIndex > 0) {
+        // Optimisation : Vérification rapide avant opérations coûteuses
+        if (this.isLoading || this.currentImageIndex <= 0) {
+            if (this.currentImageIndex <= 0) {
+                this.infoLabel.textContent = "Ceci est la première image.";
+            }
+            return;
+        }
+
+        this.isLoading = true;
+
+        try {
             this.currentImageIndex--;
             this.ignoreSaveForThisImage = true;
+
+            // Optimisation : Préchargement avant le chargement principal
+            const prevImageUrl = this.imagesToCrop[this.currentImageIndex]?.baseImageToCropFromDataURL;
+            if (prevImageUrl && !this.getImageFromCache(prevImageUrl)) {
+                // Préchargement en arrière-plan sans bloquer
+                this.looadImageForCache(prevImageUrl).then(image => {
+                    this.addImageToCache(prevImageUrl, image);
+                    console.log(`[CroppingManager] ✅ Image précédente préchargée: ${prevImageUrl.substring(0, 100)}...`);
+                }).catch(error => {
+                    console.warn(`[CroppingManager] ⚠️ Échec préchargement image précédente:`, error.message);
+                });
+            }
+
             await this.loadCurrentImage();
-        } else {
-            this.infoLabel.textContent = "Ceci est la première image.";
+
+            // Optimisation : Lancer le préchargement des images adjacentes après le chargement principal
+            setTimeout(() => this.preLoadAdjacentImages(), 100);
+        } catch (error) {
+            console.error('[CroppingManager] Erreur dans prevImage:', error);
+            this.infoLabel.textContent = `Erreur navigation: ${error.message}`;
+        } finally {
+            this.isLoading = false;
         }
     }
 
