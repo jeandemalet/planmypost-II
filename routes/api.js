@@ -169,7 +169,7 @@ router.post('/cleanup-broken-images', authMiddleware, csrfProtection.validateTok
 router.post('/galleries/:galleryId/publications', authMiddleware, csrfProtection.validateToken, validation.validatePublicationCreation, publicationController.createPublication);
 router.get('/galleries/:galleryId/publications', authMiddleware, publicationCacheMiddleware, validation.validateGalleryId, publicationController.getPublicationsForGallery);
 router.put('/galleries/:galleryId/publications/:publicationId', authMiddleware, csrfProtection.validateToken, validation.validatePublicationUpdate, publicationController.updatePublication);
-router.delete('/galleries/:galleryId/publications/:publicationId', authMiddleware, csrfProtection.validateToken, validation.validateImageId, publicationController.deletePublication);
+router.delete('/galleries/:galleryId/publications/:publicationId', authMiddleware, csrfProtection.validateToken, validation.validatePublicationRoute, publicationController.deletePublication);
 // NOUVELLE ROUTE CI-DESSOUS
 router.get('/galleries/:galleryId/publications/:publicationId/export', authMiddleware, validation.validatePublicationRoute, publicationController.exportPublicationImagesAsZip);
 

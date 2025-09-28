@@ -39,7 +39,7 @@ async function loadUsers() {
         users.forEach(user => {
             const li = document.createElement('li');
             li.innerHTML = `
-                <span>${user.displayName} (${user.email})</span>
+                <span>${user.name} (${user.email})</span>
                 <button data-user-id="${user._id}">Voir les galeries</button>
                 <button data-impersonate-id="${user._id}">Prendre le contrôle (Impersonate)</button>
             `;

@@ -5906,6 +5906,10 @@ class PublicationOrganizer {
             (!publicationFrame.imagesData || publicationFrame.imagesData.length === 0)
         );
 
+        // CORRECTION CRITIQUE : Désactiver complètement le nettoyage automatique au changement d'onglet
+        // pour éviter le cycle destructeur de données
+        return; // Suppression temporaire du nettoyage automatique
+
         // Si la seule publication restante est la 'A' et qu'elle est vide, on ne fait rien.
         if (publicationsToDelete.length === 0) {
             return;

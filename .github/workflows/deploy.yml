@@ -9,7 +9,7 @@ on:
       force_reload:
         description: 'Force PM2 reload (instead of graceful)'
         required: false
-        default: 'false'
+        default: false
         type: boolean
 
 jobs:
@@ -70,13 +70,14 @@ jobs:
             
             # Valider l'environnement avant le redémarrage
             echo "🔍 Validating environment configuration..."
-            if ! node -e "require('./config/environment').validateEnvironment()" 2>/dev/null; then
-              echo "⚠️  Environment validation failed, but continuing..."
+            if ! node -e "require('./config/environment').validateEnvironment()"; then
+              echo "❌ Environment validation failed - deployment aborted"
+              exit 1
             fi
-            
-            # Exécuter les checks de sécurité (non bloquant)
+
+            # Exécuter les checks de sécurité (bloquant)
             echo "🔒 Running security checks..."
-            npm run security:check || echo "⚠️  Security checks failed, but deployment continues"
+            npm run security:check
             
             # Redémarrage PM2 avec zéro downtime
             if [ "${{ github.event.inputs.force_reload }}" = "true" ]; then

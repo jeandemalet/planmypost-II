@@ -125,8 +125,10 @@ exports.downloadZipFile = async (req, res) => {
             return res.status(404).json({ error: 'File not available' });
         }
 
-        // TODO: Ajouter une vérification plus stricte des permissions utilisateur
-        // Pour l'instant, on fait confiance au fait que les jobIds sont difficiles à deviner
+        // Vérifier que l'utilisateur est le propriétaire du job
+        if (status.userId !== req.userData.userId) {
+            return res.status(403).json({ error: 'Access denied to this job' });
+        }
 
         const stats = fs.statSync(filePath);
         const originalFileName = fileName.substring(fileName.indexOf('_') + 1); // Remove jobId prefix
@@ -202,9 +204,12 @@ exports.cancelJob = async (req, res) => {
             const queueIndex = zipQueue.queue.findIndex(job => job.id === jobId);
             if (queueIndex !== -1) {
                 const removedJob = zipQueue.queue.splice(queueIndex, 1)[0];
-                
-                // TODO: Vérifier que l'utilisateur est le propriétaire du job
-                
+
+                // Vérifier que l'utilisateur est le propriétaire du job
+                if (removedJob.userId !== req.userData.userId) {
+                    return res.status(403).json({ error: 'Access denied to this job' });
+                }
+
                 console.log(`❌ Job ${jobId} cancelled by user`);
                 
                 return res.json({

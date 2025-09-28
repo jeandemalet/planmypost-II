@@ -4345,8 +4345,9 @@ LES POUR LA LISTE DES PUBLICATIONS REGROUPÉES PAR GALERIE --- */
 .unscheduled-publication-item-gallery {
     display: none;
 }
-   STYLES POUR LE NOUVEL ONGLET PUBLICATION
-   =============================== */
+/* ===============================
+  STYLES POUR LE NOUVEL ONGLET PUBLICATION
+  =============================== */
 
 .publication-layout {
     display: flex;
