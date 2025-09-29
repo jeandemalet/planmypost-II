@@ -229,7 +229,7 @@ class Utils {
             ctx.fillStyle = 'red';
             ctx.textAlign = 'center';
             ctx.textBaseline = 'middle';
-            ctx.fillText("ERR", targetWidth / 2, targetHeight / 2);
+            ctx.fillText("ERR", targetWidth/2, targetHeight/2);
             return canvas.toDataURL('image/png');
         }
 
@@ -1908,53 +1908,91 @@ class CroppingManager {
         await this.loadCurrentImage();
     }
 
-    // NOUVELLE MÉTHODE : Préchargement des images adjacentes pour optimiser la navigation
+    // MÉTHODE AMÉLIORÉE : Préchargement intelligent et agressif des images adjacentes
     async preLoadAdjacentImages() {
         const currentIndex = this.currentImageIndex;
+        if (currentIndex < 0 || !this.imagesToCrop || this.imagesToCrop.length === 0) return;
 
-        // Précharger 2 images après et 2 images avant
-        const indicesToPreload = [];
-        for (let i = 1; i <= 2; i++) {
+        // NOUVELLES CONSTANTES D'OPTIMISATION
+        const PRELOAD_WINDOW = 5; // Charger 5 images avant et après au lieu de 2
+        const PRIORITY_IMAGES = 3; // Les 3 images les plus proches ont la priorité
+        const BATCH_SIZE = 2; // Traiter par lots de 2 pour ne pas surcharger
+
+        // 1. COLLECTER TOUS LES CANDIDATS AU PRÉCHARGEMENT
+        const candidates = [];
+        for (let i = 1; i <= PRELOAD_WINDOW; i++) {
             const nextIndex = currentIndex + i;
             const prevIndex = currentIndex - i;
 
-            if (nextIndex < this.imagesToCrop.length) indicesToPreload.push(nextIndex);
-            if (prevIndex >= 0) indicesToPreload.push(prevIndex);
+            if (nextIndex < this.imagesToCrop.length) {
+                candidates.push({ index: nextIndex, priority: i <= PRIORITY_IMAGES ? 'high' : 'normal' });
+            }
+            if (prevIndex >= 0) {
+                candidates.push({ index: prevIndex, priority: i <= PRIORITY_IMAGES ? 'high' : 'normal' });
+            }
         }
 
-        // Pour chaque indice candidat au préchargement
-        for (const index of indicesToPreload) {
-            const imgInfo = this.imagesToCrop[index];
+        // 2. TRIER PAR PRIORITÉ (les plus proches d'abord)
+        candidates.sort((a, b) => {
+            if (a.priority === 'high' && b.priority !== 'high') return -1;
+            if (a.priority !== 'high' && b.priority === 'high') return 1;
+            return Math.abs(a.index - currentIndex) - Math.abs(b.index - currentIndex);
+        });
 
-            // Vérification de sécurité : s'assurer que imgInfo et son URL existent
-            if (!imgInfo || !imgInfo.baseImageToCropFromDataURL) {
-                console.warn(`[CroppingManager] Image info ou URL manquante pour l'index ${index}`);
-                continue;
-            }
+        // 3. TRAITEMENT PAR LOTS POUR ÉVITER LE BLOQUAGE
+        for (let i = 0; i < candidates.length; i += BATCH_SIZE) {
+            const batch = candidates.slice(i, i + BATCH_SIZE);
 
-            const imageUrl = imgInfo.baseImageToCropFromDataURL;
+            // Traiter le lot en parallèle
+            const batchPromises = batch.map(async ({ index, priority }) => {
+                const imgInfo = this.imagesToCrop[index];
 
-            // Vérifier si déjà en cours de préchargement
-            if (this.preloadPromises.has(imageUrl)) continue;
+                // Vérification de sécurité
+                if (!imgInfo || !imgInfo.baseImageToCropFromDataURL) {
+                    console.warn(`[CroppingManager] Image info ou URL manquante pour l'index ${index}`);
+                    return;
+                }
 
-            // Vérifier si déjà préchargée et dans le cache
-            if (this.preloadedImages.has(imageUrl) && this.imageCache.has(imageUrl)) continue;
+                const imageUrl = imgInfo.baseImageToCropFromDataURL;
 
-            // Lancer le préchargement asynchrone
-            const preloadPromise = this.looadImageForCache(imageUrl);
-            this.preloadPromises.set(imageUrl, preloadPromise);
+                // Vérifier si déjà en cours de préchargement
+                if (this.preloadPromises.has(imageUrl)) return;
 
-            try {
-                const image = await preloadPromise;
-                this.addImageToCache(imageUrl, image);
-                this.preloadedImages.add(imageUrl);
-                this.preloadPromises.delete(imageUrl);
-                const shortUrl = imageUrl && imageUrl.length > 100 ? imageUrl.substring(0, 100) + '...' : imageUrl || 'URL inconnue';
-                console.log(`[CroppingManager] ✅ Préchargement réussi: index ${index}, URL: ${shortUrl}`);
-            } catch (error) {
-                const shortUrl = imageUrl && imageUrl.length > 100 ? imageUrl.substring(0, 100) + '...' : imageUrl || 'URL inconnue';
-                console.warn(`[CroppingManager] ⚠️ Échec du préchargement: index ${index}, URL: ${shortUrl}`, error.message);
-                this.preloadPromises.delete(imageUrl);
+                // Vérifier si déjà préchargée et dans le cache
+                if (this.preloadedImages.has(imageUrl) && this.imageCache.has(imageUrl)) return;
+
+                // Ajouter un timeout pour les images de basse priorité
+                const timeoutMs = priority === 'high' ? 5000 : 3000;
+
+                try {
+                    const preloadPromise = this.looadImageForCache(imageUrl);
+                    this.preloadPromises.set(imageUrl, preloadPromise);
+
+                    // Utiliser Promise.race pour éviter les blocages
+                    const timeoutPromise = new Promise((_, reject) =>
+                        setTimeout(() => reject(new Error('Preload timeout')), timeoutMs)
+                    );
+
+                    const image = await Promise.race([preloadPromise, timeoutPromise]);
+                    this.addImageToCache(imageUrl, image);
+                    this.preloadedImages.add(imageUrl);
+                    this.preloadPromises.delete(imageUrl);
+
+                    const shortUrl = imageUrl.length > 100 ? imageUrl.substring(0, 100) + '...' : imageUrl;
+                    console.log(`[CroppingManager] ✅ Préchargement réussi: index ${index}, priorité ${priority}, URL: ${shortUrl}`);
+                } catch (error) {
+                    const shortUrl = imageUrl.length > 100 ? imageUrl.substring(0, 100) + '...' : imageUrl;
+                    console.warn(`[CroppingManager] ⚠️ Échec du préchargement: index ${index}, priorité ${priority}, URL: ${shortUrl}`, error.message);
+                    this.preloadPromises.delete(imageUrl);
+                }
+            });
+
+            // Attendre que le lot soit terminé avant de passer au suivant
+            await Promise.allSettled(batchPromises);
+
+            // Petite pause entre les lots pour ne pas surcharger le navigateur
+            if (i + BATCH_SIZE < candidates.length) {
+                await new Promise(resolve => setTimeout(resolve, 50));
             }
         }
     }
@@ -1970,8 +2008,17 @@ class CroppingManager {
         });
     }
 
-    // NOUVELLE MÉTHODE : Récupérer une image depuis le cache
+    // MÉTHODE CORRIGÉE : Récupérer une image depuis le cache avec vérifications de sécurité
     getImageFromCache(imageUrl) {
+        // VÉRIFICATION CRITIQUE : S'assurer que l'URL est valide
+        if (!imageUrl || typeof imageUrl !== 'string' || imageUrl.trim() === '') {
+            console.warn(`[CroppingManager] ⚠️ URL d'image invalide fournie au cache:`, imageUrl);
+            this.cacheMisses++;
+            return null;
+        }
+
+        const shortUrl = imageUrl.length > 100 ? imageUrl.substring(0, 100) + '...' : imageUrl;
+
         if (this.imageCache.has(imageUrl)) {
             // CACHE HIT : Mettre à jour les métriques et l'ordre d'accès pour LRU
             this.cacheHits++;
@@ -1982,62 +2029,254 @@ class CroppingManager {
             }
             this.cacheAccessOrder.unshift(imageUrl);
 
-            console.log(`[CroppingManager] ✅ Cache HIT: ${imageUrl.substring(0, 100)}... (Taux: ${Math.round(this.getCacheStats().hitRate * 100)}%)`);
-            return this.imageCache.get(imageUrl);
+            // Mettre à jour le compteur d'accès pour l'image
+            const cachedItem = this.imageCache.get(imageUrl);
+            if (cachedItem && typeof cachedItem.accessCount === 'number') {
+                cachedItem.accessCount++;
+            }
+
+            console.log(`[CroppingManager] ✅ Cache HIT: ${shortUrl} (Taux: ${Math.round(this.getCacheStats().hitRate * 100)}%)`);
+            return cachedItem ? cachedItem.image : null;
         } else {
             // CACHE MISS : Mettre à jour les métriques
             this.cacheMisses++;
-            console.log(`[CroppingManager] ❌ Cache MISS: ${imageUrl.substring(0, 100)}... (Taux: ${Math.round(this.getCacheStats().hitRate * 100)}%)`);
+            console.log(`[CroppingManager] ❌ Cache MISS: ${shortUrl} (Taux: ${Math.round(this.getCacheStats().hitRate * 100)}%)`);
             return null;
         }
     }
 
-    // NOUVELLE MÉTHODE : Ajouter une image au cache avec gestion LRU
+    // MÉTHODE AMÉLIORÉE : Ajouter une image au cache avec gestion LRU optimisée
     addImageToCache(imageUrl, imageObject) {
-        // Nettoyer le cache si nécessaire (éviter la pollution mémoire)
-        this.cleanupCache();
+        // 1. VÉRIFICATION CRITIQUE : Éviter les doublons et les objets invalides
+        if (!imageUrl || !imageObject || !(imageObject instanceof Image)) {
+            console.warn(`[CroppingManager] ⚠️ Tentative d'ajout invalide au cache:`, { imageUrl: !!imageUrl, imageObject: !!imageObject, isImage: imageObject instanceof Image });
+            return;
+        }
 
-        this.imageCache.set(imageUrl, imageObject);
-        this.cacheAccessOrder.unshift(imageUrl);
+        // 2. CALCULER LA TAILLE ESTIMÉE DE L'IMAGE (pour la gestion mémoire)
+        const estimatedSize = this.estimateImageSize(imageObject);
+        const maxMemoryUsage = this.cacheSizeLimit * 5 * 1024 * 1024; // 5MB par défaut
 
-        // Limiter la taille du cache
-        if (this.cacheAccessOrder.length > this.cacheSizeLimit) {
+        // 3. SI L'IMAGE EST TROP GROSSE, NE PAS LA CACHER
+        if (estimatedSize > maxMemoryUsage * 0.3) { // Pas plus de 30% de la mémoire totale pour une seule image
+            console.warn(`[CroppingManager] 🚫 Image trop grosse ignorée du cache: ${Math.round(estimatedSize / 1024 / 1024)}MB`);
+            return;
+        }
+
+        // 4. SUPPRIMER L'ANCIENNE ENTRÉE SI ELLE EXISTE (mise à jour)
+        if (this.imageCache.has(imageUrl)) {
+            this.imageCache.delete(imageUrl);
+            const existingIndex = this.cacheAccessOrder.indexOf(imageUrl);
+            if (existingIndex > -1) {
+                this.cacheAccessOrder.splice(existingIndex, 1);
+            }
+        }
+
+        // 5. VÉRIFIER LA LIMITE DE MÉMOIRE AVANT D'AJOUTER
+        let currentMemoryUsage = this.calculateCurrentMemoryUsage();
+        while (currentMemoryUsage + estimatedSize > maxMemoryUsage && this.cacheAccessOrder.length > 0) {
             const oldestUrl = this.cacheAccessOrder.pop();
             if (oldestUrl && this.imageCache.has(oldestUrl)) {
+                const oldImage = this.imageCache.get(oldestUrl);
+                currentMemoryUsage -= this.estimateImageSize(oldImage);
                 this.imageCache.delete(oldestUrl);
+                console.log(`[CroppingManager] 🗑️ Suppression LRU: ${oldestUrl.substring(0, 50)}...`);
             }
         }
 
-        console.log(`[CroppingManager] 📦 Cache mis à jour: ${this.imageCache.size}/${this.cacheSizeLimit} images en mémoire`);
+        // 6. AJOUTER LA NOUVELLE IMAGE
+        this.imageCache.set(imageUrl, {
+            image: imageObject,
+            size: estimatedSize,
+            timestamp: Date.now(),
+            accessCount: 0
+        });
+
+        // 7. METTRE À JOUR L'ORDRE D'ACCÈS (LRU)
+        this.cacheAccessOrder.unshift(imageUrl);
+
+        // 8. LIMITER LA TAILLE DU CACHE
+        if (this.cacheAccessOrder.length > this.cacheSizeLimit) {
+            const urlsToRemove = this.cacheAccessOrder.splice(this.cacheSizeLimit);
+            urlsToRemove.forEach(url => {
+                if (this.imageCache.has(url)) {
+                    this.imageCache.delete(url);
+                }
+            });
+        }
+
+        // 9. LOG AMÉLIORÉ AVEC MÉTRIQUES
+        const memoryUsageMB = Math.round(currentMemoryUsage / 1024 / 1024 * 100) / 100;
+        console.log(`[CroppingManager] 📦 Cache: ${this.imageCache.size}/${this.cacheSizeLimit} | Mémoire: ${memoryUsageMB}MB | Taux: ${Math.round(this.getCacheStats().hitRate * 100)}%`);
     }
 
-    // NOUVELLE MÉTHODE : Nettoyer le cache pour éviter les fuites mémoire
+    // NOUVELLE MÉTHODE : Estimer la taille mémoire d'une image
+    estimateImageSize(imageObject) {
+        if (!imageObject || !imageObject.naturalWidth || !imageObject.naturalHeight) {
+            return 1024 * 1024; // 1MB par défaut pour les images invalides
+        }
+
+        // Calcul approximatif : 4 bytes par pixel (RGBA) + overhead
+        const pixelCount = imageObject.naturalWidth * imageObject.naturalHeight;
+        const estimatedBytes = pixelCount * 4 * 1.5; // Facteur de sécurité de 1.5
+
+        return Math.max(estimatedBytes, 500 * 1024); // Minimum 500KB
+    }
+
+    // NOUVELLE MÉTHODE : Calculer la mémoire actuellement utilisée
+    calculateCurrentMemoryUsage() {
+        let totalSize = 0;
+        for (const [url, cachedItem] of this.imageCache.entries()) {
+            totalSize += cachedItem.size || 1024 * 1024; // Fallback 1MB si pas de taille
+        }
+        return totalSize;
+    }
+
+    // MÉTHODE AMÉLIORÉE : Nettoyer le cache pour éviter les fuites mémoire
     cleanupCache() {
-        // Supprimer les images non utilisées depuis plus de 10 minutes (indiquées par leur absence dans le cache LRU)
-        const cutoffIndex = Math.min(this.cacheSizeLimit, this.cacheAccessOrder.length - 5); // Garder les 5 plus récentes
-        for (let i = cutoffIndex; i < this.cacheAccessOrder.length; i++) {
-            const oldUrl = this.cacheAccessOrder[i];
-            if (this.imageCache.has(oldUrl)) {
-                this.imageCache.delete(oldUrl);
+        const now = Date.now();
+        const maxAge = 10 * 60 * 1000; // 10 minutes
+        const removedItems = [];
+
+        // 1. SUPPRIMER LES IMAGES TROP VIEILLES
+        for (const [url, cachedItem] of this.imageCache.entries()) {
+            if (now - cachedItem.timestamp > maxAge) {
+                this.imageCache.delete(url);
+                removedItems.push(url);
             }
         }
-        if (this.cacheAccessOrder.length > this.cacheSizeLimit * 2) {
-            // En cas d'explosion du cache, couper les plus anciennes
-            this.cacheAccessOrder.splice(this.cacheSizeLimit);
+
+        // 2. METTRE À JOUR L'ORDRE D'ACCÈS
+        this.cacheAccessOrder = this.cacheAccessOrder.filter(url => this.imageCache.has(url));
+
+        // 3. SUPPRIMER LES IMAGES LES MOINS ACCÉDÉES SI TROP PLEIN
+        if (this.imageCache.size > this.cacheSizeLimit * 0.8) {
+            const itemsByAccess = Array.from(this.imageCache.entries())
+                .sort((a, b) => (a[1].accessCount || 0) - (b[1].accessCount || 0));
+
+            const itemsToRemove = itemsByAccess.slice(0, Math.ceil(this.imageCache.size * 0.3));
+            itemsToRemove.forEach(([url]) => {
+                this.imageCache.delete(url);
+                removedItems.push(url);
+            });
+
+            // Mettre à jour l'ordre d'accès
+            this.cacheAccessOrder = this.cacheAccessOrder.filter(url => this.imageCache.has(url));
+        }
+
+        if (removedItems.length > 0) {
+            console.log(`[CroppingManager] 🧹 Nettoyage: ${removedItems.length} images supprimées (${removedItems.slice(0, 3).map(url => url.substring(0, 50) + '...').join(', ')})`);
         }
     }
 
-    // NOUVELLE MÉTHODE : Optimisation du cache avec métriques de performance
+    // MÉTHODE AMÉLIORÉE : Optimisation du cache avec métriques de performance détaillées
     getCacheStats() {
+        const totalRequests = this.cacheHits + this.cacheMisses;
+        const hitRate = totalRequests > 0 ? this.cacheHits / totalRequests : 0;
+
+        // Calculer la mémoire utilisée de manière plus précise
+        let totalMemoryUsage = 0;
+        let largestImage = 0;
+        let smallestImage = Infinity;
+
+        for (const [url, cachedItem] of this.imageCache.entries()) {
+            const itemSize = cachedItem.size || 1024 * 1024; // Fallback 1MB
+            totalMemoryUsage += itemSize;
+
+            if (itemSize > largestImage) largestImage = itemSize;
+            if (itemSize < smallestImage) smallestImage = itemSize;
+        }
+
+        // Calculer l'âge moyen des images en cache
+        const now = Date.now();
+        let totalAge = 0;
+        let validAges = 0;
+
+        for (const [url, cachedItem] of this.imageCache.entries()) {
+            if (cachedItem.timestamp) {
+                totalAge += (now - cachedItem.timestamp);
+                validAges++;
+            }
+        }
+
+        const averageAge = validAges > 0 ? totalAge / validAges : 0;
+
         return {
             size: this.imageCache.size,
             maxSize: this.cacheSizeLimit,
-            hitRate: this.cacheHits / (this.cacheHits + this.cacheMisses) || 0,
-            memoryUsage: Math.round(JSON.stringify([...this.imageCache.entries()]).length / 1024) + 'KB'
+            hitRate: hitRate,
+            memoryUsage: Math.round(totalMemoryUsage / 1024 / 1024 * 100) / 100 + 'MB',
+            memoryUsageBytes: totalMemoryUsage,
+            largestImage: Math.round(largestImage / 1024 / 1024 * 100) / 100 + 'MB',
+            smallestImage: smallestImage === Infinity ? '0MB' : Math.round(smallestImage / 1024 / 1024 * 100) / 100 + 'MB',
+            averageAge: Math.round(averageAge / 1000) + 's',
+            totalRequests: totalRequests,
+            cacheEfficiency: Math.round(hitRate * 100) + '%',
+            fragmentationRatio: this.imageCache.size > 0 ? Math.round((this.cacheAccessOrder.length / this.imageCache.size) * 100) / 100 : 0
         };
     }
 
-    // NOUVELLES MÉTHODES : Optimisation des opérations de canvas
+    // NOUVELLE MÉTHODE : Logger les métriques de performance avec détails
+    logPerformanceMetrics() {
+        const stats = this.getCacheStats();
+        const logEntry = {
+            timestamp: new Date().toISOString(),
+            ...stats,
+            totalRequests: this.cacheHits + this.cacheMisses
+        };
+
+        this.performanceLog.push(logEntry);
+
+        // Garder seulement les 20 dernières entrées (au lieu de 10)
+        if (this.performanceLog.length > 20) {
+            this.performanceLog.shift();
+        }
+
+        // Log détaillé seulement si le taux de hit est faible ou s'il y a des problèmes
+        if (stats.hitRate < 0.5 || stats.size === 0) {
+            console.warn(`[CroppingManager] 📊 Performance Cache DÉTAILLÉE:`, {
+                'Taux de succès': stats.hitRate,
+                'Taille cache': `${stats.size}/${stats.maxSize}`,
+                'Mémoire': stats.memoryUsage,
+                'Plus grosse image': stats.largestImage,
+                'Âge moyen': stats.averageAge,
+                'Requête total': stats.totalRequests,
+                'Fragmentation': stats.fragmentationRatio
+            });
+        } else {
+            console.log(`[CroppingManager] 📊 Performance Cache: ${Math.round(stats.hitRate * 100)}% hits, ${stats.size}/${stats.maxSize} images, ${stats.memoryUsage}`);
+        }
+
+        // NOUVEAU : Détecter les problèmes de performance
+        this.detectPerformanceIssues(stats);
+    }
+
+    // NOUVELLE MÉTHODE : Détecter et signaler les problèmes de performance
+    detectPerformanceIssues(stats) {
+        const issues = [];
+
+        if (stats.hitRate < 0.3) {
+            issues.push(`Taux de cache très faible (${Math.round(stats.hitRate * 100)}%) - préchargement inefficace`);
+        }
+
+        if (stats.memoryUsageBytes > 50 * 1024 * 1024) { // Plus de 50MB
+            issues.push(`Utilisation mémoire élevée (${stats.memoryUsage}) - risque de ralentissement`);
+        }
+
+        if (stats.fragmentationRatio > 2) {
+            issues.push(`Fragmentation élevée (${stats.fragmentationRatio}) - cache sous-utilisé`);
+        }
+
+        if (stats.averageAge > 300000) { // Plus de 5 minutes
+            issues.push(`Images trop vieilles en cache (${stats.averageAge}) - rafraîchissement nécessaire`);
+        }
+
+        if (issues.length > 0) {
+            console.warn(`[CroppingManager] ⚠️ Problèmes détectés (${issues.length}):`, issues);
+        }
+    }
+
+    // MÉTHODES AMÉLIORÉES : Optimisation des opérations de canvas et virtualisation
     optimizeCanvasRendering() {
         // Activer l'accélération matérielle
         const canvas = this.canvasElement;
@@ -2052,6 +2291,337 @@ class CroppingManager {
             // Fallback pour les navigateurs plus anciens
             console.log('[CroppingManager] Optimisation canvas: willReadFrequently non supporté');
         }
+
+        // NOUVEAU : Optimiser les performances de rendu
+        this.setupCanvasOptimizations();
+    }
+
+    // NOUVELLE MÉTHODE : Configuration des optimisations canvas
+    setupCanvasOptimizations() {
+        const canvas = this.canvasElement;
+        const ctx = this.ctx;
+
+        // 1. DÉSACTIVER LES OPÉRATIONS COÛTEUSES SI PAS NÉCESSAIRE
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = 'medium';
+
+        // 2. CONFIGURER LE COMPOSITE MODE POUR DE MEILLEURES PERFORMANCES
+        ctx.globalCompositeOperation = 'source-over';
+
+        // 3. OPTIMISER LES PROPRIÉTÉS DE STYLE
+        if (!this.optimizedStyleCache) {
+            this.optimizedStyleCache = {
+                fillStyle: CROPPER_BACKGROUND_GRAY,
+                strokeStyle: 'rgba(255, 255, 255, 0.9)',
+                lineWidth: 2,
+                shadowColor: 'rgba(0, 0, 0, 0.3)',
+                shadowBlur: 0
+            };
+        }
+
+        // 4. PRÉ-CRÉER LES OBJETS PATH POUR LES POIGNÉES
+        this.precomputeHandlePaths();
+
+        console.log('[CroppingManager] Optimisations canvas appliquées');
+    }
+
+    // NOUVELLE MÉTHODE : Pré-calculer les chemins des poignées pour éviter les recalculs
+    precomputeHandlePaths() {
+        if (this.handlePaths && this.handlePaths.length > 0) return; // Déjà calculé
+
+        this.handlePaths = [];
+        const hRadius = this.handleSize / 2;
+
+        // Pré-calculer les 8 positions de poignées
+        const handlePositions = [
+            { x: 0, y: 0 },           // nw
+            { x: 0.5, y: 0 },         // n
+            { x: 1, y: 0 },           // ne
+            { x: 1, y: 0.5 },         // e
+            { x: 1, y: 1 },           // se
+            { x: 0.5, y: 1 },         // s
+            { x: 0, y: 1 },           // sw
+            { x: 0, y: 0.5 }          // w
+        ];
+
+        handlePositions.forEach(pos => {
+            const path = new Path2D();
+            path.arc(0, 0, hRadius, 0, 2 * Math.PI);
+            this.handlePaths.push({
+                path: path,
+                x: pos.x,
+                y: pos.y,
+                radius: hRadius
+            });
+        });
+    }
+
+    // MÉTHODE AMÉLIORÉE : Redessin optimisé avec pré-calculs
+    _internalRedraw(updatePreviewAlso = false) {
+        const ctx = this.ctx;
+        const canvas = this.canvasElement;
+
+        // 1. INITIALISER LE CACHE DES STYLES SI NÉCESSAIRE
+        if (!this.optimizedStyleCache) {
+            this.setupCanvasOptimizations();
+        }
+
+        // 2. FOND RAPIDE
+        ctx.fillStyle = this.optimizedStyleCache.fillStyle;
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+        if (!this.currentImageObject) return;
+
+        if (this.saveMode === 'white_bars') {
+            this.drawWhiteBarsOptimized();
+        } else {
+            this.drawImageOptimized();
+            this.drawCropRectOptimized();
+        }
+
+        if (updatePreviewAlso) {
+            this.debouncedUpdatePreview();
+        }
+    }
+
+    // NOUVELLE MÉTHODE : Dessin optimisé des barres blanches
+    drawWhiteBarsOptimized() {
+        const ctx = this.ctx;
+        const canvas = this.canvasElement;
+        const { finalWidth, finalHeight, pasteX, pasteY } = this.calculateWhiteBarDimensions();
+
+        if (!finalWidth || !finalHeight) return;
+
+        const scaleToFitCanvasX = canvas.width / finalWidth;
+        const scaleToFitCanvasY = canvas.height / finalHeight;
+        const finalScale = Math.min(scaleToFitCanvasX, scaleToFitCanvasY) * 0.95;
+        const displayWBFWidth = finalWidth * finalScale;
+        const displayWBFHeight = finalHeight * finalScale;
+        const displayWBFX = (canvas.width - displayWBFWidth) / 2;
+        const displayWBFY = (canvas.height - displayWBFHeight) / 2;
+
+        // 1. DESSINER LE FOND BLANC
+        ctx.fillStyle = 'white';
+        ctx.fillRect(displayWBFX, displayWBFY, displayWBFWidth, displayWBFHeight);
+
+        // 2. DESSINER L'IMAGE CENTRÉE
+        const imgRenderWidth = (this.currentImageObject.naturalWidth || this.currentImageObject.width) * finalScale;
+        const imgRenderHeight = (this.currentImageObject.naturalHeight || this.currentImageObject.height) * finalScale;
+        const imgRenderX = displayWBFX + (pasteX * finalScale);
+        const imgRenderY = displayWBFY + (pasteY * finalScale);
+
+        ctx.save();
+        if (this.flippedH) {
+            ctx.translate(imgRenderX + imgRenderWidth, imgRenderY);
+            ctx.scale(-1, 1);
+            ctx.drawImage(this.currentImageObject, 0, 0, imgRenderWidth, imgRenderHeight);
+        } else {
+            ctx.drawImage(this.currentImageObject, imgRenderX, imgRenderY, imgRenderWidth, imgRenderHeight);
+        }
+        ctx.restore();
+    }
+
+    // NOUVELLE MÉTHODE : Dessin optimisé de l'image principale
+    drawImageOptimized() {
+        const ctx = this.ctx;
+        const { displayX, displayY, displayWidth, displayHeight } = this.getImageDisplayDimensions();
+
+        if (displayWidth <= 0 || displayHeight <= 0) {
+            console.error('❌ ERREUR DE DESSIN : Dimensions de l\'image invalides (<= 0).');
+            return;
+        }
+
+        // 1. DESSINER L'IMAGE AVEC TRANSFORMATION OPTIMISÉE
+        ctx.save();
+        if (this.flippedH) {
+            ctx.translate(this.canvasElement.width, 0);
+            ctx.scale(-1, 1);
+            const adjustedDisplayX = this.canvasElement.width - displayX - displayWidth;
+            ctx.drawImage(this.currentImageObject, adjustedDisplayX, displayY, displayWidth, displayHeight);
+        } else {
+            ctx.drawImage(this.currentImageObject, displayX, displayY, displayWidth, displayHeight);
+        }
+        ctx.restore();
+
+        // 2. DESSINER LA BORDURE DE L'IMAGE
+        ctx.strokeStyle = 'rgba(0,0,0,0.3)';
+        ctx.lineWidth = 1;
+        ctx.strokeRect(displayX - 0.5, displayY - 0.5, displayWidth + 1, displayHeight + 1);
+    }
+
+    // NOUVELLE MÉTHODE : Dessin optimisé du rectangle de recadrage
+    drawCropRectOptimized() {
+        if (!this.cropRectDisplay) return;
+
+        const ctx = this.ctx;
+        const { x, y, width, height } = this.cropRectDisplay;
+
+        // 1. DESSINER LES BORDURES AVEC STYLE PRÉ-CACHÉ
+        ctx.strokeStyle = this.optimizedStyleCache.strokeStyle;
+        ctx.lineWidth = this.optimizedStyleCache.lineWidth;
+        ctx.strokeRect(x, y, width, height);
+
+        // 2. DESSINER LA BORDURE INTÉRIEURE
+        ctx.strokeStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.lineWidth = 0.5;
+        ctx.strokeRect(x - 0.5, y - 0.5, width + 1, height + 1);
+
+        // 3. DESSINER LES POIGNÉES AVEC PRÉ-CALCUL
+        this.drawHandlesOptimized(x, y, width, height);
+
+        // 4. DESSINER LES LIGNES DE DIVISION SI NÉCESSAIRE
+        if (this.showSplitLineCount > 0 && width > 0) {
+            this.drawSplitLinesOptimized(x, y, width, height);
+        }
+    }
+
+    // NOUVELLE MÉTHODE : Dessin optimisé des poignées
+    drawHandlesOptimized(cropX, cropY, cropWidth, cropHeight) {
+        const ctx = this.ctx;
+        const hRadius = this.handleSize / 2;
+
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.95)';
+        ctx.strokeStyle = 'rgba(0,0,0,0.6)';
+        ctx.lineWidth = 1;
+
+        // Utiliser les chemins pré-calculés
+        this.handlePaths.forEach(handle => {
+            ctx.save();
+            ctx.translate(cropX + (handle.x * cropWidth), cropY + (handle.y * cropHeight));
+            ctx.fill(handle.path);
+            ctx.stroke(handle.path);
+            ctx.restore();
+        });
+    }
+
+    // NOUVELLE MÉTHODE : Dessin optimisé des lignes de division
+    drawSplitLinesOptimized(cropX, cropY, cropWidth, cropHeight) {
+        const ctx = this.ctx;
+
+        ctx.beginPath();
+        ctx.setLineDash([5, 3]);
+        ctx.strokeStyle = 'rgba(220, 220, 220, 0.7)';
+        ctx.lineWidth = 1;
+
+        if (this.showSplitLineCount >= 1) {
+            const firstLineX = cropX + cropWidth / (this.showSplitLineCount + 1);
+            ctx.moveTo(firstLineX, cropY);
+            ctx.lineTo(firstLineX, cropY + cropHeight);
+        }
+
+        if (this.showSplitLineCount === 2) {
+            const secondLineX = cropX + (2 * cropWidth) / (this.showSplitLineCount + 1);
+            ctx.moveTo(secondLineX, cropY);
+            ctx.lineTo(secondLineX, cropY + cropHeight);
+        }
+
+        ctx.stroke();
+        ctx.setLineDash([]); // Remettre à zéro
+    }
+
+    // NOUVELLE MÉTHODE : Virtualisation pour les grandes quantités d'images
+    virtualizeImageRendering() {
+        if (!this.imagesToCrop || this.imagesToCrop.length === 0) return;
+
+        // 1. CALCULER LA FENÊTRE VISIBLE
+        const container = this.croppingPage.allPhotosGroupedViewContainer;
+        if (!container) return;
+
+        const containerRect = container.getBoundingClientRect();
+        const visibleIndices = this.calculateVisibleIndices(containerRect);
+
+        // 2. CRÉER UN POOL D'ÉLÉMENTS RÉUTILISABLES
+        this.ensureVirtualElementsPool(visibleIndices);
+
+        // 3. METTRE À JOUR SEULEMENT LES ÉLÉMENTS VISIBLES
+        this.updateVisibleElements(visibleIndices);
+
+        // 4. CACHER LES ÉLÉMENTS HORS VUE
+        this.hideNonVisibleElements(visibleIndices);
+    }
+
+    // NOUVELLE MÉTHODE : Calculer les indices des images visibles
+    calculateVisibleIndices(containerRect) {
+        const visibleIndices = [];
+        const itemHeight = 120; // Hauteur approximative d'un élément
+        const scrollTop = container.scrollTop;
+        const containerHeight = container.clientHeight;
+
+        const startIndex = Math.max(0, Math.floor(scrollTop / itemHeight) - 2); // Marge de 2 éléments
+        const endIndex = Math.min(
+            this.imagesToCrop.length - 1,
+            Math.ceil((scrollTop + containerHeight) / itemHeight) + 2
+        );
+
+        for (let i = startIndex; i <= endIndex; i++) {
+            visibleIndices.push(i);
+        }
+
+        return visibleIndices;
+    }
+
+    // NOUVELLE MÉTHODE : S'assurer qu'il y a assez d'éléments dans le pool
+    ensureVirtualElementsPool(visibleIndices) {
+        const container = this.croppingPage.allPhotosGroupedViewContainer;
+        const currentElements = container.querySelectorAll('.virtual-image-item');
+        const requiredCount = visibleIndices.length;
+
+        // Ajouter des éléments si nécessaire
+        while (currentElements.length < requiredCount) {
+            const element = document.createElement('div');
+            element.className = 'virtual-image-item';
+            element.style.display = 'none'; // Caché par défaut
+            container.appendChild(element);
+        }
+    }
+
+    // NOUVELLE MÉTHODE : Mettre à jour les éléments visibles
+    updateVisibleElements(visibleIndices) {
+        const container = this.croppingPage.allPhotosGroupedViewContainer;
+        const elements = container.querySelectorAll('.virtual-image-item');
+
+        visibleIndices.forEach((index, arrayIndex) => {
+            if (arrayIndex < elements.length) {
+                const element = elements[arrayIndex];
+                const imageInfo = this.imagesToCrop[index];
+
+                // Mettre à jour le contenu de l'élément
+                element.style.display = 'block';
+                element.style.position = 'absolute';
+                element.style.top = `${index * 120}px`; // Position verticale
+                element.style.width = '100%';
+                element.style.height = '120px';
+
+                // Mettre à jour l'image si nécessaire
+                this.updateVirtualElementContent(element, imageInfo, index);
+            }
+        });
+    }
+
+    // NOUVELLE MÉTHODE : Mettre à jour le contenu d'un élément virtuel
+    updateVirtualElementContent(element, imageInfo, index) {
+        // Vérifier si le contenu est déjà correct
+        if (element.dataset.imageIndex === index.toString()) return;
+
+        element.innerHTML = `
+            <div class="virtual-image-content">
+                <img src="${imageInfo.dataURL}" alt="${imageInfo.basename}" style="max-width: 100px; max-height: 100px;" />
+                <span>${imageInfo.basename}</span>
+            </div>
+        `;
+
+        element.dataset.imageIndex = index.toString();
+    }
+
+    // NOUVELLE MÉTHODE : Cacher les éléments non visibles
+    hideNonVisibleElements(visibleIndices) {
+        const container = this.croppingPage.allPhotosGroupedViewContainer;
+        const elements = container.querySelectorAll('.virtual-image-item');
+
+        Array.from(elements).forEach((element, arrayIndex) => {
+            const isVisible = visibleIndices.includes(arrayIndex);
+            element.style.display = isVisible ? 'block' : 'none';
+        });
     }
 
     // NOUVELLE MÉTHODE : Gestion intelligente de la mémoire
@@ -6977,15 +7547,36 @@ class CroppingPage {
 
     // Logique pour lancer le recadrage manuel
     async startCroppingForJour(publicationFrame, startIndex = 0) {
+        // VÉRIFICATION CRITIQUE : S'assurer que la publication a des images
+        if (!publicationFrame || !publicationFrame.imagesData || publicationFrame.imagesData.length === 0) {
+            this.clearEditor();
+            this.editorPlaceholderElement.textContent = "Cette publication est vide.";
+            return;
+        }
+
+        console.log(`[CroppingPage] Préparation du recadrage pour ${publicationFrame.imagesData.length} images de la Publication ${publicationFrame.letter}`);
+
         // --- CORRECTION ROBUSTE POUR LES IMAGES MANQUANTES ---
-        const imageInfosForCropper = publicationFrame.imagesData.map(imgDataInPublication => {
+        const imageInfosForCropper = [];
+
+        for (let i = 0; i < publicationFrame.imagesData.length; i++) {
+            const imgDataInPublication = publicationFrame.imagesData[i];
+            console.log(`[CroppingPage] Traitement de l'image ${i + 1}/${publicationFrame.imagesData.length}:`, {
+                imageId: imgDataInPublication.imageId,
+                originalReferencePath: imgDataInPublication.originalReferencePath,
+                hasDataURL: !!imgDataInPublication.dataURL,
+                hasMainImagePath: !!imgDataInPublication.mainImagePath
+            });
+
             // 1. Essayer d'abord de récupérer l'image depuis gridItemsDict (cas normal)
             let originalGridItem = this.organizerApp.gridItemsDict[imgDataInPublication.originalReferencePath];
 
             // 2. Si pas trouvé, essayer de chercher par imageId (fallback)
             if (!originalGridItem && imgDataInPublication.imageId) {
                 originalGridItem = this.organizerApp.gridItemsDict[imgDataInPublication.imageId];
-                console.log(`[FALLBACK] Image trouvée par imageId: ${imgDataInPublication.imageId}`);
+                if (originalGridItem) {
+                    console.log(`[FALLBACK] Image trouvée par imageId: ${imgDataInPublication.imageId}`);
+                }
             }
 
             // 3. Si toujours pas trouvé, essayer de chercher dans toutes les publications (double fallback)
@@ -6997,36 +7588,53 @@ class CroppingPage {
                 }
             }
 
-            // 4. Si aucune des méthodes n'a fonctionné, créer un objet de substitution
-            if (!originalGridItem) {
-                console.warn(`Image originale ${imgDataInPublication.originalReferencePath} non trouvée. Création d'un substitut.`);
+            let imageInfo;
 
-                // Afficher un message utilisateur plus clair
-                this.showUserNotification(`Image manquante: ${imgDataInPublication.basename || imgDataInPublication.originalReferencePath}`, 'warning');
+            // 4. Construire l'objet imageInfo avec les données disponibles
+            imageInfo = {
+                currentImageId: imgDataInPublication.imageId,
+                basename: imgDataInPublication.basename || (originalGridItem ? originalGridItem.basename : `Image ${imgDataInPublication.imageId}`),
+                originalReferenceId: imgDataInPublication.originalReferencePath,
+            };
 
-                // Marquer cette image comme défectueuse pour nettoyage ultérieur
-                this.markImageForCleanup(imgDataInPublication.imageId, imgDataInPublication.originalReferencePath);
-
-                // Créer un objet de substitution avec les informations disponibles
-                return {
-                    currentImageId: imgDataInPublication.imageId,
-                    basename: imgDataInPublication.basename || `Image ${imgDataInPublication.imageId}`,
-                    originalReferenceId: imgDataInPublication.originalReferencePath,
-                    // Utiliser le chemin de miniature comme fallback pour éviter l'erreur complète
-                    baseImageToCropFromDataURL: imgDataInPublication.dataURL || imgDataInPublication.mainImagePath,
-                    isSubstitute: true // Marquer comme substitut pour traitement spécial
-                };
+            // 5. Déterminer la meilleure URL d'image disponible pour le recadrage
+            if (originalGridItem && originalGridItem.imagePath) {
+                // Cas idéal : image originale trouvée
+                imageInfo.baseImageToCropFromDataURL = originalGridItem.imagePath;
+                console.log(`[CroppingPage] Utilisation de l'image originale: ${imageInfo.basename}`);
+            } else if (imgDataInPublication.mainImagePath) {
+                // Fallback 1: utiliser le mainImagePath
+                imageInfo.baseImageToCropFromDataURL = imgDataInPublication.mainImagePath;
+                console.log(`[CroppingPage] Utilisation du mainImagePath: ${imageInfo.basename}`);
+            } else if (imgDataInPublication.dataURL) {
+                // Fallback 2: utiliser le dataURL de miniature
+                imageInfo.baseImageToCropFromDataURL = imgDataInPublication.dataURL;
+                console.log(`[CroppingPage] Utilisation du dataURL de miniature: ${imageInfo.basename}`);
+            } else {
+                // Fallback 3: aucune URL disponible
+                console.error(`[CroppingPage] Aucune URL d'image disponible pour:`, imageInfo.basename);
+                this.showUserNotification(`Image non disponible: ${imageInfo.basename}`, 'error');
+                continue; // Passer à l'image suivante
             }
 
-            return {
-                currentImageId: imgDataInPublication.imageId,
-                basename: originalGridItem.basename,
-                originalReferenceId: imgDataInPublication.originalReferencePath,
-                // Utilisation du chemin direct vers l'image originale pour le recadrage
-                baseImageToCropFromDataURL: originalGridItem.imagePath,
-            };
-        }).filter(info => info !== null);
-        // --- FIN DE LA CORRECTION ROBUSTE ---
+            // 6. Vérification finale de sécurité
+            if (!imageInfo.baseImageToCropFromDataURL || imageInfo.baseImageToCropFromDataURL.trim() === '') {
+                console.error(`[CroppingPage] ERREUR CRITIQUE: baseImageToCropFromDataURL toujours vide après fallbacks pour:`, imageInfo.basename);
+                this.showUserNotification(`Configuration d'image invalide pour: ${imageInfo.basename}`, 'error');
+                continue; // Passer à l'image suivante
+            }
+
+            // 6. VÉRIFICATION FINALE : S'assurer que baseImageToCropFromDataURL est défini
+            if (!imageInfo.baseImageToCropFromDataURL || imageInfo.baseImageToCropFromDataURL.trim() === '') {
+                console.error(`[CroppingPage] ERREUR CRITIQUE: baseImageToCropFromDataURL est vide pour l'image:`, imageInfo);
+                this.showUserNotification(`Configuration d'image invalide pour: ${imageInfo.basename}`, 'error');
+                continue; // Passer à l'image suivante
+            }
+
+            imageInfosForCropper.push(imageInfo);
+        }
+
+        console.log(`[CroppingPage] ${imageInfosForCropper.length} images prêtes pour le recadrage`);
 
         if (imageInfosForCropper.length === 0) {
             this.clearEditor();
@@ -7034,9 +7642,15 @@ class CroppingPage {
             return;
         }
 
-        await this.croppingManager.startCropping(imageInfosForCropper, publicationFrame, startIndex);
-        this._populateThumbnailStrip(publicationFrame);
-        this._updateThumbnailStripHighlight(this.croppingManager.currentImageIndex);
+        try {
+            await this.croppingManager.startCropping(imageInfosForCropper, publicationFrame, startIndex);
+            this._populateThumbnailStrip(publicationFrame);
+            this._updateThumbnailStripHighlight(this.croppingManager.currentImageIndex);
+        } catch (error) {
+            console.error("[CroppingPage] Erreur lors du démarrage du recadrage:", error);
+            this.clearEditor();
+            this.editorPlaceholderElement.textContent = "Erreur lors de l'initialisation du recadrage.";
+        }
     }
 
     // Fonction utilitaire pour charger les images de manière sécurisée
